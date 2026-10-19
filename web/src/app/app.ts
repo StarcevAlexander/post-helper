@@ -14,6 +14,7 @@ import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
 import { ReviewScreen } from './components/review-screen/review-screen';
 import { KitScreen } from './components/kit-screen/kit-screen';
+import { RefsScreen } from './components/refs-screen/refs-screen';
 import { MessageBubble } from './components/message-bubble/message-bubble';
 import { SettingsPanel } from './components/settings-panel/settings-panel';
 import { AuditScreen } from './components/audit-screen/audit-screen';
@@ -52,6 +53,7 @@ import { APP_VERSION } from './version';
     CalendarScreen,
     Composer,
     KitScreen,
+    RefsScreen,
     MessageBubble,
     ProfileScreen,
     ReviewScreen,

@@ -296,3 +296,15 @@
   color: var(--text-muted);
   font-size: 0.8125rem;
 }
+
+.item__button--warn {
+  border-color: var(--danger, #b3261e);
+  color: var(--danger, #b3261e);
+}
+
+.screen__hint--warn {
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--danger, #b3261e);
+  border-radius: 0.75rem;
+  color: var(--text);
+}

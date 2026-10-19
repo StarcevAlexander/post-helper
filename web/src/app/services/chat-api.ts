@@ -5,6 +5,10 @@ import {
   API_CHAT_PATH,
   API_CLIENT_ERROR_PATH,
   API_AUDIT_JOBS_PATH,
+  API_REFS_FILES_PATH,
+  API_REFS_MADE_PATH,
+  API_REFS_ORDER_PATH,
+  API_REFS_STATUS_PATH,
   API_AUDIT_PATH,
   API_DEV_URL,
   API_KIT_PATH,
@@ -23,6 +27,8 @@ import {
 import {
   AccountInfo,
   AuditJob,
+  RefOrderItem,
+  RefStatus,
   AuditResult,
   ApiErrorBody,
   ApiReply,
@@ -128,6 +134,35 @@ export class ChatApi {
       `${API_AUDIT_JOBS_PATH}/${encodeURIComponent(id)}/cancel`,
       {},
     );
+  }
+
+  orderRefs(items: RefOrderItem[]): Promise<{ added: number; removed: number }> {
+    return this.send<{ added: number; removed: number }>('POST', API_REFS_ORDER_PATH, { items });
+  }
+
+  refStatuses(): Promise<RefStatus[]> {
+    return this.send<RefStatus[]>('GET', API_REFS_STATUS_PATH);
+  }
+
+  confirmRefsMade(key: string): Promise<{ ok: boolean }> {
+    return this.send<{ ok: boolean }>('POST', API_REFS_MADE_PATH, { key });
+  }
+
+  async refFile(id: string): Promise<Blob> {
+    const baseUrl = isDevMode() ? API_DEV_URL : API_PRODUCTION_URL;
+    if (!baseUrl) {
+      throw new ChatApiError(API_MESSAGES.notConfigured);
+    }
+    try {
+      return await firstValueFrom(
+        this.http.get(`${baseUrl}${API_REFS_FILES_PATH}/${encodeURIComponent(id)}`, {
+          responseType: 'blob',
+          headers: new HttpHeaders({ Authorization: `Bearer ${this.access.password()}` }),
+        }),
+      );
+    } catch (error) {
+      throw this.toApiError(error);
+    }
   }
 
   me(): Promise<AccountInfo> {

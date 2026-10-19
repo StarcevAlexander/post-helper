@@ -6,6 +6,7 @@ import (
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
+	"post-helper/server/internal/refs"
 	"post-helper/server/internal/store"
 )
 
@@ -68,6 +69,21 @@ func NewHandler(options Options) http.Handler {
 		mux.Handle(AgentNextRoute, withAgentToken(options.AgentToken, http.HandlerFunc(agent.next)))
 		mux.Handle(AgentResultRoute, withAgentToken(options.AgentToken, http.HandlerFunc(agent.result)))
 		mux.Handle(AgentFailRoute, withAgentToken(options.AgentToken, http.HandlerFunc(agent.fail)))
+	}
+	refsStore := options.Refs
+	if refsStore == nil {
+		refsStore = refs.NewMemory()
+	}
+	refsMaster := &refsHandler{refs: refsStore, accounts: accountStore, planner: options.RefPlanner, logger: logger}
+	mux.Handle(RefsOrderRoute, protected(requireMaster(http.HandlerFunc(refsMaster.order))))
+	mux.Handle(RefsStatusRoute, protected(requireMaster(http.HandlerFunc(refsMaster.status))))
+	mux.Handle(RefsMadeRoute, protected(requireMaster(http.HandlerFunc(refsMaster.made))))
+	mux.Handle(RefsFileRoute, protected(requireMaster(http.HandlerFunc(refsMaster.file))))
+	if options.AgentToken != "" && options.RefPlanner != nil {
+		refsAgent := &refsAgentHandler{refsHandler: *refsMaster}
+		mux.Handle(AgentRefsNextRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.next)))
+		mux.Handle(AgentRefsResultRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.result)))
+		mux.Handle(AgentRefsFailRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.fail)))
 	}
 	mux.Handle(AuditRoute, quota(UsageAudit, &auditHandler{journal: events, generator: options.Auditor, recorder: history, logger: logger}))
 	mux.Handle(ReviewRoute, quota(UsageReview, &reviewHandler{journal: events, generator: options.Reviewer, recorder: history, logger: logger}))

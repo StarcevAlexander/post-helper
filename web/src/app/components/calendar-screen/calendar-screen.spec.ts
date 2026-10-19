@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, STRATEGY_STORAGE_KEY } from '../../constants';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
+import { Refs } from '../../services/refs';
 import { CalendarScreen } from './calendar-screen';
 
 const strategy = {
@@ -152,6 +153,39 @@ describe('CalendarScreen', () => {
 
     expect(element.querySelectorAll('.item__kit .item__button').length).toBe(16);
     expect(element.querySelector('.week .screen__secondary')?.textContent).toContain('на неделю');
+  });
+
+  it('shows the state of the references next to each publication and warns about overdue ones', async () => {
+    const { fixture, element } = setUp();
+    await fixture.whenStable();
+    submitButton(element).click();
+    await fixture.whenStable();
+    const [first, second, third] = TestBed.inject(CalendarPlan).items();
+    TestBed.inject(Refs).statuses.set([
+      { key: first.id, status: 'done', kind: 'photo', stale: true, files: [] },
+      {
+        key: second.id,
+        status: 'done',
+        kind: 'photo',
+        stale: false,
+        files: [
+          { id: 'a', index: 0, kind: 'photo', mediaType: 'image/jpeg', caption: '', size: 1 },
+          { id: 'b', index: 1, kind: 'photo', mediaType: 'image/jpeg', caption: '', size: 1 },
+        ],
+      },
+      { key: third.id, status: 'running', kind: 'photo', stale: false, files: [] },
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = element.textContent ?? '';
+    expect(text).toContain('Подтвердите, что контент изготовлен');
+    expect(text).toContain('Референсы (2)');
+    expect(text).toContain('Референсы делаются');
+    expect(element.querySelector('.screen__hint--warn')?.textContent).toContain(
+      'Новые референсы пока не делаются',
+    );
+    expect(element.querySelectorAll('.item__button--warn').length).toBe(1);
   });
 
   it('opens a ready kit and shows the retry after a failure', async () => {

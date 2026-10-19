@@ -25,6 +25,7 @@ import {
   FORMAT_LABELS,
   ICS_FILE_NAME,
   KIT_OPEN_LABEL,
+  REFS_TEXTS,
   KIT_PREPARE_LABEL,
   KIT_PREPARE_WEEK_LABEL,
   KIT_PREPARING_LABEL,
@@ -48,6 +49,7 @@ import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
 import { Onboarding } from '../../services/onboarding';
 import { Reviews } from '../../services/reviews';
+import { Refs } from '../../services/refs';
 import { buildIcs } from '../../utils/ics-builder';
 import { fromDateKey, toDateKey } from '../../utils/date-utils';
 
@@ -57,6 +59,8 @@ interface ItemView {
   formatLabel: string;
   status: KitStatus;
   error?: string;
+  refLabel?: string;
+  refStale: boolean;
 }
 
 interface WeekView {
@@ -91,6 +95,8 @@ export class CalendarScreen {
   protected readonly onboarding = inject(Onboarding);
   protected readonly kits = inject(Kits);
   protected readonly reviews = inject(Reviews);
+  protected readonly refs = inject(Refs);
+  protected readonly refsTexts = REFS_TEXTS;
   protected readonly reviewTexts = REVIEW_TEXTS;
   protected readonly openKitLabel = KIT_OPEN_LABEL;
   protected readonly prepareKitLabel = KIT_PREPARE_LABEL;
@@ -154,6 +160,8 @@ export class CalendarScreen {
         formatLabel: FORMAT_LABELS[item.format],
         status: this.kits.statusOf(item),
         error: this.kits.errorOf(item),
+        refLabel: this.refLabel(item.id),
+        refStale: this.refs.byKey().get(item.id)?.stale ?? false,
       })),
       pending: week.items.filter((item) => this.kits.statusOf(item) !== 'ready').length,
       source: week,
@@ -163,6 +171,22 @@ export class CalendarScreen {
   );
 
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
+
+  private refLabel(key: string): string | undefined {
+    const status = this.refs.byKey().get(key);
+    switch (status?.status) {
+      case undefined:
+        return undefined;
+      case 'done':
+        return status.stale ? REFS_TEXTS.stale : `${REFS_TEXTS.open} (${status.files.length})`;
+      case 'failed':
+        return REFS_TEXTS.failed;
+      case 'made':
+        return REFS_TEXTS.made;
+      default:
+        return REFS_TEXTS.making;
+    }
+  }
 
   constructor() {
     effect(() => {

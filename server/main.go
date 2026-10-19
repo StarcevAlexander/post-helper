@@ -17,6 +17,7 @@ import (
 	"post-helper/server/internal/config"
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/kit"
+	"post-helper/server/internal/refs"
 	"post-helper/server/internal/review"
 	"post-helper/server/internal/store"
 	"post-helper/server/internal/strategy"
@@ -55,6 +56,7 @@ func run() error {
 	memoryAccounts := accounts.NewMemory()
 	memoryAccounts.HistoryKeep = cfg.HistoryKeep
 	var accountStore accounts.Store = memoryAccounts
+	var refsStore refs.Store = refs.NewMemory()
 	if cfg.DatabaseURL != "" {
 		openCtx, cancel := context.WithTimeout(context.Background(), databaseOpenTimeout)
 		postgres, err := store.Open(openCtx, cfg.DatabaseURL, logger)
@@ -66,6 +68,7 @@ func run() error {
 		postgresAccounts := accounts.NewPostgres(postgres.Pool())
 		postgresAccounts.HistoryKeep = cfg.HistoryKeep
 		accountStore = postgresAccounts
+		refsStore = refs.NewPostgres(postgres.Pool())
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
 		slog.SetDefault(logger)
 	} else {
@@ -85,6 +88,8 @@ func run() error {
 		Reviewer:       review.NewClaude(cfg.APIKey, cfg.Model),
 		Auditor:        audit.NewClaude(cfg.APIKey, cfg.Model),
 		AgentToken:     cfg.AgentToken,
+		Refs:           refsStore,
+		RefPlanner:     refs.NewClaude(cfg.APIKey, cfg.Model),
 		Accounts:       accountStore,
 		DailyAILimit:   cfg.DailyAILimit,
 		RetentionDays:  cfg.RetentionDays,

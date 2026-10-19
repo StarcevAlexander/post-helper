@@ -10,6 +10,7 @@ import (
 	"post-helper/server/internal/audit"
 	"post-helper/server/internal/chat"
 	"post-helper/server/internal/kit"
+	"post-helper/server/internal/refs"
 	"post-helper/server/internal/review"
 	"post-helper/server/internal/store"
 	"post-helper/server/internal/strategy"
@@ -21,6 +22,8 @@ type Options struct {
 	KitMaker       kit.Generator
 	Auditor        audit.Generator
 	Reviewer       review.Generator
+	Refs           refs.Store
+	RefPlanner     refs.Generator
 	AgentToken     string
 	Accounts       accounts.Store
 	DailyAILimit   int
@@ -140,4 +143,20 @@ type AgentJob struct {
 type AgentFailRequest struct {
 	Reason string `json:"reason"`
 	Final  bool   `json:"final"`
+}
+
+type RefsOrderRequest struct {
+	Items []refs.OrderItem `json:"items"`
+}
+
+type RefAgentItem struct {
+	ID      string        `json:"id"`
+	Key     string        `json:"key"`
+	Format  string        `json:"format"`
+	Kind    string        `json:"kind"`
+	Prompts []refs.Prompt `json:"prompts"`
+}
+
+type RefsMadeRequest struct {
+	Key string `json:"key"`
 }

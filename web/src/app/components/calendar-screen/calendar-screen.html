@@ -102,6 +102,9 @@
     <section class="plan">
       <h3 class="screen__heading">{{ planTitle }}</h3>
       @if (plan.hasPlan()) {
+        @if (refs.blocked()) {
+          <p class="screen__hint screen__hint--warn" role="status">{{ refsTexts.blocked }}</p>
+        }
         @for (week of weekViews(); track week.index) {
           <article class="week">
             <h4 class="week__title">{{ week.title }}</h4>
@@ -173,6 +176,16 @@
                           <span class="field__error" role="alert">{{ view.error }}</span>
                         }
                       }
+                    }
+                    @if (view.refLabel) {
+                      <button
+                        type="button"
+                        class="item__button"
+                        [class.item__button--warn]="view.refStale"
+                        (click)="refs.view(view.item.id)"
+                      >
+                        {{ view.refLabel }}
+                      </button>
                     }
                   </div>
                 </li>

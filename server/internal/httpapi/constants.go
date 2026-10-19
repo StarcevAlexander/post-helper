@@ -167,3 +167,26 @@ type JobProfile struct {
 	Specialty string `json:"specialty,omitempty"`
 	City      string `json:"city,omitempty"`
 }
+
+const (
+	RefsOrderRoute       = "POST /api/refs/order"
+	RefsStatusRoute      = "GET /api/refs/status"
+	RefsFileRoute        = "GET /api/refs/files/{id}"
+	AgentRefsNextRoute   = "GET /api/agent/refs/next"
+	AgentRefsResultRoute = "POST /api/agent/refs/{id}/result"
+	AgentRefsFailRoute   = "POST /api/agent/refs/{id}/fail"
+
+	MaxRefsOrderBytes  int64 = 128 << 10
+	MaxRefsResultBytes int64 = 24 << 20
+
+	MsgRefsFailed   = "Не удалось обработать референсы"
+	MsgRefsNotFound = "Референс не найден"
+	MsgRefsState    = "Референс уже в другом состоянии"
+	MsgRefsTooMany  = "Слишком много пунктов плана"
+	MsgRefsFiles    = "Нужно от 1 до 3 файлов"
+)
+
+const (
+	RefsMadeRoute = "POST /api/refs/made"
+	MsgRefsBusy   = "Референсы сейчас делаются, подтвердите чуть позже"
+)
