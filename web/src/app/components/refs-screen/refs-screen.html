@@ -1,0 +1,117 @@
+<dialog
+  #dialog
+  class="screen"
+  aria-labelledby="refs-title"
+  (click)="onDialogClicked($event)"
+  (close)="onDialogClosed()"
+>
+  <div class="screen__body">
+    <header class="screen__header">
+      <div class="screen__heading-block">
+        <h2 id="refs-title" class="screen__title">{{ heading() }}</h2>
+        @if (subheading()) {
+          <p class="screen__subtitle">{{ subheading() }}</p>
+        }
+      </div>
+      <button
+        type="button"
+        class="screen__close"
+        [attr.aria-label]="texts.closeLabel"
+        (click)="onClose()"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </header>
+
+    @switch (status()?.status) {
+      @case ('done') {
+        <p class="screen__hint">{{ texts.intro }}</p>
+        <ul class="tiles">
+          @for (tile of tiles(); track tile.file.id) {
+            <li class="tile">
+              @if (tile.url) {
+                @if (tile.file.kind === 'video') {
+                  <video
+                    class="tile__media"
+                    [src]="tile.url"
+                    controls
+                    muted
+                    loop
+                    playsinline
+                    preload="metadata"
+                    [attr.aria-label]="tile.file.caption || texts.video"
+                  ></video>
+                } @else {
+                  <img
+                    class="tile__media"
+                    [src]="tile.url"
+                    [alt]="tile.file.caption || texts.photo"
+                  />
+                }
+              } @else if (tile.failed) {
+                <p class="tile__placeholder" role="alert">{{ texts.loadFailed }}</p>
+              } @else {
+                <p class="tile__placeholder" role="status">{{ texts.loading }}</p>
+              }
+              @if (tile.file.caption) {
+                <p class="tile__caption">{{ tile.file.caption }}</p>
+              }
+            </li>
+          }
+        </ul>
+      }
+      @case ('queued') {
+        <p class="screen__hint" role="status">{{ texts.pending }}</p>
+      }
+      @case ('running') {
+        <p class="screen__hint" role="status">{{ texts.pending }}</p>
+      }
+      @case ('failed') {
+        <p class="screen__error" role="alert">{{ texts.failed }}</p>
+      }
+      @case ('made') {
+        <p class="screen__hint">{{ texts.made }}</p>
+      }
+      @default {
+        <p class="screen__hint">{{ texts.pending }}</p>
+      }
+    }
+
+    @if (refs.error(); as message) {
+      <p class="screen__error" role="alert">{{ message }}</p>
+    }
+
+    @if (canConfirm()) {
+      <button
+        type="button"
+        class="screen__primary"
+        [disabled]="refs.busy()"
+        (click)="onAskConfirm()"
+      >
+        {{ texts.done }}
+      </button>
+      <p class="screen__hint">{{ texts.doneHint }}</p>
+    }
+  </div>
+
+  <dialog #confirm class="confirm" aria-labelledby="refs-confirm-title">
+    <div class="confirm__body">
+      <h3 id="refs-confirm-title" class="confirm__title">{{ texts.confirmTitle }}</h3>
+      <p class="confirm__text">{{ texts.confirmText }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="screen__secondary" (click)="onCancel()">
+          {{ texts.cancel }}
+        </button>
+        <button type="button" class="screen__primary" (click)="onOk()">{{ texts.ok }}</button>
+      </div>
+    </div>
+  </dialog>
+</dialog>
