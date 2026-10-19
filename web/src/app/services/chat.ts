@@ -2,6 +2,7 @@ import { Service, computed, effect, inject, signal } from '@angular/core';
 import {
   MAX_HISTORY_TURNS,
   BACK_WORDS,
+  ONBOARDING_EDIT_TEXT,
   ONBOARDING_BACK_TEXT,
   ONBOARDING_FIRST_QUESTION_BACK_TEXT,
   ONBOARDING_INTRO_TEXT,
@@ -20,6 +21,7 @@ import {
   ChatMessage,
   ChatReply,
   ComposerPayload,
+  ProfileField,
 } from '../models';
 import { Access } from './access';
 import { CalendarPlan } from './calendar-plan';
@@ -131,9 +133,22 @@ export class Chat {
     this.conversation.reset();
   }
 
+  editAnswer(id: string): void {
+    const target = this.messages().find((message) => message.id === id);
+    if (this.busy() || !target?.answerFor || !this.onboarding.startEdit(target.answerFor)) {
+      return;
+    }
+    const previous = this.onboarding.currentAnswer();
+    const note = previous
+      ? `${ONBOARDING_EDIT_TEXT} ${ONBOARDING_PREVIOUS_ANSWER_LABEL}: «${previous}».`
+      : ONBOARDING_EDIT_TEXT;
+    this.appendAssistantText(note);
+    this.appendAssistantText(this.questionText());
+  }
+
   remove(id: string): void {
     const target = this.messages().find((message) => message.id === id);
-    if (!target || target.pending) {
+    if (!target || target.pending || target.onboarding || target.answerFor) {
       return;
     }
     this.revokePreviews(target);
@@ -174,7 +189,14 @@ export class Chat {
   private appendAssistantText(text: string): void {
     this.messages.update((messages) => [
       ...messages,
-      { id: crypto.randomUUID(), role: 'assistant', text, attachments: [], createdAt: new Date() },
+      {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        text,
+        attachments: [],
+        createdAt: new Date(),
+        onboarding: true,
+      },
     ]);
   }
 
@@ -188,10 +210,14 @@ export class Chat {
       return;
     }
 
-    this.messages.update((messages) => [
-      ...messages,
-      { id: crypto.randomUUID(), role: 'user', text, attachments: [], createdAt: new Date() },
-    ]);
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      text,
+      attachments: [],
+      createdAt: new Date(),
+    };
+    this.messages.update((messages) => [...messages, userMessage]);
 
     if (this.onboarding.reviewing()) {
       this.appendAssistantText(ONBOARDING_REVIEWING_REMINDER_TEXT);
@@ -202,7 +228,11 @@ export class Chat {
       return;
     }
 
+    const step = this.onboarding.step();
     const result = this.onboarding.answer(text);
+    if (step && (result.outcome === 'next' || result.outcome === 'done')) {
+      this.markAnswer(userMessage.id, step.field);
+    }
     switch (result.outcome) {
       case 'repeat':
         this.appendAssistantText(ONBOARDING_REPEAT_TEXT);
@@ -218,6 +248,17 @@ export class Chat {
         this.appendAssistantText(ONBOARDING_REVIEW_TEXT);
         break;
     }
+  }
+
+  private markAnswer(messageId: string, field: ProfileField): void {
+    this.messages.update((messages) =>
+      messages.map((message) => {
+        if (message.id === messageId) {
+          return { ...message, answerFor: field };
+        }
+        return message.answerFor === field ? { ...message, answerFor: undefined } : message;
+      }),
+    );
   }
 
   private goBack(): void {
@@ -303,6 +344,7 @@ export class Chat {
       text,
       attachments: [],
       createdAt: new Date(),
+      onboarding: this.onboarding.active(),
     });
     if (!this.onboarding.active()) {
       return [welcome(WELCOME_TEXT)];

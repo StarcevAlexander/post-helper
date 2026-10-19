@@ -295,6 +295,164 @@ describe('Chat onboarding', () => {
     });
   });
 
+  describe('editing an answer', () => {
+    function answerBy(field: ProfileField) {
+      return chat.messages().find((message) => message.answerFor === field);
+    }
+
+    it('marks accepted answers and flags the bot messages of the onboarding', () => {
+      chat.send({ text: 'Анна', attachments: [] });
+      chat.send({ text: 'ыыыыыы', attachments: [] });
+
+      expect(answerBy('name')?.text).toBe('Анна');
+      const rejected = chat.messages().find((message) => message.text === 'ыыыыыы');
+      expect(rejected?.answerFor).toBeUndefined();
+      const bot = chat.messages().filter((message) => message.role === 'assistant');
+      expect(bot.length).toBeGreaterThan(2);
+      expect(bot.every((message) => message.onboarding)).toBe(true);
+    });
+
+    it('goes back to that question, shows the old answer and then resumes where it was', () => {
+      ['Анна', 'маникюр', 'Иркутск', '5 лет в профессии'].forEach((text) =>
+        chat.send({ text, attachments: [] }),
+      );
+      expect(onboarding.index()).toBe(4);
+
+      chat.editAnswer(answerBy('name')?.id ?? '');
+
+      expect(onboarding.index()).toBe(0);
+      const last = chat.messages().slice(-2);
+      expect(last[0].text).toContain('Анна');
+      expect(last[1].text).toContain(`1 из ${ONBOARDING_STEPS.length}`);
+
+      chat.send({ text: 'Аня', attachments: [] });
+
+      expect(onboarding.answers().name).toBe('Аня');
+      expect(onboarding.index()).toBe(4);
+      expect(lastText()).toContain(`5 из ${ONBOARDING_STEPS.length}`);
+      expect(onboarding.editing()).toBe(false);
+    });
+
+    it('keeps one edit button per question after the answer is replaced', () => {
+      chat.send({ text: 'Анна', attachments: [] });
+      chat.send({ text: 'маникюр', attachments: [] });
+      const old = answerBy('name');
+
+      chat.editAnswer(old?.id ?? '');
+      chat.send({ text: 'Аня', attachments: [] });
+
+      const owners = chat.messages().filter((message) => message.answerFor === 'name');
+      expect(owners.length).toBe(1);
+      expect(owners[0].text).toBe('Аня');
+      expect(chat.messages().find((message) => message.id === old?.id)?.answerFor).toBeUndefined();
+    });
+
+    it('stays on the question after a rejected new answer and still resumes later', () => {
+      ['Анна', 'маникюр', 'Иркутск'].forEach((text) => chat.send({ text, attachments: [] }));
+
+      chat.editAnswer(answerBy('specialty')?.id ?? '');
+      chat.send({ text: 'ыыыыыы', attachments: [] });
+
+      expect(onboarding.index()).toBe(1);
+      expect(onboarding.answers().specialty).toBe('маникюр');
+      expect(onboarding.editing()).toBe(true);
+
+      chat.send({ text: 'брови и ресницы', attachments: [] });
+
+      expect(onboarding.answers().specialty).toBe('брови и ресницы');
+      expect(onboarding.index()).toBe(3);
+    });
+
+    it('clears an optional answer that is skipped while editing', () => {
+      ['Анна', 'маникюр', 'Иркутск'].forEach((text) => chat.send({ text, attachments: [] }));
+
+      chat.editAnswer(answerBy('city')?.id ?? '');
+      chat.send({ text: 'пропустить', attachments: [] });
+
+      expect(onboarding.answers().city).toBeUndefined();
+      expect(onboarding.index()).toBe(3);
+    });
+
+    it('keeps the profile available while an answer is being edited', () => {
+      answerAll();
+
+      chat.editAnswer(answerBy('city')?.id ?? '');
+
+      expect(onboarding.active()).toBe(true);
+      expect(onboarding.editing()).toBe(true);
+      expect(onboarding.profile()?.specialty).toBe(VALID_ANSWERS.specialty);
+    });
+
+    it('returns to the review after an answer is edited in a finished questionnaire', () => {
+      answerAll();
+      confirmReview();
+      http.expectOne(strategyUrl).flush(strategy);
+
+      return vi
+        .waitFor(() => expect(chat.busy()).toBe(false))
+        .then(() => {
+          expect(onboarding.confirmed()).toBe(true);
+
+          chat.editAnswer(answerBy('city')?.id ?? '');
+          chat.send({ text: 'Ангарск', attachments: [] });
+
+          expect(onboarding.answers().city).toBe('Ангарск');
+          expect(onboarding.reviewing()).toBe(true);
+          expect(onboarding.confirmed()).toBe(false);
+          expect(lastText()).toBe(ONBOARDING_REVIEW_TEXT);
+          expect(onboarding.strategy()).toEqual(strategy);
+        });
+    });
+
+    it('remembers an edit in progress after a reload', () => {
+      ['Анна', 'маникюр', 'Иркутск'].forEach((text) => chat.send({ text, attachments: [] }));
+      chat.editAnswer(answerBy('name')?.id ?? '');
+      TestBed.tick();
+
+      TestBed.resetTestingModule();
+      setUp();
+
+      expect(onboarding.index()).toBe(0);
+      expect(onboarding.editing()).toBe(true);
+      expect(chat.messages().some((message) => message.answerFor === 'specialty')).toBe(true);
+      chat.send({ text: 'Аня', attachments: [] });
+      expect(onboarding.index()).toBe(3);
+    });
+
+    it('does not edit while a reply is pending or for a message that is not an answer', () => {
+      chat.send({ text: 'Анна', attachments: [] });
+      const bot = chat.messages().find((message) => message.role === 'assistant');
+
+      chat.editAnswer(bot?.id ?? '');
+      chat.editAnswer('unknown-id');
+      chat.busy.set(true);
+      chat.editAnswer(answerBy('name')?.id ?? '');
+
+      expect(onboarding.index()).toBe(1);
+      expect(onboarding.editing()).toBe(false);
+    });
+
+    it('does not allow deleting the bot messages or an accepted answer', () => {
+      chat.send({ text: 'Анна', attachments: [] });
+      const before = chat.messages().length;
+
+      chat.messages().forEach((message) => chat.remove(message.id));
+
+      const left = chat.messages();
+      expect(left.every((message) => message.onboarding || message.answerFor)).toBe(true);
+      expect(left.length).toBe(before);
+    });
+
+    it('still lets a rejected garbage message be deleted', () => {
+      chat.send({ text: 'Анна', attachments: [] });
+      chat.send({ text: 'ыыыыыы', attachments: [] });
+      const garbage = chat.messages().find((message) => message.text === 'ыыыыыы');
+
+      chat.remove(garbage?.id ?? '');
+
+      expect(chat.messages().some((message) => message.text === 'ыыыыыы')).toBe(false);
+    });
+  });
   it('remembers the progress in a new session', () => {
     chat.send({ text: 'Анна', attachments: [] });
     TestBed.tick();

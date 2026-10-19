@@ -71,7 +71,23 @@
           Повторить
         </button>
       }
-      @if (!message().pending) {
+      @if (editable()) {
+        <button
+          type="button"
+          class="bubble__speak"
+          [attr.aria-label]="editAriaLabel"
+          [disabled]="locked()"
+          (click)="editRequested.emit()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M16.9 3.3a2.5 2.5 0 0 1 3.5 3.5l-1.1 1.1-3.5-3.5 1.1-1.1ZM14.4 5.8l3.5 3.5L8.6 18.6 4 20l1.4-4.6 9-9.6Z"
+            />
+          </svg>
+          {{ editLabel }}
+        </button>
+      }
+      @if (deletable()) {
         <button
           type="button"
           class="bubble__speak bubble__delete"

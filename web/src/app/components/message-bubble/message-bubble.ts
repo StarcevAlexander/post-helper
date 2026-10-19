@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, input, output } from '@angular/core';
+import { ANSWER_EDIT_ARIA_LABEL, ANSWER_EDIT_LABEL } from '../../constants';
 import { ChatMessage } from '../../models';
 
 @Component({
@@ -18,7 +19,17 @@ export class MessageBubble {
   readonly speakRequested = output();
   readonly stopRequested = output();
   readonly deleteRequested = output();
+  readonly editRequested = output();
 
+  protected readonly editLabel = ANSWER_EDIT_LABEL;
+  protected readonly editAriaLabel = ANSWER_EDIT_ARIA_LABEL;
+  protected readonly editable = computed(
+    () => this.message().answerFor !== undefined && !this.message().pending,
+  );
+  protected readonly deletable = computed(() => {
+    const message = this.message();
+    return !message.pending && !message.onboarding && message.answerFor === undefined;
+  });
   protected readonly fromUser = computed(() => this.message().role === 'user');
   protected readonly speakable = computed(
     () =>

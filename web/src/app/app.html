@@ -118,6 +118,7 @@
           (speakRequested)="speech.speak(message.id, message.text)"
           (stopRequested)="speech.stopSpeaking()"
           (deleteRequested)="onDeleteRequested(message.id)"
+          (editRequested)="chat.editAnswer(message.id)"
         />
       }
     </div>

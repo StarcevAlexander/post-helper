@@ -1,3 +1,5 @@
+import { ProfileField } from './profile.models';
+
 export type MessageRole = 'user' | 'assistant';
 
 export interface Attachment {
@@ -17,6 +19,8 @@ export interface ChatMessage {
   createdAt: Date;
   pending?: boolean;
   failed?: boolean;
+  onboarding?: boolean;
+  answerFor?: ProfileField;
 }
 
 export interface StoredMessage {
@@ -24,6 +28,8 @@ export interface StoredMessage {
   role: MessageRole;
   text: string;
   createdAt: string;
+  onboarding?: boolean;
+  answerFor?: ProfileField;
 }
 
 export interface ComposerPayload {

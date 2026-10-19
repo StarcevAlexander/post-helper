@@ -45,7 +45,12 @@ function isStoredOnboarding(value: unknown): value is StoredOnboarding {
     candidate['index'] <= ONBOARDING_STEPS.length &&
     typeof candidate['answers'] === 'object' &&
     candidate['answers'] !== null &&
-    (candidate['confirmed'] === undefined || typeof candidate['confirmed'] === 'boolean')
+    (candidate['confirmed'] === undefined || typeof candidate['confirmed'] === 'boolean') &&
+    (candidate['resumeIndex'] === undefined ||
+      (typeof candidate['resumeIndex'] === 'number' &&
+        Number.isInteger(candidate['resumeIndex']) &&
+        candidate['resumeIndex'] >= 0 &&
+        candidate['resumeIndex'] <= ONBOARDING_STEPS.length))
   );
 }
 
@@ -68,14 +73,16 @@ export class Onboarding {
   readonly index = signal(this.stored.index);
   readonly strategy = signal<Strategy | undefined>(this.restoreStrategy());
   readonly confirmed = signal(this.stored.confirmed ?? this.strategy() !== undefined);
+  readonly resumeIndex = signal<number | undefined>(this.stored.resumeIndex);
 
   readonly total = ONBOARDING_STEPS.length;
   readonly active = computed(() => this.index() < this.total);
+  readonly editing = computed(() => this.resumeIndex() !== undefined);
   readonly reviewing = computed(() => !this.active() && !this.confirmed());
   readonly step = computed<OnboardingStep | undefined>(() => ONBOARDING_STEPS[this.index()]);
   readonly profile = computed<MasterProfile | undefined>(() => {
     const answers = this.answers();
-    return this.active() || !answers.specialty
+    return (this.active() && !this.editing()) || !answers.specialty
       ? undefined
       : { ...answers, specialty: answers.specialty };
   });
@@ -98,9 +105,22 @@ export class Onboarding {
     } else {
       this.answers.update((answers) => this.without(answers, step.field));
     }
-    this.index.update((index) => index + 1);
+    this.advance();
     this.saveProgress();
     return { outcome: this.active() ? 'next' : 'done' };
+  }
+
+  startEdit(field: ProfileField): boolean {
+    const target = ONBOARDING_STEPS.findIndex((step) => step.field === field);
+    if (target < 0) {
+      return false;
+    }
+    if (target !== this.index() && this.resumeIndex() === undefined) {
+      this.resumeIndex.set(this.index());
+    }
+    this.index.set(target);
+    this.saveProgress();
+    return true;
   }
 
   back(): boolean {
@@ -145,6 +165,19 @@ export class Onboarding {
     this.saveProgress();
   }
 
+  private advance(): void {
+    const resume = this.resumeIndex();
+    if (resume === undefined) {
+      this.index.update((index) => index + 1);
+      return;
+    }
+    this.index.set(resume);
+    this.resumeIndex.set(undefined);
+    if (resume >= this.total) {
+      this.confirmed.set(false);
+    }
+  }
+
   reopenReview(): void {
     this.confirmed.set(false);
     this.saveProgress();
@@ -163,6 +196,7 @@ export class Onboarding {
     this.answers.set({});
     this.index.set(0);
     this.confirmed.set(false);
+    this.resumeIndex.set(undefined);
     this.strategy.set(undefined);
     try {
       localStorage.removeItem(ONBOARDING_STORAGE_KEY);
@@ -183,6 +217,7 @@ export class Onboarding {
       index: this.index(),
       answers: this.answers(),
       confirmed: this.confirmed(),
+      resumeIndex: this.resumeIndex(),
     };
     try {
       localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(progress));

@@ -177,3 +177,9 @@ export const PROFILE_HINT =
 export const PROFILE_CONFIRM_LABEL = 'Всё верно, составить стратегию';
 
 export const PROFILE_UPDATE_LABEL = 'Сохранить и составить стратегию заново';
+
+export const ANSWER_EDIT_LABEL = 'Изменить';
+
+export const ANSWER_EDIT_ARIA_LABEL = 'Изменить ответ';
+
+export const ONBOARDING_EDIT_TEXT = 'Хорошо, поправим.';

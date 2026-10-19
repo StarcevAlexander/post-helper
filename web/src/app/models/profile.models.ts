@@ -39,4 +39,5 @@ export interface StoredOnboarding {
   index: number;
   answers: Partial<MasterProfile>;
   confirmed?: boolean;
+  resumeIndex?: number;
 }

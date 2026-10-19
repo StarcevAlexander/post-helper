@@ -8,16 +8,17 @@ const (
 	FormatStories = "stories"
 )
 
+const MaxOutputTokens int64 = 2500
+
 const (
-	MaxOutputTokens int64 = 2500
-	MaxShots              = 8
-	MaxHashtags           = 12
-	MaxHashtagRunes       = 40
-	MaxCaptionRunes       = 2000
-	MaxVisualRunes        = 300
-	MaxOverlayRunes       = 200
-	MaxShotRunes          = 200
-	MaxTipRunes           = 300
+	MaxShots        = 8
+	MaxHashtags     = 12
+	MaxHashtagRunes = 40
+	MaxCaptionRunes = 2000
+	MaxVisualRunes  = 300
+	MaxOverlayRunes = 200
+	MaxShotRunes    = 200
+	MaxTipRunes     = 300
 )
 
 var ErrBadKit = errors.New("bad kit")
