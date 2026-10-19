@@ -7,6 +7,8 @@ const (
 	EnvAllowedOrigins = "ALLOWED_ORIGINS"
 	EnvModel          = "HELPER_MODEL"
 	EnvDatabaseURL    = "DATABASE_URL"
+	EnvDailyAILimit   = "DAILY_AI_LIMIT"
+	DefaultDailyLimit = 80
 	DefaultPort       = "8080"
 	DefaultModel      = "claude-sonnet-5-5"
 	MinPasswordLength = 8

@@ -4,26 +4,39 @@ import { firstValueFrom } from 'rxjs';
 import {
   API_CHAT_PATH,
   API_CLIENT_ERROR_PATH,
+  API_ADMIN_MASTERS_PATH,
   API_DEV_URL,
   API_KIT_PATH,
+  API_ME_PATH,
   API_MESSAGES,
   API_PRODUCTION_URL,
+  API_REVIEW_PATH,
+  API_STATE_PATH,
   API_STRATEGY_PATH,
+  HTTP_CONFLICT,
   HTTP_OFFLINE,
   HTTP_UNAUTHORIZED,
   HTTP_UNPROCESSABLE,
   REQUEST_DESCRIPTIONS,
 } from '../constants';
 import {
+  AccountInfo,
   ApiErrorBody,
   ApiReply,
   ApiTurn,
   ChatApiError,
   ClientErrorReport,
   ComposerPayload,
+  CreatedMaster,
   KitRequest,
   MasterProfile,
+  MasterSummary,
   PublicationKit,
+  ReviewRequest,
+  ReviewResult,
+  ServerState,
+  StateConflictError,
+  SyncBundle,
   RequestDescriptor,
   Strategy,
 } from '../models';
@@ -87,8 +100,43 @@ export class ChatApi {
     });
   }
 
+  me(): Promise<AccountInfo> {
+    return this.send<AccountInfo>('GET', API_ME_PATH);
+  }
+
+  loadState(): Promise<ServerState> {
+    return this.send<ServerState>('GET', API_STATE_PATH);
+  }
+
+  saveState(baseVersion: number, data: SyncBundle): Promise<ServerState> {
+    return this.send<ServerState>('PUT', API_STATE_PATH, { baseVersion, data });
+  }
+
+  listMasters(): Promise<MasterSummary[]> {
+    return this.send<MasterSummary[]>('GET', API_ADMIN_MASTERS_PATH);
+  }
+
+  createMaster(name: string): Promise<CreatedMaster> {
+    return this.send<CreatedMaster>('POST', API_ADMIN_MASTERS_PATH, { name });
+  }
+
+  setMasterDisabled(id: string, disabled: boolean): Promise<{ disabled: boolean }> {
+    return this.send<{ disabled: boolean }>(
+      'POST',
+      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/disabled`,
+      { disabled },
+    );
+  }
+
+  requestReview(request: ReviewRequest): Promise<ReviewResult> {
+    return this.send<ReviewResult>('POST', API_REVIEW_PATH, request, {
+      description: REQUEST_DESCRIPTIONS.review,
+      sent: `${request.items.length}`,
+    });
+  }
+
   private async send<T>(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PUT',
     path: string,
     body?: FormData | object,
     descriptor?: RequestDescriptor,
@@ -137,7 +185,11 @@ export class ChatApi {
     if (error.status === HTTP_OFFLINE) {
       return new ChatApiError(API_MESSAGES.offline);
     }
-    const serverMessage = (error.error as ApiErrorBody | null)?.error;
+    const body = error.error as ApiErrorBody | null;
+    if (error.status === HTTP_CONFLICT && body?.state) {
+      return new StateConflictError(body.error ?? API_MESSAGES.failed, body.state);
+    }
+    const serverMessage = body?.error;
     return new ChatApiError(
       serverMessage || API_MESSAGES.failed,
       false,

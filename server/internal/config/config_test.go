@@ -86,3 +86,32 @@ func TestLoadDotEnvMissingFile(t *testing.T) {
 		t.Errorf("missing file must not be an error: %v", err)
 	}
 }
+
+func TestDailyAILimit(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want int
+	}{
+		{raw: "", want: DefaultDailyLimit},
+		{raw: "abc", want: DefaultDailyLimit},
+		{raw: "-5", want: DefaultDailyLimit},
+		{raw: "25", want: 25},
+		{raw: " 40 ", want: 40},
+		{raw: "0", want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.raw, func(t *testing.T) {
+			t.Setenv(EnvAPIKey, "key")
+			t.Setenv(EnvAccessPassword, "long-enough-pass")
+			t.Setenv(EnvDailyAILimit, tt.raw)
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.DailyAILimit != tt.want {
+				t.Errorf("limit = %d, want %d", cfg.DailyAILimit, tt.want)
+			}
+		})
+	}
+}

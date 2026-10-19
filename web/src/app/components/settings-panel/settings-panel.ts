@@ -9,6 +9,9 @@ import {
   viewChild,
 } from '@angular/core';
 import {
+  ACCOUNT_LABELS,
+  ADMIN_MASTERS_TITLE,
+  SYNC_STATUS_TEXT,
   APPEARANCE_TITLE,
   BACK_LABEL,
   ERROR_LOG_TITLE,
@@ -26,11 +29,14 @@ import {
 import { SettingsScreen, ThemeId } from '../../models';
 import { Settings } from '../../services/settings';
 import { Speech } from '../../services/speech';
+import { Account } from '../../services/account';
+import { Sync } from '../../services/sync';
+import { AdminMasters } from '../admin-masters/admin-masters';
 import { ErrorLogScreen } from '../error-log/error-log';
 import { RequestLogScreen } from '../request-log/request-log';
 
 @Component({
-  imports: [ErrorLogScreen, RequestLogScreen],
+  imports: [AdminMasters, ErrorLogScreen, RequestLogScreen],
   selector: 'app-settings-panel',
   styleUrl: './settings-panel.scss',
   templateUrl: './settings-panel.html',
@@ -38,6 +44,11 @@ import { RequestLogScreen } from '../request-log/request-log';
 export class SettingsPanel {
   protected readonly settings = inject(Settings);
   protected readonly speech = inject(Speech);
+  protected readonly account = inject(Account);
+  protected readonly sync = inject(Sync);
+  protected readonly accountLabels = ACCOUNT_LABELS;
+  protected readonly mastersTitle = ADMIN_MASTERS_TITLE;
+  protected readonly syncText = computed(() => SYNC_STATUS_TEXT[this.sync.status()]);
   protected readonly title = SETTINGS_TITLE;
   protected readonly closeLabel = SETTINGS_CLOSE_LABEL;
   protected readonly speakRepliesLabel = SPEAK_REPLIES_LABEL;
@@ -69,6 +80,8 @@ export class SettingsPanel {
         return this.errorLogTitle;
       case 'requests':
         return this.requestLogTitle;
+      case 'masters':
+        return this.mastersTitle;
       default:
         return this.title;
     }
@@ -85,6 +98,7 @@ export class SettingsPanel {
         this.screen.set('main');
       }
       if (this.open() && !element.open) {
+        void this.account.refresh();
         element.showModal();
       } else if (!this.open() && element.open) {
         element.close();

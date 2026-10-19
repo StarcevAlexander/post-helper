@@ -1,0 +1,237 @@
+package httpapi
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/http"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"post-helper/server/internal/accounts"
+	"post-helper/server/internal/auth"
+	"post-helper/server/internal/chat"
+	"post-helper/server/internal/review"
+	"post-helper/server/internal/store"
+)
+
+type meHandler struct {
+	accounts   accounts.Store
+	dailyLimit int
+	logger     *slog.Logger
+}
+
+func (h *meHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	identity, _ := auth.FromContext(r.Context())
+	response := MeResponse{Role: "master", Name: identity.Name, DailyLimit: h.dailyLimit}
+	if identity.Admin {
+		response.Role = "admin"
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+	used, err := h.accounts.CountUsage(r.Context(), identity.MasterID, dayStart(time.Now()))
+	if err != nil {
+		h.logger.Error("count usage failed", slog.Any("error", err))
+	}
+	response.UsageToday = used
+	writeJSON(w, http.StatusOK, response)
+}
+
+type stateHandler struct {
+	accounts accounts.Store
+	logger   *slog.Logger
+}
+
+func (h *stateHandler) get(w http.ResponseWriter, r *http.Request) {
+	identity, _ := auth.FromContext(r.Context())
+	state, err := h.accounts.LoadState(r.Context(), identity.MasterID)
+	switch {
+	case errors.Is(err, accounts.ErrNotFound):
+		writeJSON(w, http.StatusOK, accounts.State{})
+	case err != nil:
+		h.logger.Error("load state failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgStateFailed)
+	default:
+		writeJSON(w, http.StatusOK, state)
+	}
+}
+
+func (h *stateHandler) put(w http.ResponseWriter, r *http.Request) {
+	identity, _ := auth.FromContext(r.Context())
+	r.Body = http.MaxBytesReader(w, r.Body, MaxStateBodyBytes)
+	var body StateRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.BaseVersion < 0 || !isJSONObject(body.Data) {
+		writeError(w, http.StatusBadRequest, MsgBadState)
+		return
+	}
+
+	saved, err := h.accounts.SaveState(r.Context(), identity.MasterID, body.BaseVersion, body.Data, time.Now())
+	switch {
+	case errors.Is(err, accounts.ErrConflict):
+		writeJSON(w, http.StatusConflict, StateConflictResponse{Error: MsgStateConflict, State: saved})
+	case err != nil:
+		h.logger.Error("save state failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgStateFailed)
+	default:
+		writeJSON(w, http.StatusOK, saved)
+	}
+}
+
+func isJSONObject(data json.RawMessage) bool {
+	trimmed := strings.TrimSpace(string(data))
+	if !strings.HasPrefix(trimmed, "{") {
+		return false
+	}
+	var object map[string]json.RawMessage
+	return json.Unmarshal(data, &object) == nil
+}
+
+type adminHandler struct {
+	accounts accounts.Store
+	logger   *slog.Logger
+}
+
+func (h *adminHandler) list(w http.ResponseWriter, r *http.Request) {
+	masters, err := h.accounts.ListMasters(r.Context(), dayStart(time.Now()))
+	if err != nil {
+		h.logger.Error("list masters failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgMasterFailed)
+		return
+	}
+	writeJSON(w, http.StatusOK, masters)
+}
+
+func (h *adminHandler) create(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, MaxAdminBodyBytes)
+	var body CreateMasterRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, MsgBadRequest)
+		return
+	}
+	name := strings.TrimSpace(body.Name)
+	switch {
+	case name == "":
+		writeError(w, http.StatusBadRequest, MsgNoMasterName)
+		return
+	case utf8.RuneCountInString(name) > MaxMasterNameRunes:
+		writeError(w, http.StatusBadRequest, MsgMasterNameTooLong)
+		return
+	}
+
+	code, err := auth.GenerateCode()
+	if err != nil {
+		h.logger.Error("generate code failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgMasterFailed)
+		return
+	}
+	master, err := h.accounts.CreateMaster(r.Context(), name, auth.HashCode(code))
+	if err != nil {
+		h.logger.Error("create master failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgMasterFailed)
+		return
+	}
+	writeJSON(w, http.StatusOK, CreateMasterResponse{Master: master, Code: code})
+}
+
+func (h *adminHandler) disable(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, MaxAdminBodyBytes)
+	var body DisabledRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, MsgBadRequest)
+		return
+	}
+	err := h.accounts.SetDisabled(r.Context(), r.PathValue("id"), body.Disabled)
+	switch {
+	case errors.Is(err, accounts.ErrNotFound):
+		writeError(w, http.StatusNotFound, MsgMasterFailed)
+	case err != nil:
+		h.logger.Error("disable master failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgMasterFailed)
+	default:
+		writeJSON(w, http.StatusOK, DisabledRequest{Disabled: body.Disabled})
+	}
+}
+
+type reviewHandler struct {
+	generator review.Generator
+	recorder  store.Recorder
+	logger    *slog.Logger
+}
+
+func (h *reviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, MaxStateBodyBytes)
+	var body ReviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, MsgBadRequest)
+		return
+	}
+	request, message := cleanReviewRequest(body)
+	if message != "" {
+		writeError(w, http.StatusBadRequest, message)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), chat.RequestTimeout)
+	defer cancel()
+
+	result, err := h.generator.Generate(ctx, request)
+	switch {
+	case errors.Is(err, review.ErrRefused):
+		writeError(w, http.StatusUnprocessableEntity, MsgReviewRefused)
+	case err != nil:
+		h.logger.Error("review failed", slog.Any("error", err))
+		writeError(w, http.StatusBadGateway, MsgReviewFailed)
+	default:
+		h.logger.Info("review generated", slog.Int("items", len(request.Items)))
+		h.recorder.SaveEvent(store.EventReview, "", map[string]any{"items": len(request.Items)})
+		writeJSON(w, http.StatusOK, result)
+	}
+}
+
+func cleanReviewRequest(body ReviewRequest) (review.Request, string) {
+	profile, _, message := cleanProfile(body.Profile)
+	if message != "" {
+		return review.Request{}, message
+	}
+	if len(body.Items) == 0 {
+		return review.Request{}, MsgNoReviewItems
+	}
+	if len(body.Items) > MaxReviewItems || len(body.Pillars) > MaxReviewPillars {
+		return review.Request{}, MsgReviewTooLarge
+	}
+
+	tooLong := func(values ...string) bool {
+		for _, value := range values {
+			if utf8.RuneCountInString(value) > MaxReviewFieldRunes {
+				return true
+			}
+		}
+		return false
+	}
+	if tooLong(body.Positioning, body.Results.BestIdea, body.Results.Hard) {
+		return review.Request{}, MsgKitFieldTooLong
+	}
+	for _, item := range body.Items {
+		if tooLong(item.Format, item.Pillar, item.Idea) {
+			return review.Request{}, MsgKitFieldTooLong
+		}
+	}
+	for _, pillar := range body.Pillars {
+		if tooLong(append([]string{pillar.Title}, pillar.Ideas...)...) {
+			return review.Request{}, MsgKitFieldTooLong
+		}
+	}
+	if inquiries := body.Results.Inquiries; inquiries != nil && (*inquiries < 0 || *inquiries > 100000) {
+		body.Results.Inquiries = nil
+	}
+	return review.Request{
+		Profile:     profile,
+		Positioning: strings.TrimSpace(body.Positioning),
+		Cadence:     body.Cadence,
+		Pillars:     body.Pillars,
+		Items:       body.Items,
+		Results:     body.Results,
+	}, ""
+}

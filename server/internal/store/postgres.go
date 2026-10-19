@@ -309,3 +309,7 @@ func marshalOrEmpty(value any) []byte {
 	}
 	return data
 }
+
+func (p *Postgres) Pool() *pgxpool.Pool {
+	return p.pool
+}

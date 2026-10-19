@@ -14,3 +14,5 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      - key: DAILY_AI_LIMIT
+        value: "80"

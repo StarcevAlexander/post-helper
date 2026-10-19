@@ -1,3 +1,4 @@
+import { ServerState } from './account.models';
 import { MessageRole } from './chat.models';
 
 export interface ApiTurn {
@@ -18,6 +19,7 @@ export interface ClientErrorReport {
 
 export interface ApiErrorBody {
   error?: string;
+  state?: ServerState;
 }
 
 export class ChatApiError extends Error {
@@ -28,5 +30,15 @@ export class ChatApiError extends Error {
   ) {
     super(message);
     this.name = 'ChatApiError';
+  }
+}
+
+export class StateConflictError extends ChatApiError {
+  constructor(
+    message: string,
+    readonly state: ServerState,
+  ) {
+    super(message);
+    this.name = 'StateConflictError';
   }
 }

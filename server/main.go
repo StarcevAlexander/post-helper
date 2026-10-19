@@ -11,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/chat"
 	"post-helper/server/internal/config"
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/kit"
+	"post-helper/server/internal/review"
 	"post-helper/server/internal/store"
 	"post-helper/server/internal/strategy"
 )
@@ -47,6 +49,7 @@ func run() error {
 
 	logger := slog.Default()
 	var history store.Store = store.Noop{}
+	var accountStore accounts.Store = accounts.NewMemory()
 	if cfg.DatabaseURL != "" {
 		openCtx, cancel := context.WithTimeout(context.Background(), databaseOpenTimeout)
 		postgres, err := store.Open(openCtx, cfg.DatabaseURL, logger)
@@ -55,10 +58,11 @@ func run() error {
 			return fmt.Errorf("store: %w", err)
 		}
 		history = postgres
+		accountStore = accounts.NewPostgres(postgres.Pool())
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
 		slog.SetDefault(logger)
 	} else {
-		slog.Warn("DATABASE_URL is not set, history and error log are not stored")
+		slog.Warn("DATABASE_URL is not set: history, master accounts and master data live in memory and are lost on restart")
 	}
 	defer history.Close()
 
@@ -67,6 +71,9 @@ func run() error {
 		Responder:      claude,
 		Strategist:     strategy.NewClaude(cfg.APIKey, cfg.Model),
 		KitMaker:       kit.NewClaude(cfg.APIKey, cfg.Model),
+		Reviewer:       review.NewClaude(cfg.APIKey, cfg.Model),
+		Accounts:       accountStore,
+		DailyAILimit:   cfg.DailyAILimit,
 		Password:       cfg.AccessPassword,
 		AllowedOrigins: cfg.AllowedOrigins,
 		Store:          history,

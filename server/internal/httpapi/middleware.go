@@ -1,14 +1,15 @@
 package httpapi
 
 import (
-	"crypto/sha256"
-	"crypto/subtle"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
 	"slices"
 	"strings"
 	"time"
+
+	"post-helper/server/internal/accounts"
+	"post-helper/server/internal/auth"
 )
 
 func withCORS(allowedOrigins []string, next http.Handler) http.Handler {
@@ -70,11 +71,10 @@ func withRecover(logger *slog.Logger, next http.Handler) http.Handler {
 	})
 }
 
-func withPassword(password string, next http.Handler) http.Handler {
-	expected := sha256.Sum256([]byte(password))
+func withAuth(authenticator *auth.Authenticator, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		provided := sha256.Sum256([]byte(bearerToken(r)))
-		if subtle.ConstantTimeCompare(provided[:], expected[:]) != 1 {
+		identity, ok := authenticator.Authenticate(r.Context(), bearerToken(r))
+		if !ok {
 			select {
 			case <-time.After(AuthFailDelay):
 			case <-r.Context().Done():
@@ -82,10 +82,56 @@ func withPassword(password string, next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, MsgUnauthorized)
 			return
 		}
+		next.ServeHTTP(w, r.WithContext(auth.WithIdentity(r.Context(), identity)))
+	})
+}
+
+func requireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if identity, ok := auth.FromContext(r.Context()); !ok || !identity.Admin {
+			writeError(w, http.StatusForbidden, MsgForbidden)
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
 }
 
+func requireMaster(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if identity, ok := auth.FromContext(r.Context()); !ok || identity.MasterID == "" {
+			writeError(w, http.StatusForbidden, MsgMasterOnly)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func withQuota(store accounts.Store, limit int, kind string, logger *slog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		identity, ok := auth.FromContext(r.Context())
+		if !ok || identity.Admin || limit <= 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+		now := time.Now()
+		used, err := store.CountUsage(r.Context(), identity.MasterID, dayStart(now))
+		if err != nil {
+			logger.Error("count usage failed", slog.Any("error", err))
+		} else if used >= limit {
+			writeError(w, http.StatusTooManyRequests, MsgQuotaExceeded)
+			return
+		}
+		if err := store.RecordUsage(r.Context(), identity.MasterID, kind, now); err != nil {
+			logger.Error("record usage failed", slog.Any("error", err))
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func dayStart(now time.Time) time.Time {
+	utc := now.UTC()
+	return time.Date(utc.Year(), utc.Month(), utc.Day(), 0, 0, 0, 0, time.UTC)
+}
 func bearerToken(r *http.Request) string {
 	value := r.Header.Get("Authorization")
 	if !strings.HasPrefix(value, BearerPrefix) {

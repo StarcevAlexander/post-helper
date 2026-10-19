@@ -38,4 +38,5 @@ export const REQUEST_DESCRIPTIONS = {
   chat: 'Вопрос помощнику',
   strategy: 'Составление стратегии',
   kit: 'Комплект публикации',
+  review: 'Итоги недели',
 } as const;

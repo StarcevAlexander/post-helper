@@ -74,6 +74,7 @@ export class Onboarding {
   readonly strategy = signal<Strategy | undefined>(this.restoreStrategy());
   readonly confirmed = signal(this.stored.confirmed ?? this.strategy() !== undefined);
   readonly resumeIndex = signal<number | undefined>(this.stored.resumeIndex);
+  readonly strategyRevision = signal(0);
 
   readonly total = ONBOARDING_STEPS.length;
   readonly active = computed(() => this.index() < this.total);
@@ -184,6 +185,11 @@ export class Onboarding {
   }
 
   setStrategy(strategy: Strategy): void {
+    this.strategyRevision.update((revision) => revision + 1);
+    this.updateStrategy(strategy);
+  }
+
+  updateStrategy(strategy: Strategy): void {
     this.strategy.set(strategy);
     try {
       localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(strategy));

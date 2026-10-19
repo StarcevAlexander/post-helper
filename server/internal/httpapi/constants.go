@@ -41,7 +41,7 @@ const (
 	MaxFiles            = 8
 	AuthFailDelay       = 400 * time.Millisecond
 	CORSMaxAge          = "600"
-	CORSMethods         = "GET, POST, OPTIONS"
+	CORSMethods         = "GET, POST, PUT, OPTIONS"
 	CORSHeaders         = "Authorization, Content-Type"
 	BearerPrefix        = "Bearer "
 )
@@ -77,3 +77,37 @@ const (
 	MsgNoIdea                = "Не указана идея публикации"
 	MsgKitFieldTooLong       = "Описание публикации слишком длинное"
 )
+
+const (
+	MeRoute                       = "GET /api/me"
+	StateGetRoute                 = "GET /api/state"
+	StatePutRoute                 = "PUT /api/state"
+	AdminMastersRoute             = "GET /api/admin/masters"
+	AdminCreateMasterRoute        = "POST /api/admin/masters"
+	AdminDisableMasterRoute       = "POST /api/admin/masters/{id}/disabled"
+	ReviewRoute                   = "POST /api/review"
+	MaxStateBodyBytes       int64 = 3 << 20
+	MaxMasterNameRunes            = 60
+	MaxReviewItems                = 60
+	MaxReviewPillars              = 12
+	MaxReviewFieldRunes           = 600
+	MsgForbidden                  = "Это действие доступно только владельцу"
+	MsgMasterOnly                 = "Это действие доступно только мастеру"
+	MsgQuotaExceeded              = "Дневной лимит обращений к ИИ исчерпан, попробуйте завтра"
+	MsgBadState                   = "Не удалось разобрать сохранённые данные"
+	MsgStateConflict              = "Данные уже изменены с другого устройства"
+	MsgStateFailed                = "Не удалось сохранить данные, попробуйте ещё раз"
+	MsgNoMasterName               = "Укажите имя мастера"
+	MsgMasterNameTooLong          = "Имя мастера слишком длинное"
+	MsgMasterFailed               = "Не удалось выполнить действие с мастером"
+	MsgReviewFailed               = "Не удалось подвести итоги, попробуйте ещё раз"
+	MsgReviewRefused              = "Итоги по этим данным подвести не получилось"
+	MsgReviewTooLarge             = "Слишком много данных для итогов недели"
+	MsgNoReviewItems              = "В недельном плане нет публикаций"
+	UsageChat                     = "chat"
+	UsageStrategy                 = "strategy"
+	UsageKit                      = "kit"
+	UsageReview                   = "review"
+)
+
+const MaxAdminBodyBytes int64 = 4 << 10

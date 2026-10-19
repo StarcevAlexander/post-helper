@@ -1,0 +1,64 @@
+<form class="create" novalidate (submit)="$event.preventDefault(); onCreate()">
+  <label class="create__label" for="master-name">{{ texts.nameLabel }}</label>
+  <div class="create__row">
+    <input
+      id="master-name"
+      class="create__input"
+      type="text"
+      autocomplete="off"
+      [placeholder]="texts.namePlaceholder"
+      [formField]="createForm.name"
+    />
+    <button type="submit" class="create__button" [disabled]="!canCreate()">
+      {{ texts.create }}
+    </button>
+  </div>
+</form>
+
+@if (error(); as message) {
+  <p class="error" role="alert">{{ message }}</p>
+}
+
+@if (created(); as result) {
+  <section class="code" role="status">
+    <h3 class="code__title">{{ texts.codeTitle }}: {{ result.master.name }}</h3>
+    <p class="code__value">{{ result.code }}</p>
+    <p class="code__hint">{{ texts.codeHint }}</p>
+    <div class="code__actions">
+      <button type="button" class="code__button" (click)="onCopy()">{{ texts.copy }}</button>
+      <button type="button" class="code__button" (click)="onCloseCode()">OK</button>
+    </div>
+    @if (copyResult(); as copy) {
+      <p class="code__hint" aria-live="polite">
+        {{ copy === 'copied' ? texts.copied : texts.copyFailed }}
+      </p>
+    }
+  </section>
+}
+
+@if (views().length === 0 && !loading() && !error()) {
+  <p class="empty">{{ texts.empty }}</p>
+}
+
+<ul class="list">
+  @for (view of views(); track view.master.id) {
+    <li class="master" [class.master--off]="view.master.disabled">
+      <div class="master__info">
+        <span class="master__name">
+          {{ view.master.name }}
+          @if (view.master.disabled) {
+            <span class="master__badge">{{ texts.disabled }}</span>
+          }
+        </span>
+        <span class="master__meta">{{ view.seen }}</span>
+        <span class="master__meta">
+          {{ texts.today }}: {{ view.master.usageToday }} · {{ texts.total }}:
+          {{ view.master.usageTotal }} {{ texts.requests }}
+        </span>
+      </div>
+      <button type="button" class="master__toggle" (click)="onToggle(view.master)">
+        {{ view.master.disabled ? texts.enable : texts.disable }}
+      </button>
+    </li>
+  }
+</ul>

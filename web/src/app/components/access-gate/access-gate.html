@@ -1,11 +1,13 @@
 <form class="gate" (submit)="$event.preventDefault(); submit()">
-  <label class="gate__label" for="access-password">Пароль доступа к помощнику</label>
+  <label class="gate__label" for="access-password">Код доступа</label>
   <div class="gate__row">
     <input
       id="access-password"
       class="gate__input"
-      type="password"
-      autocomplete="current-password"
+      type="text"
+      autocomplete="off"
+      autocapitalize="off"
+      spellcheck="false"
       enterkeyhint="go"
       [formField]="gateForm.password"
     />

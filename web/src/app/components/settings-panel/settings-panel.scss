@@ -236,3 +236,24 @@
   font-size: 0.8125rem;
   text-align: center;
 }
+
+.account {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--chip);
+}
+
+.account__line {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.account__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -16,6 +17,7 @@ func Load() (Config, error) {
 		AllowedOrigins: parseList(os.Getenv(EnvAllowedOrigins), DefaultAllowedOrigins),
 		Model:          valueOr(os.Getenv(EnvModel), DefaultModel),
 		DatabaseURL:    strings.TrimSpace(os.Getenv(EnvDatabaseURL)),
+		DailyAILimit:   dailyLimit(os.Getenv(EnvDailyAILimit)),
 	}
 
 	var problems []error
@@ -87,6 +89,14 @@ func parseList(raw string, fallback []string) []string {
 func valueOr(value, fallback string) string {
 	if strings.TrimSpace(value) == "" {
 		return fallback
+	}
+	return value
+}
+
+func dailyLimit(raw string) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || value < 0 {
+		return DefaultDailyLimit
 	}
 	return value
 }

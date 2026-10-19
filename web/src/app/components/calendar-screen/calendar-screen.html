@@ -119,6 +119,11 @@
             } @else {
               <p class="week__progress">{{ weekReadyLabel }}</p>
             }
+            @if (week.reviewable) {
+              <button type="button" class="screen__secondary" (click)="reviews.view(week.source)">
+                {{ week.hasReview ? reviewTexts.view : reviewTexts.open }}
+              </button>
+            }
             <ul class="items">
               @for (view of week.items; track view.item.id) {
                 <li class="item" [class.item--done]="view.item.done">

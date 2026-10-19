@@ -30,6 +30,7 @@ import {
   KIT_PREPARING_LABEL,
   KIT_RETRY_LABEL,
   KIT_WEEK_READY_LABEL,
+  REVIEW_TEXTS,
   NO_SECOND_DAY_LABEL,
   PLAN_EMPTY_TEXT,
   PLAN_TITLE,
@@ -42,12 +43,13 @@ import {
   WEEKDAY_NAMES,
   WEEK_LABEL,
 } from '../../constants';
-import { KitStatus, PlanItem, ScheduleDraft } from '../../models';
+import { KitStatus, PlanItem, PlanWeek, ScheduleDraft } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
 import { Onboarding } from '../../services/onboarding';
+import { Reviews } from '../../services/reviews';
 import { buildIcs } from '../../utils/ics-builder';
-import { fromDateKey } from '../../utils/date-utils';
+import { fromDateKey, toDateKey } from '../../utils/date-utils';
 
 interface ItemView {
   item: PlanItem;
@@ -63,6 +65,9 @@ interface WeekView {
   contentDays: string[];
   items: ItemView[];
   pending: number;
+  source: PlanWeek;
+  reviewable: boolean;
+  hasReview: boolean;
 }
 
 const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
@@ -85,6 +90,8 @@ export class CalendarScreen {
   protected readonly plan = inject(CalendarPlan);
   protected readonly onboarding = inject(Onboarding);
   protected readonly kits = inject(Kits);
+  protected readonly reviews = inject(Reviews);
+  protected readonly reviewTexts = REVIEW_TEXTS;
   protected readonly openKitLabel = KIT_OPEN_LABEL;
   protected readonly prepareKitLabel = KIT_PREPARE_LABEL;
   protected readonly preparingLabel = KIT_PREPARING_LABEL;
@@ -149,6 +156,9 @@ export class CalendarScreen {
         error: this.kits.errorOf(item),
       })),
       pending: week.items.filter((item) => this.kits.statusOf(item) !== 'ready').length,
+      source: week,
+      reviewable: week.from <= toDateKey(new Date()),
+      hasReview: this.reviews.forWeek(week.from) !== undefined,
     })),
   );
 

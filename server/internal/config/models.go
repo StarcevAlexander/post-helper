@@ -7,4 +7,5 @@ type Config struct {
 	AllowedOrigins []string
 	Model          string
 	DatabaseURL    string
+	DailyAILimit   int
 }

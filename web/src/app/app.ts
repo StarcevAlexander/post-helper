@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
+import { ReviewScreen } from './components/review-screen/review-screen';
 import { KitScreen } from './components/kit-screen/kit-screen';
 import { MessageBubble } from './components/message-bubble/message-bubble';
 import { SettingsPanel } from './components/settings-panel/settings-panel';
@@ -34,6 +35,7 @@ import { AppUpdate } from './services/app-update';
 import { Chat } from './services/chat';
 import { Onboarding } from './services/onboarding';
 import { Settings } from './services/settings';
+import { Sync } from './services/sync';
 import { Speech } from './services/speech';
 import { TestNotification } from './services/test-notification';
 import { APP_VERSION } from './version';
@@ -46,6 +48,7 @@ import { APP_VERSION } from './version';
     KitScreen,
     MessageBubble,
     ProfileScreen,
+    ReviewScreen,
     SettingsPanel,
     StrategyScreen,
   ],
@@ -59,6 +62,7 @@ export class App {
   protected readonly speech = inject(Speech);
   protected readonly settings = inject(Settings);
   protected readonly onboarding = inject(Onboarding);
+  protected readonly sync = inject(Sync);
   protected readonly appUpdate = inject(AppUpdate);
   protected readonly testNotification = inject(TestNotification);
   protected readonly notifyLabel = NOTIFY_BUTTON_LABEL;
@@ -80,7 +84,7 @@ export class App {
   private readonly log = viewChild.required<ElementRef<HTMLElement>>('log');
   private readonly messagesList = viewChild.required<ElementRef<HTMLElement>>('messages');
   private stickToBottom = true;
-  private lastStrategy = this.onboarding.strategy();
+  private lastRevision = this.onboarding.strategyRevision();
   private wasReviewing = this.onboarding.reviewing();
 
   constructor() {
@@ -92,14 +96,14 @@ export class App {
     });
 
     effect(() => {
-      const strategy = this.onboarding.strategy();
-      if (strategy && strategy !== this.lastStrategy) {
+      const revision = this.onboarding.strategyRevision();
+      if (revision !== this.lastRevision && untracked(() => this.onboarding.strategy())) {
         untracked(() => {
           this.profileOpen.set(false);
           this.strategyOpen.set(true);
         });
       }
-      this.lastStrategy = strategy;
+      this.lastRevision = revision;
     });
 
     effect(() => {

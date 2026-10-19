@@ -1,12 +1,15 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/chat"
 	"post-helper/server/internal/kit"
+	"post-helper/server/internal/review"
 	"post-helper/server/internal/store"
 	"post-helper/server/internal/strategy"
 )
@@ -15,6 +18,9 @@ type Options struct {
 	Responder      chat.Responder
 	Strategist     strategy.Generator
 	KitMaker       kit.Generator
+	Reviewer       review.Generator
+	Accounts       accounts.Store
+	DailyAILimit   int
 	Password       string
 	AllowedOrigins []string
 	Store          store.Store
@@ -64,4 +70,43 @@ type KitRequest struct {
 	Format      string           `json:"format"`
 	Pillar      string           `json:"pillar"`
 	Idea        string           `json:"idea"`
+}
+
+type MeResponse struct {
+	Role       string `json:"role"`
+	Name       string `json:"name"`
+	DailyLimit int    `json:"dailyLimit"`
+	UsageToday int    `json:"usageToday"`
+}
+
+type StateRequest struct {
+	BaseVersion int             `json:"baseVersion"`
+	Data        json.RawMessage `json:"data"`
+}
+
+type StateConflictResponse struct {
+	Error string         `json:"error"`
+	State accounts.State `json:"state"`
+}
+
+type CreateMasterRequest struct {
+	Name string `json:"name"`
+}
+
+type CreateMasterResponse struct {
+	Master accounts.Master `json:"master"`
+	Code   string          `json:"code"`
+}
+
+type DisabledRequest struct {
+	Disabled bool `json:"disabled"`
+}
+
+type ReviewRequest struct {
+	Profile     strategy.Profile `json:"profile"`
+	Positioning string           `json:"positioning"`
+	Cadence     strategy.Cadence `json:"cadence"`
+	Pillars     []review.Pillar  `json:"pillars"`
+	Items       []review.Item    `json:"items"`
+	Results     review.Results   `json:"results"`
 }
