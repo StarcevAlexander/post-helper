@@ -60,6 +60,7 @@ func DescribeProfile(profile Profile) string {
 		{"Цель", profile.Goal},
 		{"Instagram", profile.Instagram},
 		{"Как обычно пишет и говорит", profile.Style},
+		{"Разбор Instagram-профиля по скриншотам", profile.Audit},
 	}
 	var text strings.Builder
 	text.WriteString("Анкета мастера:\n")

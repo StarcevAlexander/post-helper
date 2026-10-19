@@ -57,7 +57,7 @@ func (h *strategyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func cleanProfile(profile strategy.Profile) (strategy.Profile, int, string) {
 	fields := []*string{
 		&profile.Name, &profile.Specialty, &profile.City, &profile.Experience, &profile.Services,
-		&profile.Clients, &profile.Goal, &profile.Instagram, &profile.Style,
+		&profile.Clients, &profile.Goal, &profile.Instagram, &profile.Style, &profile.Audit,
 	}
 	for _, field := range fields {
 		*field = strings.TrimSpace(*field)

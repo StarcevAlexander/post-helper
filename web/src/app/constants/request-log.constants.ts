@@ -39,4 +39,5 @@ export const REQUEST_DESCRIPTIONS = {
   strategy: 'Составление стратегии',
   kit: 'Комплект публикации',
   review: 'Итоги недели',
+  audit: 'Разбор Instagram',
 } as const;

@@ -102,6 +102,9 @@
     }
 
     @if (onboarding.strategy()) {
+      <button type="button" class="screen__restart" (click)="audit.show()">
+        {{ audit.stored() ? auditTexts.openExisting : auditTexts.open }}
+      </button>
       <button type="button" class="screen__primary" (click)="onCalendarClicked()">
         {{ calendarLabel }}
       </button>

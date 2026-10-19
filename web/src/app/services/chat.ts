@@ -24,6 +24,7 @@ import {
   ProfileField,
 } from '../models';
 import { Access } from './access';
+import { Audit } from './audit';
 import { CalendarPlan } from './calendar-plan';
 import { ChatApi } from './chat-api';
 import { ChatHistory } from './chat-history';
@@ -40,6 +41,7 @@ export class Chat {
   private readonly errorLog = inject(ErrorLog);
   private readonly onboarding = inject(Onboarding);
   private readonly calendarPlan = inject(CalendarPlan);
+  private readonly audit = inject(Audit);
   private strategyReplyId?: string;
 
   readonly messages = signal<ChatMessage[]>(this.restoreMessages());
@@ -129,6 +131,7 @@ export class Chat {
     this.messages().forEach((message) => this.revokePreviews(message));
     this.onboarding.reset();
     this.calendarPlan.reset();
+    this.audit.reset();
     this.messages.set(this.createWelcomeMessages());
     this.conversation.reset();
   }

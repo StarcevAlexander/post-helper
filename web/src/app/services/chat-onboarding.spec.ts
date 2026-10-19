@@ -31,6 +31,7 @@ const VALID_ANSWERS: Record<ProfileField, string> = {
   goal: 'больше записей',
   instagram: 'anna_nails',
   style: 'Привет! Давайте сделаем вам красивые ручки',
+  audit: '',
 };
 
 const strategy: Strategy = {

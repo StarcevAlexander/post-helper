@@ -111,3 +111,16 @@ const (
 )
 
 const MaxAdminBodyBytes int64 = 4 << 10
+
+const (
+	AuditRoute               = "POST /api/audit"
+	FieldProfile             = "profile"
+	FieldImages              = "images"
+	MaxAuditBodyBytes  int64 = 52 << 20
+	MsgNoImages              = "Приложите скриншоты профиля"
+	MsgTooManyImages         = "Слишком много скриншотов, достаточно восьми"
+	MsgAuditFailed           = "Не удалось разобрать профиль, попробуйте ещё раз"
+	MsgAuditRefused          = "По этим скриншотам разбор подготовить не получилось"
+	MsgAuditUnreadable       = "Скриншоты не подошли: "
+	UsageAudit               = "audit"
+)

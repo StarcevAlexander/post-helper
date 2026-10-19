@@ -130,6 +130,7 @@
         [busy]="chat.busy()"
         [(expanded)]="composing"
         (submitted)="onSubmitted($event)"
+        (draftChange)="draftActive.set($event)"
       />
     } @else {
       <app-access-gate />
@@ -148,6 +149,8 @@
 <app-calendar-screen [(open)]="calendarOpen" />
 
 <app-kit-screen />
+
+<app-audit-screen />
 
 <app-review-screen />
 

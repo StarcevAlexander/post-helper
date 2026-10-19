@@ -1,5 +1,6 @@
 import { Service, effect, inject, signal, untracked } from '@angular/core';
 import {
+  AUDIT_STORAGE_KEY,
   CALENDAR_STORAGE_KEY,
   CHAT_HISTORY_STORAGE_KEY,
   KITS_STORAGE_KEY,
@@ -22,6 +23,7 @@ import {
 } from '../models';
 import { Access } from './access';
 import { Account } from './account';
+import { Audit } from './audit';
 import { CalendarPlan } from './calendar-plan';
 import { ChatApi } from './chat-api';
 import { Kits } from './kits';
@@ -35,6 +37,7 @@ const SYNC_KEYS: Record<SyncKey, string> = {
   calendar: CALENDAR_STORAGE_KEY,
   kits: KITS_STORAGE_KEY,
   reviews: REVIEWS_STORAGE_KEY,
+  audit: AUDIT_STORAGE_KEY,
 };
 
 const KEYS = Object.keys(SYNC_KEYS) as SyncKey[];
@@ -48,6 +51,7 @@ export class Sync {
   private readonly calendar = inject(CalendarPlan);
   private readonly kits = inject(Kits);
   private readonly reviews = inject(Reviews);
+  private readonly audit = inject(Audit);
   private readonly reload = inject(PAGE_RELOAD);
 
   readonly status = signal<SyncStatus>('off');
@@ -76,6 +80,7 @@ export class Sync {
       this.calendar.schedule();
       this.kits.stored();
       this.reviews.items();
+      this.audit.stored();
       if (!this.started) {
         this.started = true;
         return;

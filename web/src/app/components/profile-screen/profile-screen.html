@@ -47,6 +47,13 @@
       </div>
     }
 
+    <section class="audit">
+      <h3 class="audit__title">{{ auditTexts.title }} ({{ auditTexts.optional }})</h3>
+      <button type="button" class="audit__button" (click)="audit.show()">
+        {{ audit.stored() ? auditTexts.openExisting : auditTexts.open }}
+      </button>
+    </section>
+
     <button
       type="submit"
       class="screen__primary"

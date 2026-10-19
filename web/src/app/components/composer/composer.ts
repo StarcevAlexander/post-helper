@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, model, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import { form, FormField } from '@angular/forms/signals';
 import {
   ACCEPTED_FILE_TYPES,
@@ -21,6 +21,7 @@ export class Composer {
   readonly busy = input(false);
   readonly expanded = model(false);
   readonly submitted = output<ComposerPayload>();
+  readonly draftChange = output<boolean>();
 
   protected readonly speech = inject(Speech);
   protected readonly voiceLabels = VOICE_INPUT_LABELS;
@@ -37,6 +38,10 @@ export class Composer {
     () => this.composerForm.text().value().trim().length > 0 || this.attachments().length > 0,
   );
   protected readonly canSend = computed(() => !this.busy() && this.hasContent());
+
+  constructor() {
+    effect(() => this.draftChange.emit(this.hasContent()));
+  }
 
   protected async onFilesSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;

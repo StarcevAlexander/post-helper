@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"post-helper/server/internal/accounts"
+	"post-helper/server/internal/audit"
 	"post-helper/server/internal/chat"
 	"post-helper/server/internal/kit"
 	"post-helper/server/internal/review"
@@ -18,6 +19,7 @@ type Options struct {
 	Responder      chat.Responder
 	Strategist     strategy.Generator
 	KitMaker       kit.Generator
+	Auditor        audit.Generator
 	Reviewer       review.Generator
 	Accounts       accounts.Store
 	DailyAILimit   int

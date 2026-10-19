@@ -12,6 +12,7 @@ export interface MasterProfile {
   goal?: string;
   instagram?: string;
   style?: string;
+  audit?: string;
 }
 
 export type ProfileField = keyof MasterProfile;

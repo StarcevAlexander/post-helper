@@ -5,6 +5,7 @@ import {
   API_CHAT_PATH,
   API_CLIENT_ERROR_PATH,
   API_ADMIN_MASTERS_PATH,
+  API_AUDIT_PATH,
   API_DEV_URL,
   API_KIT_PATH,
   API_ME_PATH,
@@ -21,6 +22,7 @@ import {
 } from '../constants';
 import {
   AccountInfo,
+  AuditResult,
   ApiErrorBody,
   ApiReply,
   ApiTurn,
@@ -97,6 +99,18 @@ export class ChatApi {
     return this.send<PublicationKit>('POST', API_KIT_PATH, request, {
       description: REQUEST_DESCRIPTIONS.kit,
       sent: `${request.format}: ${request.idea}`,
+    });
+  }
+
+  requestAudit(profile: MasterProfile, files: File[]): Promise<AuditResult> {
+    const body = new FormData();
+    body.append('profile', JSON.stringify(profile));
+    for (const file of files) {
+      body.append('images', file, file.name);
+    }
+    return this.send<AuditResult>('POST', API_AUDIT_PATH, body, {
+      description: REQUEST_DESCRIPTIONS.audit,
+      sent: `Скриншотов: ${files.length}`,
     });
   }
 

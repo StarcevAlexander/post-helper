@@ -16,6 +16,7 @@ import { ReviewScreen } from './components/review-screen/review-screen';
 import { KitScreen } from './components/kit-screen/kit-screen';
 import { MessageBubble } from './components/message-bubble/message-bubble';
 import { SettingsPanel } from './components/settings-panel/settings-panel';
+import { AuditScreen } from './components/audit-screen/audit-screen';
 import { CalendarScreen } from './components/calendar-screen/calendar-screen';
 import { ProfileScreen } from './components/profile-screen/profile-screen';
 import { StrategyScreen } from './components/strategy-screen/strategy-screen';
@@ -33,6 +34,9 @@ import { ComposerPayload } from './models';
 import { Access } from './services/access';
 import { AppUpdate } from './services/app-update';
 import { Chat } from './services/chat';
+import { Kits } from './services/kits';
+import { Reviews } from './services/reviews';
+import { Audit } from './services/audit';
 import { Onboarding } from './services/onboarding';
 import { Settings } from './services/settings';
 import { Sync } from './services/sync';
@@ -43,6 +47,7 @@ import { APP_VERSION } from './version';
 @Component({
   imports: [
     AccessGate,
+    AuditScreen,
     CalendarScreen,
     Composer,
     KitScreen,
@@ -63,6 +68,9 @@ export class App {
   protected readonly settings = inject(Settings);
   protected readonly onboarding = inject(Onboarding);
   protected readonly sync = inject(Sync);
+  private readonly kits = inject(Kits);
+  private readonly reviews = inject(Reviews);
+  private readonly audit = inject(Audit);
   protected readonly appUpdate = inject(AppUpdate);
   protected readonly testNotification = inject(TestNotification);
   protected readonly notifyLabel = NOTIFY_BUTTON_LABEL;
@@ -74,6 +82,7 @@ export class App {
   protected readonly contextLabel = HISTORY_CONTEXT_LABEL;
   protected readonly version = APP_VERSION;
   protected readonly composing = signal(false);
+  protected readonly draftActive = signal(false);
   protected readonly confirmingClear = signal(false);
   protected readonly settingsOpen = signal(false);
   protected readonly strategyOpen = signal(false);
@@ -121,6 +130,7 @@ export class App {
     });
 
     afterNextRender(() => {
+      this.appUpdate.setIdleCheck(() => this.isIdle());
       this.appUpdate.start();
 
       const viewport = window.visualViewport;
@@ -149,6 +159,20 @@ export class App {
       observer.observe(this.messagesList().nativeElement);
       this.destroyRef.onDestroy(() => observer.disconnect());
     });
+  }
+
+  private isIdle(): boolean {
+    return (
+      !this.chat.busy() &&
+      !this.speech.listening() &&
+      !this.draftActive() &&
+      this.kits.batch() === undefined &&
+      !Object.values(this.kits.progress()).includes('loading') &&
+      !this.reviews.busy() &&
+      !this.audit.busy() &&
+      this.sync.status() !== 'syncing' &&
+      document.querySelector('dialog[open]') === null
+    );
   }
 
   protected onLogScrolled(): void {

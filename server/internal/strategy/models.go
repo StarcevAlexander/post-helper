@@ -12,6 +12,7 @@ type Profile struct {
 	Goal       string `json:"goal"`
 	Instagram  string `json:"instagram"`
 	Style      string `json:"style"`
+	Audit      string `json:"audit"`
 }
 
 type Pillar struct {

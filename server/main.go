@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"post-helper/server/internal/accounts"
+	"post-helper/server/internal/audit"
 	"post-helper/server/internal/chat"
 	"post-helper/server/internal/config"
 	"post-helper/server/internal/httpapi"
@@ -72,6 +73,7 @@ func run() error {
 		Strategist:     strategy.NewClaude(cfg.APIKey, cfg.Model),
 		KitMaker:       kit.NewClaude(cfg.APIKey, cfg.Model),
 		Reviewer:       review.NewClaude(cfg.APIKey, cfg.Model),
+		Auditor:        audit.NewClaude(cfg.APIKey, cfg.Model),
 		Accounts:       accountStore,
 		DailyAILimit:   cfg.DailyAILimit,
 		Password:       cfg.AccessPassword,

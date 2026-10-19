@@ -25,7 +25,7 @@ export interface CreatedMaster {
   code: string;
 }
 
-export type SyncKey = 'onboarding' | 'strategy' | 'calendar' | 'kits' | 'reviews';
+export type SyncKey = 'onboarding' | 'strategy' | 'calendar' | 'kits' | 'reviews' | 'audit';
 
 export type SyncBundle = Partial<Record<SyncKey, JsonValue>>;
 

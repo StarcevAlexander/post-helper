@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import {
+  AUDIT_TEXTS,
   CADENCE_LABELS,
   CLEAR_CONFIRM_TIMEOUT_MS,
   STRATEGY_BUILD_LABEL,
@@ -22,6 +23,7 @@ import {
   STRATEGY_SECTIONS,
   STRATEGY_TITLE,
 } from '../../constants';
+import { Audit } from '../../services/audit';
 import { Chat } from '../../services/chat';
 import { Onboarding } from '../../services/onboarding';
 
@@ -37,6 +39,8 @@ export class StrategyScreen {
 
   protected readonly chat = inject(Chat);
   protected readonly onboarding = inject(Onboarding);
+  protected readonly audit = inject(Audit);
+  protected readonly auditTexts = AUDIT_TEXTS;
   protected readonly title = STRATEGY_TITLE;
   protected readonly closeLabel = STRATEGY_CLOSE_LABEL;
   protected readonly emptyText = STRATEGY_EMPTY_TEXT;

@@ -150,6 +150,7 @@ export class Onboarding {
       goal: answers.goal ?? '',
       instagram: answers.instagram ?? '',
       style: answers.style ?? '',
+      audit: answers.audit ?? '',
     };
   }
 
@@ -161,6 +162,10 @@ export class Onboarding {
         cleaned[step.field] = value;
       }
     });
+    const audit = this.answers().audit;
+    if (audit) {
+      cleaned.audit = audit;
+    }
     this.answers.set(cleaned);
     this.confirmed.set(true);
     this.saveProgress();
@@ -177,6 +182,13 @@ export class Onboarding {
     if (resume >= this.total) {
       this.confirmed.set(false);
     }
+  }
+
+  setAudit(digest: string | undefined): void {
+    this.answers.update((answers) =>
+      digest ? { ...answers, audit: digest } : this.without(answers, 'audit'),
+    );
+    this.saveProgress();
   }
 
   reopenReview(): void {

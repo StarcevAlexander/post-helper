@@ -12,6 +12,7 @@ import {
 import { form, FormField, validate } from '@angular/forms/signals';
 import {
   ONBOARDING_STEPS,
+  AUDIT_TEXTS,
   PROFILE_CLOSE_LABEL,
   PROFILE_CONFIRM_LABEL,
   PROFILE_HINT,
@@ -19,6 +20,7 @@ import {
   PROFILE_UPDATE_LABEL,
 } from '../../constants';
 import { ProfileDraft } from '../../models';
+import { Audit } from '../../services/audit';
 import { Chat } from '../../services/chat';
 import { Onboarding } from '../../services/onboarding';
 import { validateAnswer } from '../../utils/answer-validation';
@@ -34,6 +36,8 @@ export class ProfileScreen {
 
   protected readonly chat = inject(Chat);
   protected readonly onboarding = inject(Onboarding);
+  protected readonly audit = inject(Audit);
+  protected readonly auditTexts = AUDIT_TEXTS;
   protected readonly title = PROFILE_TITLE;
   protected readonly hint = PROFILE_HINT;
   protected readonly closeLabel = PROFILE_CLOSE_LABEL;

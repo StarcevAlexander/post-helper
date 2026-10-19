@@ -17,6 +17,7 @@ const (
 	EventStrategy         = "strategy.generated"
 	EventKit              = "kit.generated"
 	EventReview           = "review.generated"
+	EventAudit            = "audit.generated"
 	EventHTTPRequest      = "http.request"
 	EventIngest           = "ingest"
 	ErrorSourceServer     = "server"

@@ -52,6 +52,7 @@ func NewHandler(options Options) http.Handler {
 
 	mux.Handle(KitRoute, quota(UsageKit, &kitHandler{generator: options.KitMaker, recorder: history, logger: logger}))
 	mux.Handle(StrategyRoute, quota(UsageStrategy, &strategyHandler{generator: options.Strategist, recorder: history, logger: logger}))
+	mux.Handle(AuditRoute, quota(UsageAudit, &auditHandler{generator: options.Auditor, recorder: history, logger: logger}))
 	mux.Handle(ReviewRoute, quota(UsageReview, &reviewHandler{generator: options.Reviewer, recorder: history, logger: logger}))
 	mux.Handle(ChatRoute, quota(UsageChat, &chatHandler{responder: options.Responder, recorder: history, logger: logger}))
 	return withCORS(options.AllowedOrigins, withLogging(logger, withRecover(logger, mux)))

@@ -1,5 +1,6 @@
 export * from './account.models';
 export * from './api.models';
+export * from './audit.models';
 export * from './chat.models';
 export * from './error-log.models';
 export * from './kit.models';
