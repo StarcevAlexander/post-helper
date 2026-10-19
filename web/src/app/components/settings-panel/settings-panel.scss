@@ -1,0 +1,238 @@
+.panel {
+  width: min(24rem, calc(100% - 2rem));
+  margin: auto;
+  padding: 0;
+  border: 0.0625rem solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  color: var(--text);
+
+  &::backdrop {
+    background: rgb(0 0 0 / 60%);
+  }
+}
+
+.panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel__title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.panel__back,
+.panel__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--chip);
+    color: var(--text);
+  }
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}
+
+.panel__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--chip);
+  }
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}
+
+.panel__value {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.scale {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+
+.scale__value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.scale__range {
+  width: 100%;
+  min-height: 2.75rem;
+  accent-color: var(--accent);
+}
+
+.panel__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  color: var(--text);
+  font-size: 0.9375rem;
+  cursor: pointer;
+
+  input {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--accent);
+  }
+
+  &:has(input:focus-visible) {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+    border-radius: 0.5rem;
+  }
+}
+
+.themes {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.themes__title {
+  padding: 0;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.themes__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.theme {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.375rem;
+  border: 0.125rem solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+
+  &:has(.theme__input:checked) {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 0.125rem var(--accent-glow);
+  }
+
+  &:has(.theme__input:focus-visible) {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}
+
+.theme__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.theme__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  background: var(--bg-image);
+}
+
+.theme__header {
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--surface);
+  border: 0.0625rem solid var(--border);
+}
+
+.theme__bubble {
+  height: 0.625rem;
+  border-radius: 0.375rem;
+  border: 0.0625rem solid var(--border);
+
+  &--assistant {
+    width: 65%;
+    background: var(--surface-assistant);
+  }
+
+  &--user {
+    align-self: flex-end;
+    width: 55%;
+    background: var(--surface-user);
+  }
+}
+
+.theme__composer {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.theme__field {
+  flex: 1;
+  height: 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--surface);
+  border: 0.0625rem solid var(--border);
+}
+
+.theme__mic {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.theme__label {
+  font-size: 0.8125rem;
+  text-align: center;
+}

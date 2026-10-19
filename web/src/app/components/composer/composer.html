@@ -1,0 +1,85 @@
+<form
+  class="composer"
+  [class.composer--expanded]="expanded()"
+  (focusin)="onFocusIn()"
+  (focusout)="onFocusOut($event)"
+  (submit)="$event.preventDefault(); send()"
+>
+  @if (attachments().length > 0) {
+    <ul class="composer__files">
+      @for (attachment of attachments(); track attachment.id) {
+        <li class="composer__file">
+          @if (attachment.previewUrl) {
+            <img class="composer__thumb" [src]="attachment.previewUrl" [alt]="attachment.name" />
+          } @else {
+            <span class="composer__doc">{{ attachment.name }}</span>
+          }
+          <button
+            type="button"
+            class="composer__remove"
+            [attr.aria-label]="'Убрать файл ' + attachment.name"
+            (click)="removeAttachment(attachment.id)"
+          >
+            ×
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (error(); as message) {
+    <p class="composer__error" role="alert">{{ message }}</p>
+  }
+
+  <div class="composer__row">
+    <label class="composer__attach" aria-label="Приложить файл или фото">
+      <input
+        class="composer__input"
+        type="file"
+        multiple
+        [accept]="acceptedTypes"
+        (change)="onFilesSelected($event)"
+      />
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M16.5 6.5v9.75a4.5 4.5 0 0 1-9 0V5.5a3 3 0 0 1 6 0v10a1.5 1.5 0 0 1-3 0V6.5H9v9.25a3 3 0 0 0 6 0v-10a4.5 4.5 0 0 0-9 0v10.75a6 6 0 0 0 12 0V6.5h-1.5Z"
+        />
+      </svg>
+    </label>
+
+    <textarea
+      class="composer__text"
+      rows="1"
+      aria-label="Сообщение"
+      [formField]="composerForm.text"
+      (keydown.enter)="onEnter($event)"
+      (keydown.escape)="onEscape($event)"
+    ></textarea>
+
+    @if (hasContent()) {
+      <button type="submit" class="composer__action" aria-label="Отправить" [disabled]="!canSend()">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 20a1 1 0 0 1-1-1V7.4l-4.3 4.3a1 1 0 0 1-1.4-1.4l6-6a1 1 0 0 1 1.4 0l6 6a1 1 0 0 1-1.4 1.4L13 7.4V19a1 1 0 0 1-1 1Z"
+          />
+        </svg>
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="composer__action"
+        [class.composer__action--live]="speech.listening()"
+        [attr.aria-label]="speech.listening() ? voiceLabels.stop : voiceLabels.start"
+        [attr.aria-pressed]="speech.listening()"
+        [disabled]="!speech.recognitionSupported"
+        (click)="toggleVoice()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 15a4 4 0 0 0 4-4V6a4 4 0 0 0-8 0v5a4 4 0 0 0 4 4Zm6-4a1 1 0 1 1 2 0 8 8 0 0 1-7 7.9V21a1 1 0 1 1-2 0v-2.1A8 8 0 0 1 4 11a1 1 0 1 1 2 0 6 6 0 0 0 12 0Z"
+          />
+        </svg>
+      </button>
+    }
+  </div>
+</form>

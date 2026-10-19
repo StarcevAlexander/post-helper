@@ -1,0 +1,35 @@
+@if (newest().length > 0) {
+  <div class="errors__actions">
+    <button type="button" class="errors__button" (click)="onCopyClicked()">
+      {{ copyLabel() }}
+    </button>
+    <button
+      type="button"
+      class="errors__button errors__button--danger"
+      (click)="clearConfirmOpen.set(true)"
+    >
+      {{ clearLabel }}
+    </button>
+  </div>
+  <ul class="errors__list">
+    @for (entry of newest(); track entry.id) {
+      <li class="errors__entry">
+        <time class="errors__time" [attr.datetime]="entry.createdAt.toISOString()">
+          {{ entry.createdAt | date: 'dd.MM.yyyy HH:mm:ss' }}
+        </time>
+        <span class="errors__source">{{ sourceLabels[entry.source] }}</span>
+        <span class="errors__message">{{ entry.message }}</span>
+      </li>
+    }
+  </ul>
+} @else {
+  <p class="errors__empty">{{ emptyText }}</p>
+}
+
+<app-confirm-dialog
+  [(open)]="clearConfirmOpen"
+  [title]="clearTitle"
+  [message]="clearText"
+  [confirmLabel]="clearLabel"
+  (confirmed)="errorLog.clear()"
+/>

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: post-helper-server
+    runtime: go
+    rootDir: server
+    buildCommand: go build -o post-helper .
+    startCommand: ./post-helper
+    healthCheckPath: /healthz
+    plan: free
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ACCESS_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        sync: false

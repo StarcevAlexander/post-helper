@@ -1,0 +1,14 @@
+<form class="gate" (submit)="$event.preventDefault(); submit()">
+  <label class="gate__label" for="access-password">Пароль доступа к помощнику</label>
+  <div class="gate__row">
+    <input
+      id="access-password"
+      class="gate__input"
+      type="password"
+      autocomplete="current-password"
+      enterkeyhint="go"
+      [formField]="gateForm.password"
+    />
+    <button type="submit" class="gate__button" [disabled]="!canSubmit()">Войти</button>
+  </div>
+</form>

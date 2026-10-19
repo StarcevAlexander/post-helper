@@ -1,0 +1,162 @@
+<dialog
+  #dialog
+  class="panel"
+  aria-labelledby="settings-title"
+  (click)="onDialogClicked($event)"
+  (close)="open.set(false)"
+>
+  <div class="panel__body">
+    <header class="panel__header">
+      @if (screen() !== 'main') {
+        <button
+          type="button"
+          class="panel__back"
+          [attr.aria-label]="backLabel"
+          (click)="onBackClicked()"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+            <path
+              d="M15 5l-7 7 7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      }
+      <h2 id="settings-title" class="panel__title">{{ heading() }}</h2>
+      <button
+        type="button"
+        class="panel__close"
+        [attr.aria-label]="closeLabel"
+        (click)="open.set(false)"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </header>
+    @switch (screen()) {
+      @case ('appearance') {
+        <button type="button" class="panel__item" (click)="screen.set('theme')">
+          {{ themeTitle }}
+          <span class="panel__value">{{ currentThemeLabel() }}</span>
+        </button>
+        <button type="button" class="panel__item" (click)="screen.set('scale')">
+          {{ scaleTitle }}
+          <span class="panel__value">{{ settings.scale() }}%</span>
+        </button>
+      }
+      @case ('theme') {
+        <fieldset class="themes">
+          <legend class="themes__title">{{ themeTitle }}</legend>
+          <div class="themes__grid">
+            @for (option of themes; track option.id) {
+              <label class="theme" [attr.data-theme]="option.id">
+                <input
+                  class="theme__input"
+                  type="radio"
+                  name="theme"
+                  [value]="option.id"
+                  [checked]="settings.theme() === option.id"
+                  (change)="onThemeChanged(option.id)"
+                />
+                <span class="theme__preview" aria-hidden="true">
+                  <span class="theme__header"></span>
+                  <span class="theme__bubble theme__bubble--assistant"></span>
+                  <span class="theme__bubble theme__bubble--user"></span>
+                  <span class="theme__composer">
+                    <span class="theme__field"></span>
+                    <span class="theme__mic"></span>
+                  </span>
+                </span>
+                <span class="theme__label">{{ option.label }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+      }
+      @case ('errors') {
+        <app-error-log />
+      }
+      @case ('requests') {
+        <app-request-log />
+      }
+      @case ('scale') {
+        <div class="scale">
+          <output class="scale__value" for="scale-range">{{ settings.scale() }}%</output>
+          <input
+            id="scale-range"
+            class="scale__range"
+            type="range"
+            [attr.aria-label]="scaleTitle"
+            [min]="minScale"
+            [max]="maxScale"
+            [step]="scaleStep"
+            [value]="settings.scale()"
+            (input)="onScaleChanged($event)"
+          />
+        </div>
+      }
+      @default {
+        <button type="button" class="panel__item" (click)="screen.set('appearance')">
+          {{ appearanceTitle }}
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path
+              d="M9 5l7 7-7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        @if (speech.synthesisSupported) {
+          <label class="panel__toggle">
+            <input
+              type="checkbox"
+              [checked]="settings.speakReplies()"
+              (change)="onSpeakRepliesChanged($event)"
+            />
+            {{ speakRepliesLabel }}
+          </label>
+        }
+        <button type="button" class="panel__item" (click)="screen.set('errors')">
+          {{ errorLogTitle }}
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path
+              d="M9 5l7 7-7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button type="button" class="panel__item" (click)="screen.set('requests')">
+          {{ requestLogTitle }}
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path
+              d="M9 5l7 7-7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      }
+    }
+  </div>
+</dialog>
