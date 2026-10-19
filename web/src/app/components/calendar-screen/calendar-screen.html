@@ -1,0 +1,147 @@
+<dialog
+  #dialog
+  class="screen"
+  aria-labelledby="calendar-title"
+  (click)="onDialogClicked($event)"
+  (close)="onDialogClosed()"
+>
+  <div class="screen__body">
+    <header class="screen__header">
+      <h2 id="calendar-title" class="screen__title">{{ title }}</h2>
+      <button
+        type="button"
+        class="screen__close"
+        [attr.aria-label]="closeLabel"
+        (click)="open.set(false)"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </header>
+
+    <p class="screen__hint">{{ hint }}</p>
+
+    <form class="slots" novalidate (submit)="$event.preventDefault(); onBuild()">
+      <h3 class="screen__heading">{{ contentDayTitle }}</h3>
+
+      <div class="slot">
+        <div class="field">
+          <label class="field__label" for="calendar-weekday1">{{ firstDayLabel }}</label>
+          <select id="calendar-weekday1" class="field__input" [formField]="calendarForm.weekday1">
+            @for (day of weekdays; track day.value) {
+              <option [value]="day.value">{{ day.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="calendar-time1">{{ timeLabel }}</label>
+          <input
+            id="calendar-time1"
+            class="field__input"
+            type="time"
+            [attr.aria-invalid]="errorOf('time1') ? 'true' : null"
+            [formField]="calendarForm.time1"
+          />
+        </div>
+      </div>
+      @if (errorOf('time1'); as message) {
+        <p class="field__error" role="alert">{{ message }}</p>
+      }
+
+      <div class="slot">
+        <div class="field">
+          <label class="field__label" for="calendar-weekday2">{{ secondDayLabel }}</label>
+          <select id="calendar-weekday2" class="field__input" [formField]="calendarForm.weekday2">
+            <option value="">{{ noSecondDayLabel }}</option>
+            @for (day of weekdays; track day.value) {
+              <option [value]="day.value">{{ day.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="calendar-time2">{{ timeLabel }}</label>
+          <input
+            id="calendar-time2"
+            class="field__input"
+            type="time"
+            [attr.aria-invalid]="errorOf('time2') ? 'true' : null"
+            [formField]="calendarForm.time2"
+          />
+        </div>
+      </div>
+      @if (errorOf('weekday2') ?? errorOf('time2'); as message) {
+        <p class="field__error" role="alert">{{ message }}</p>
+      }
+
+      <div class="field">
+        <label class="field__label" for="calendar-publish">{{ publishTimeLabel }}</label>
+        <input
+          id="calendar-publish"
+          class="field__input field__input--short"
+          type="time"
+          [attr.aria-invalid]="errorOf('publishTime') ? 'true' : null"
+          [formField]="calendarForm.publishTime"
+        />
+        @if (errorOf('publishTime'); as message) {
+          <p class="field__error" role="alert">{{ message }}</p>
+        }
+      </div>
+
+      <button type="submit" class="screen__primary" [disabled]="calendarForm().invalid()">
+        {{ buildLabel() }}
+      </button>
+    </form>
+
+    <section class="plan">
+      <h3 class="screen__heading">{{ planTitle }}</h3>
+      @if (plan.hasPlan()) {
+        @for (week of weekViews(); track week.index) {
+          <article class="week">
+            <h4 class="week__title">{{ week.title }}</h4>
+            @for (day of week.contentDays; track $index) {
+              <p class="week__content-day">{{ day }}</p>
+            }
+            <ul class="items">
+              @for (view of week.items; track view.item.id) {
+                <li class="item" [class.item--done]="view.item.done">
+                  <label class="item__label">
+                    <input
+                      type="checkbox"
+                      class="item__check"
+                      [checked]="view.item.done"
+                      [attr.aria-label]="doneLabel + ': ' + view.item.idea"
+                      (change)="plan.toggleDone(view.item.id)"
+                    />
+                    <span class="item__text">
+                      <span class="item__when">
+                        {{ view.dayLabel }}
+                        <span class="item__format" [attr.data-format]="view.item.format">
+                          {{ view.formatLabel }}
+                        </span>
+                      </span>
+                      <span class="item__idea">{{ view.item.idea }}</span>
+                      <span class="item__pillar">{{ view.item.pillar }}</span>
+                    </span>
+                  </label>
+                </li>
+              }
+            </ul>
+          </article>
+        }
+        <button type="button" class="screen__secondary" (click)="onExport()">
+          {{ exportLabel }}
+        </button>
+        <p class="screen__hint">{{ exportHint }}</p>
+      } @else {
+        <p class="screen__hint">{{ emptyText }}</p>
+      }
+    </section>
+  </div>
+</dialog>

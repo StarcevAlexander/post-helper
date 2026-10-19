@@ -13,6 +13,7 @@ import {
   CADENCE_LABELS,
   CLEAR_CONFIRM_TIMEOUT_MS,
   STRATEGY_BUILD_LABEL,
+  STRATEGY_CALENDAR_LABEL,
   STRATEGY_CLOSE_LABEL,
   STRATEGY_EDIT_PROFILE_LABEL,
   STRATEGY_EMPTY_TEXT,
@@ -32,6 +33,7 @@ import { Onboarding } from '../../services/onboarding';
 export class StrategyScreen {
   readonly open = model(false);
   readonly profileRequested = output();
+  readonly calendarRequested = output();
 
   protected readonly chat = inject(Chat);
   protected readonly onboarding = inject(Onboarding);
@@ -40,6 +42,7 @@ export class StrategyScreen {
   protected readonly emptyText = STRATEGY_EMPTY_TEXT;
   protected readonly buildLabel = STRATEGY_BUILD_LABEL;
   protected readonly editProfileLabel = STRATEGY_EDIT_PROFILE_LABEL;
+  protected readonly calendarLabel = STRATEGY_CALENDAR_LABEL;
   protected readonly sections = STRATEGY_SECTIONS;
   protected readonly confirmingRestart = signal(false);
   protected readonly restartLabel = computed(() =>
@@ -69,6 +72,11 @@ export class StrategyScreen {
         this.confirmingRestart.set(false);
       }
     });
+  }
+
+  protected onCalendarClicked(): void {
+    this.open.set(false);
+    this.calendarRequested.emit();
   }
 
   protected onProfileClicked(): void {

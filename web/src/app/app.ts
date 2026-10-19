@@ -14,6 +14,7 @@ import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
 import { MessageBubble } from './components/message-bubble/message-bubble';
 import { SettingsPanel } from './components/settings-panel/settings-panel';
+import { CalendarScreen } from './components/calendar-screen/calendar-screen';
 import { ProfileScreen } from './components/profile-screen/profile-screen';
 import { StrategyScreen } from './components/strategy-screen/strategy-screen';
 import {
@@ -21,6 +22,7 @@ import {
   HISTORY_CONTEXT_LABEL,
   NOTIFY_BUTTON_LABEL,
   NOTIFY_WAITING_LABEL,
+  CALENDAR_OPEN_LABEL,
   SETTINGS_OPEN_LABEL,
   STRATEGY_OPEN_LABEL,
   UPDATE_BUTTON_LABEL,
@@ -36,7 +38,15 @@ import { TestNotification } from './services/test-notification';
 import { APP_VERSION } from './version';
 
 @Component({
-  imports: [AccessGate, Composer, MessageBubble, ProfileScreen, SettingsPanel, StrategyScreen],
+  imports: [
+    AccessGate,
+    CalendarScreen,
+    Composer,
+    MessageBubble,
+    ProfileScreen,
+    SettingsPanel,
+    StrategyScreen,
+  ],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
@@ -53,6 +63,7 @@ export class App {
   protected readonly notifyWaitingLabel = NOTIFY_WAITING_LABEL;
   protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;
   protected readonly strategyOpenLabel = STRATEGY_OPEN_LABEL;
+  protected readonly calendarOpenLabel = CALENDAR_OPEN_LABEL;
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly contextLabel = HISTORY_CONTEXT_LABEL;
   protected readonly version = APP_VERSION;
@@ -61,6 +72,7 @@ export class App {
   protected readonly settingsOpen = signal(false);
   protected readonly strategyOpen = signal(false);
   protected readonly profileOpen = signal(false);
+  protected readonly calendarOpen = signal(false);
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly log = viewChild.required<ElementRef<HTMLElement>>('log');

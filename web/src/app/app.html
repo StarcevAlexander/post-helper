@@ -39,6 +39,25 @@
         </button>
       }
       <span class="shell__version">v{{ version }}</span>
+      @if (onboarding.strategy()) {
+        <button
+          type="button"
+          class="shell__calendar"
+          [attr.aria-label]="calendarOpenLabel"
+          (click)="calendarOpen.set(true)"
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+            <path
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+            />
+          </svg>
+        </button>
+      }
       @if (onboarding.profile()) {
         <button
           type="button"
@@ -119,6 +138,12 @@
 
 <app-settings-panel [(open)]="settingsOpen" />
 
-<app-strategy-screen [(open)]="strategyOpen" (profileRequested)="profileOpen.set(true)" />
+<app-strategy-screen
+  [(open)]="strategyOpen"
+  (profileRequested)="profileOpen.set(true)"
+  (calendarRequested)="calendarOpen.set(true)"
+/>
+
+<app-calendar-screen [(open)]="calendarOpen" />
 
 <app-profile-screen [(open)]="profileOpen" />

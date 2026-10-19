@@ -15,6 +15,7 @@ import {
 } from '../constants';
 import { MasterProfile, ProfileField, Strategy } from '../models';
 import { Access } from './access';
+import { CalendarPlan } from './calendar-plan';
 import { Chat } from './chat';
 import { Onboarding } from './onboarding';
 
@@ -338,6 +339,20 @@ describe('Chat onboarding', () => {
     expect(chat.messages().length).toBe(2);
     expect(localStorage.getItem(ONBOARDING_STORAGE_KEY)).toBeNull();
     expect(localStorage.getItem(STRATEGY_STORAGE_KEY)).toBeNull();
+  });
+
+  it('drops the calendar together with the profile on restart', async () => {
+    answerAll();
+    confirmReview();
+    http.expectOne(strategyUrl).flush(strategy);
+    await vi.waitFor(() => expect(chat.busy()).toBe(false));
+    const calendar = TestBed.inject(CalendarPlan);
+    calendar.build(calendar.toDraft(), strategy);
+    expect(calendar.hasPlan()).toBe(true);
+
+    chat.restartOnboarding();
+
+    expect(calendar.hasPlan()).toBe(false);
   });
 
   it('ignores an empty answer', () => {

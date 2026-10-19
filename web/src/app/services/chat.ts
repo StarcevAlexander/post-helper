@@ -22,6 +22,7 @@ import {
   ComposerPayload,
 } from '../models';
 import { Access } from './access';
+import { CalendarPlan } from './calendar-plan';
 import { ChatApi } from './chat-api';
 import { ChatHistory } from './chat-history';
 import { Conversation } from './conversation';
@@ -36,6 +37,7 @@ export class Chat {
   private readonly history = inject(ChatHistory);
   private readonly errorLog = inject(ErrorLog);
   private readonly onboarding = inject(Onboarding);
+  private readonly calendarPlan = inject(CalendarPlan);
   private strategyReplyId?: string;
 
   readonly messages = signal<ChatMessage[]>(this.restoreMessages());
@@ -124,6 +126,7 @@ export class Chat {
     }
     this.messages().forEach((message) => this.revokePreviews(message));
     this.onboarding.reset();
+    this.calendarPlan.reset();
     this.messages.set(this.createWelcomeMessages());
     this.conversation.reset();
   }
