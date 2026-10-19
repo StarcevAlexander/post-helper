@@ -55,6 +55,13 @@ export class AuditJobs {
     }
   }
 
+  async autoOrder(handle: string): Promise<void> {
+    if (!this.access.granted() || this.audit.stored() || this.active()) {
+      return;
+    }
+    await this.order(handle.trim(), true);
+  }
+
   async cancel(): Promise<void> {
     const job = this.job();
     if (!job || this.busy()) {

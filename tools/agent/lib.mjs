@@ -220,3 +220,35 @@ export async function failJob(config, jobId, reason, final) {
   });
   return body;
 }
+
+export const WATCH_DEFAULTS = {
+  intervalMs: 120000,
+  pauseMs: 150000,
+  maxPerDay: 10,
+  runTimeoutMs: 20 * 60 * 1000,
+};
+
+export function canRunNow(startedAt, nowMs, limits = WATCH_DEFAULTS) {
+  const dayAgo = nowMs - 24 * 60 * 60 * 1000;
+  const recent = startedAt.filter((time) => time > dayAgo);
+  if (recent.length >= limits.maxPerDay) {
+    return { ok: false, reason: `дневной предел ${limits.maxPerDay} заказов`, waitMs: Math.min(...recent) + 24 * 60 * 60 * 1000 - nowMs };
+  }
+  const last = Math.max(0, ...recent);
+  if (last && nowMs - last < limits.pauseMs) {
+    return { ok: false, reason: 'пауза между заказами', waitMs: last + limits.pauseMs - nowMs };
+  }
+  return { ok: true, reason: '', waitMs: 0 };
+}
+
+export function buildAgentPrompt(job, workDir, repoDir) {
+  return [
+    `Выполни ОДИН заказ на разбор Instagram по инструкции ${repoDir}/docs/agent/instagram-audit.md. Прочитай её целиком, правила безопасности обязательны.`,
+    `Заказ уже взят из очереди, не вызывай next. id: ${job.id}. Профиль: https://www.instagram.com/${job.handle}/`,
+    `Открой только этот профиль в браузере. Ничего не нажимай, кроме прокрутки и открытия постов и вкладки Reels. Лайки, подписки, сообщения, комментарии запрещены.`,
+    `Скриншоты (шапка, сетка 2-3 экрана, до 3 постов, Reels) сохрани в папку ${workDir}/shots, данные запиши в ${workDir}/data.json.`,
+    `Отправь: node ${repoDir}/tools/agent/ig-agent.mjs submit ${job.id} --data ${workDir}/data.json --images ${workDir}/shots`,
+    `Если вход потребовал пароль, капча, действие заблокировано, профиль закрытый или не найден: node ${repoDir}/tools/agent/ig-agent.mjs fail ${job.id} "причина" (для закрытого или несуществующего добавь --final) и остановись.`,
+    `Токен никогда не показывай. В конце коротко доложи: handle, сколько картинок ушло, ответ сервера.`,
+  ].join('\n');
+}

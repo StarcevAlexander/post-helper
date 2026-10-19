@@ -37,6 +37,7 @@ import { Chat } from './services/chat';
 import { Kits } from './services/kits';
 import { Reviews } from './services/reviews';
 import { Audit } from './services/audit';
+import { AuditJobs } from './services/audit-jobs';
 import { Onboarding } from './services/onboarding';
 import { Settings } from './services/settings';
 import { Sync } from './services/sync';
@@ -71,6 +72,7 @@ export class App {
   private readonly kits = inject(Kits);
   private readonly reviews = inject(Reviews);
   private readonly audit = inject(Audit);
+  private readonly auditJobs = inject(AuditJobs);
   protected readonly appUpdate = inject(AppUpdate);
   protected readonly testNotification = inject(TestNotification);
   protected readonly notifyLabel = NOTIFY_BUTTON_LABEL;
@@ -130,6 +132,9 @@ export class App {
     });
 
     afterNextRender(() => {
+      if (this.access.granted()) {
+        void this.auditJobs.refresh();
+      }
       this.appUpdate.setIdleCheck(() => this.isIdle());
       this.appUpdate.start();
 

@@ -78,7 +78,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     field: 'instagram',
     label: 'Instagram',
     question:
-      'Пришлите ник или ссылку на ваш Instagram. Если аккаунта пока нет, напишите «пропустить».',
+      'Пришлите ник или ссылку на ваш Instagram. Я посмотрю ваш открытый аккаунт и учту его в стратегии, скриншоты не нужны. Если аккаунта пока нет или не хотите, чтобы я его смотрел, напишите «пропустить».',
     example: 'anna_nails или https://instagram.com/anna_nails',
     kind: 'handle',
     minChars: 3,

@@ -25,6 +25,7 @@ import {
 } from '../models';
 import { Access } from './access';
 import { Audit } from './audit';
+import { AuditJobs } from './audit-jobs';
 import { CalendarPlan } from './calendar-plan';
 import { ChatApi } from './chat-api';
 import { ChatHistory } from './chat-history';
@@ -42,6 +43,7 @@ export class Chat {
   private readonly onboarding = inject(Onboarding);
   private readonly calendarPlan = inject(CalendarPlan);
   private readonly audit = inject(Audit);
+  private readonly auditJobs = inject(AuditJobs);
   private strategyReplyId?: string;
 
   readonly messages = signal<ChatMessage[]>(this.restoreMessages());
@@ -235,6 +237,9 @@ export class Chat {
     const result = this.onboarding.answer(text);
     if (step && (result.outcome === 'next' || result.outcome === 'done')) {
       this.markAnswer(userMessage.id, step.field);
+      if (step.field === 'instagram' && this.onboarding.answers().instagram) {
+        void this.auditJobs.autoOrder(text);
+      }
     }
     switch (result.outcome) {
       case 'repeat':

@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import {
   AgentError,
+  buildAgentPrompt,
+  canRunNow,
   failJob,
   listImages,
   loadConfig,
@@ -224,5 +226,37 @@ describe('talking to the server', () => {
   it('tells about a wrong token and about an unreachable server', async () => {
     await assert.rejects(() => nextJob({ ...config, token: 'x'.repeat(30) }), (error) => error.code === 5);
     await assert.rejects(() => nextJob({ server: 'http://127.0.0.1:1', token: TOKEN }), (error) => error.code === 4);
+  });
+});
+
+describe('watch rules', () => {
+  const limits = { intervalMs: 1000, pauseMs: 150000, maxPerDay: 3, runTimeoutMs: 1000 };
+  const now = 10 * 24 * 60 * 60 * 1000;
+
+  it('lets the first order go', () => {
+    assert.equal(canRunNow([], now, limits).ok, true);
+  });
+
+  it('keeps a pause between two orders', () => {
+    const gate = canRunNow([now - 60000], now, limits);
+
+    assert.equal(gate.ok, false);
+    assert.equal(gate.waitMs, 90000);
+  });
+
+  it('stops at the daily limit and frees a slot after a day', () => {
+    const long = [now - 5000000, now - 4000000, now - 3000000];
+
+    assert.equal(canRunNow(long, now, limits).ok, false);
+    assert.equal(canRunNow(long, now + 24 * 60 * 60 * 1000 - 4900000, limits).ok, true);
+  });
+
+  it('builds a prompt that names the order, the profile and the commands', () => {
+    const prompt = buildAgentPrompt({ id: 'j1', handle: 'anna_nails' }, '/tmp/w', '/repo');
+
+    assert.match(prompt, /j1/);
+    assert.match(prompt, /instagram\.com\/anna_nails\//);
+    assert.match(prompt, /ig-agent\.mjs submit j1/);
+    assert.match(prompt, /ig-agent\.mjs fail j1/);
   });
 });

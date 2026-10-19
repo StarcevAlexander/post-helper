@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import {
+  API_AUDIT_JOBS_PATH,
   API_DEV_URL,
   API_STRATEGY_PATH,
   ONBOARDING_FIRST_QUESTION_BACK_TEXT,
@@ -20,6 +21,7 @@ import { Chat } from './chat';
 import { Onboarding } from './onboarding';
 
 const strategyUrl = `${API_DEV_URL}${API_STRATEGY_PATH}`;
+const jobsUrl = `${API_DEV_URL}${API_AUDIT_JOBS_PATH}`;
 
 const VALID_ANSWERS: Record<ProfileField, string> = {
   name: 'Анна',
@@ -86,8 +88,41 @@ describe('Chat onboarding', () => {
   });
 
   afterEach(() => {
+    http.match({ method: 'POST', url: jobsUrl }).forEach((request) => request.flush({}));
     http.verify();
     localStorage.clear();
+  });
+
+  it('orders the analysis of the instagram account as soon as the answer is accepted', () => {
+    for (const step of ONBOARDING_STEPS) {
+      chat.send({ text: VALID_ANSWERS[step.field], attachments: [] });
+      if (step.field === 'instagram') {
+        break;
+      }
+    }
+
+    const request = http.expectOne({ method: 'POST', url: jobsUrl });
+    expect(request.request.body).toEqual({ handle: 'anna_nails', consent: true });
+    request.flush({
+      id: 'j1',
+      handle: 'anna_nails',
+      status: 'queued',
+      createdAt: '2026-10-19T08:00:00Z',
+    });
+  });
+
+  it('does not order the analysis when the instagram question is skipped', () => {
+    for (const step of ONBOARDING_STEPS) {
+      chat.send({
+        text: step.field === 'instagram' ? 'пропустить' : VALID_ANSWERS[step.field],
+        attachments: [],
+      });
+      if (step.field === 'instagram') {
+        break;
+      }
+    }
+
+    http.expectNone({ method: 'POST', url: jobsUrl });
   });
 
   it('starts with an introduction and the first question', () => {
