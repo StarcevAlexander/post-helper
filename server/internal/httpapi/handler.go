@@ -27,6 +27,11 @@ func NewHandler(options Options) http.Handler {
 	mux.HandleFunc(HealthRoute, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
+	mux.Handle(StrategyRoute, withPassword(options.Password, &strategyHandler{
+		generator: options.Strategist,
+		recorder:  history,
+		logger:    logger,
+	}))
 	mux.Handle(ChatRoute, withPassword(options.Password, &chatHandler{
 		responder: options.Responder,
 		recorder:  history,

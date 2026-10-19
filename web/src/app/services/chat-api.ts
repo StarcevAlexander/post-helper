@@ -7,8 +7,10 @@ import {
   API_DEV_URL,
   API_MESSAGES,
   API_PRODUCTION_URL,
+  API_STRATEGY_PATH,
   HTTP_OFFLINE,
   HTTP_UNAUTHORIZED,
+  HTTP_UNPROCESSABLE,
   REQUEST_DESCRIPTIONS,
 } from '../constants';
 import {
@@ -18,7 +20,9 @@ import {
   ChatApiError,
   ClientErrorReport,
   ComposerPayload,
+  MasterProfile,
   RequestDescriptor,
+  Strategy,
 } from '../models';
 import { Access } from './access';
 import { Conversation } from './conversation';
@@ -64,6 +68,13 @@ export class ChatApi {
       sent,
     });
     return response.reply;
+  }
+
+  requestStrategy(profile: MasterProfile): Promise<Strategy> {
+    return this.send<Strategy>('POST', API_STRATEGY_PATH, profile, {
+      description: REQUEST_DESCRIPTIONS.strategy,
+      sent: [profile.specialty, profile.city].filter(Boolean).join(', '),
+    });
   }
 
   private async send<T>(
@@ -117,6 +128,10 @@ export class ChatApi {
       return new ChatApiError(API_MESSAGES.offline);
     }
     const serverMessage = (error.error as ApiErrorBody | null)?.error;
-    return new ChatApiError(serverMessage || API_MESSAGES.failed);
+    return new ChatApiError(
+      serverMessage || API_MESSAGES.failed,
+      false,
+      error.status === HTTP_UNPROCESSABLE,
+    );
   }
 }

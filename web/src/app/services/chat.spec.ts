@@ -1,7 +1,14 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { API_CHAT_PATH, API_DEV_URL, API_MESSAGES, CHAT_HISTORY_STORAGE_KEY } from '../constants';
+import {
+  API_CHAT_PATH,
+  API_DEV_URL,
+  API_MESSAGES,
+  CHAT_HISTORY_STORAGE_KEY,
+  ONBOARDING_STEPS,
+  ONBOARDING_STORAGE_KEY,
+} from '../constants';
 import { Access } from './access';
 import { Chat } from './chat';
 
@@ -14,6 +21,14 @@ describe('Chat', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    localStorage.setItem(
+      ONBOARDING_STORAGE_KEY,
+      JSON.stringify({
+        index: ONBOARDING_STEPS.length,
+        answers: { specialty: 'маникюр' },
+        confirmed: true,
+      }),
+    );
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });

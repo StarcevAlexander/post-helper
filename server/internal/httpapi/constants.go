@@ -3,8 +3,9 @@ package httpapi
 import "time"
 
 const (
-	ChatRoute   = "POST /api/chat"
-	HealthRoute = "GET /healthz"
+	ChatRoute     = "POST /api/chat"
+	StrategyRoute = "POST /api/strategy"
+	HealthRoute   = "GET /healthz"
 )
 
 const HealthPath = "/healthz"
@@ -54,4 +55,14 @@ const (
 	MsgTooLarge        = "Файлы слишком большие"
 	MsgUnsupportedFile = "Этот тип файла не поддерживается"
 	MsgUpstreamFailed  = "Помощник временно недоступен, попробуйте ещё раз"
+)
+
+const (
+	MaxStrategyBodyBytes    int64 = 32 << 10
+	MaxProfileFieldRunes          = 1500
+	MsgStrategyFailed             = "Не удалось составить стратегию, попробуйте ещё раз"
+	MsgStrategyRefused            = "С такой анкетой я стратегию составить не могу. Опишите свою работу иначе"
+	MsgStrategyInsufficient       = "Не хватает данных для стратегии. "
+	MsgNoSpecialty                = "Расскажите, чем вы занимаетесь"
+	MsgProfileTooLong             = "Ответ в анкете слишком длинный"
 )

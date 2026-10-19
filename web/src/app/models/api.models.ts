@@ -24,6 +24,7 @@ export class ChatApiError extends Error {
   constructor(
     message: string,
     readonly unauthorized = false,
+    readonly insufficient = false,
   ) {
     super(message);
     this.name = 'ChatApiError';

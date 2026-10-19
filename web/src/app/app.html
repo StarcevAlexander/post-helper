@@ -39,6 +39,25 @@
         </button>
       }
       <span class="shell__version">v{{ version }}</span>
+      @if (onboarding.profile()) {
+        <button
+          type="button"
+          class="shell__strategy"
+          [attr.aria-label]="strategyOpenLabel"
+          (click)="onStrategyClicked()"
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+            <path
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+            />
+          </svg>
+        </button>
+      }
       <button
         type="button"
         class="shell__settings"
@@ -99,3 +118,7 @@
 </div>
 
 <app-settings-panel [(open)]="settingsOpen" />
+
+<app-strategy-screen [(open)]="strategyOpen" (profileRequested)="profileOpen.set(true)" />
+
+<app-profile-screen [(open)]="profileOpen" />

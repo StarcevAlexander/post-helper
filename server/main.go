@@ -15,6 +15,7 @@ import (
 	"post-helper/server/internal/config"
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/store"
+	"post-helper/server/internal/strategy"
 )
 
 const (
@@ -63,6 +64,7 @@ func run() error {
 	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{
 		Responder:      claude,
+		Strategist:     strategy.NewClaude(cfg.APIKey, cfg.Model),
 		Password:       cfg.AccessPassword,
 		AllowedOrigins: cfg.AllowedOrigins,
 		Store:          history,

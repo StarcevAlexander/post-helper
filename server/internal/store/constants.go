@@ -14,6 +14,7 @@ const (
 
 const (
 	EventChatRequest      = "chat.request"
+	EventStrategy         = "strategy.generated"
 	EventHTTPRequest      = "http.request"
 	EventIngest           = "ingest"
 	ErrorSourceServer     = "server"

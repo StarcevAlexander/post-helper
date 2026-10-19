@@ -1,5 +1,18 @@
 import { Service, computed, effect, inject, signal } from '@angular/core';
-import { MAX_HISTORY_TURNS, WELCOME_TEXT } from '../constants';
+import {
+  MAX_HISTORY_TURNS,
+  BACK_WORDS,
+  ONBOARDING_BACK_TEXT,
+  ONBOARDING_FIRST_QUESTION_BACK_TEXT,
+  ONBOARDING_INTRO_TEXT,
+  ONBOARDING_PREVIOUS_ANSWER_LABEL,
+  ONBOARDING_REPEAT_TEXT,
+  ONBOARDING_REVIEW_TEXT,
+  ONBOARDING_REVIEWING_REMINDER_TEXT,
+  STRATEGY_NO_PROFILE_TEXT,
+  STRATEGY_READY_TEXT,
+  WELCOME_TEXT,
+} from '../constants';
 import {
   ApiTurn,
   Attachment,
@@ -13,6 +26,7 @@ import { ChatApi } from './chat-api';
 import { ChatHistory } from './chat-history';
 import { Conversation } from './conversation';
 import { ErrorLog } from './error-log';
+import { Onboarding } from './onboarding';
 
 @Service()
 export class Chat {
@@ -21,6 +35,8 @@ export class Chat {
   private readonly access = inject(Access);
   private readonly history = inject(ChatHistory);
   private readonly errorLog = inject(ErrorLog);
+  private readonly onboarding = inject(Onboarding);
+  private strategyReplyId?: string;
 
   readonly messages = signal<ChatMessage[]>(this.restoreMessages());
   readonly busy = signal(false);
@@ -50,13 +66,18 @@ export class Chat {
       return;
     }
     this.messages().forEach((message) => this.revokePreviews(message));
-    this.messages.set([this.createWelcomeMessage()]);
+    this.messages.set(this.createWelcomeMessages());
     this.conversation.reset();
   }
 
   send(payload: ComposerPayload): void {
     const text = payload.text.trim();
     if (this.busy() || (!text && payload.attachments.length === 0)) {
+      return;
+    }
+
+    if (this.onboarding.active() || this.onboarding.reviewing()) {
+      this.answerOnboarding(text, payload.attachments);
       return;
     }
 
@@ -74,14 +95,37 @@ export class Chat {
       return;
     }
 
-    const history = this.contextTurns(messages.slice(0, index)).slice(-MAX_HISTORY_TURNS);
     this.updateMessage(reply.id, { text: '', pending: true, failed: false });
     this.busy.set(true);
+    if (reply.id === this.strategyReplyId) {
+      void this.requestStrategy(reply.id);
+      return;
+    }
+
+    const history = this.contextTurns(messages.slice(0, index)).slice(-MAX_HISTORY_TURNS);
     void this.requestReply(
       reply.id,
       { text: request.text, attachments: request.attachments },
       history,
     );
+  }
+
+  buildStrategy(): void {
+    if (this.busy() || !this.onboarding.profile()) {
+      return;
+    }
+    const pendingId = this.appendPending();
+    void this.requestStrategy(pendingId);
+  }
+
+  restartOnboarding(): void {
+    if (this.busy()) {
+      return;
+    }
+    this.messages().forEach((message) => this.revokePreviews(message));
+    this.onboarding.reset();
+    this.messages.set(this.createWelcomeMessages());
+    this.conversation.reset();
   }
 
   remove(id: string): void {
@@ -94,7 +138,6 @@ export class Chat {
   }
 
   private appendExchange(text: string, attachments: Attachment[]): string {
-    const pendingId = crypto.randomUUID();
     this.messages.update((messages) => [
       ...messages,
       {
@@ -104,6 +147,14 @@ export class Chat {
         attachments,
         createdAt: new Date(),
       },
+    ]);
+    return this.appendPending();
+  }
+
+  private appendPending(): string {
+    const pendingId = crypto.randomUUID();
+    this.messages.update((messages) => [
+      ...messages,
       {
         id: pendingId,
         role: 'assistant',
@@ -115,6 +166,93 @@ export class Chat {
     ]);
     this.busy.set(true);
     return pendingId;
+  }
+
+  private appendAssistantText(text: string): void {
+    this.messages.update((messages) => [
+      ...messages,
+      { id: crypto.randomUUID(), role: 'assistant', text, attachments: [], createdAt: new Date() },
+    ]);
+  }
+
+  private answerOnboarding(text: string, attachments: Attachment[]): void {
+    attachments.forEach((attachment) => {
+      if (attachment.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+    });
+    if (!text) {
+      return;
+    }
+
+    this.messages.update((messages) => [
+      ...messages,
+      { id: crypto.randomUUID(), role: 'user', text, attachments: [], createdAt: new Date() },
+    ]);
+
+    if (this.onboarding.reviewing()) {
+      this.appendAssistantText(ONBOARDING_REVIEWING_REMINDER_TEXT);
+      return;
+    }
+    if (BACK_WORDS.includes(text.toLowerCase())) {
+      this.goBack();
+      return;
+    }
+
+    const result = this.onboarding.answer(text);
+    switch (result.outcome) {
+      case 'repeat':
+        this.appendAssistantText(ONBOARDING_REPEAT_TEXT);
+        this.appendAssistantText(this.questionText());
+        break;
+      case 'invalid':
+        this.appendAssistantText(result.reason ?? ONBOARDING_REPEAT_TEXT);
+        break;
+      case 'next':
+        this.appendAssistantText(this.questionText());
+        break;
+      case 'done':
+        this.appendAssistantText(ONBOARDING_REVIEW_TEXT);
+        break;
+    }
+  }
+
+  private goBack(): void {
+    if (!this.onboarding.back()) {
+      this.appendAssistantText(ONBOARDING_FIRST_QUESTION_BACK_TEXT);
+      return;
+    }
+    const previous = this.onboarding.currentAnswer();
+    const note = previous ? ` ${ONBOARDING_PREVIOUS_ANSWER_LABEL}: «${previous}».` : '';
+    this.appendAssistantText(`${ONBOARDING_BACK_TEXT}${note}`);
+    this.appendAssistantText(this.questionText());
+  }
+
+  private questionText(): string {
+    const step = this.onboarding.step();
+    return step
+      ? `${this.onboarding.index() + 1} из ${this.onboarding.total}. ${step.question}`
+      : '';
+  }
+
+  private async requestStrategy(pendingId: string): Promise<void> {
+    const profile = this.onboarding.profile();
+    this.strategyReplyId = pendingId;
+    if (!profile) {
+      this.failPending(pendingId, new ChatApiError(STRATEGY_NO_PROFILE_TEXT));
+      return;
+    }
+    try {
+      const strategy = await this.api.requestStrategy(profile);
+      this.onboarding.setStrategy(strategy);
+      this.updateMessage(pendingId, { text: STRATEGY_READY_TEXT, pending: false, failed: false });
+      this.strategyReplyId = undefined;
+    } catch (error) {
+      if (error instanceof ChatApiError && error.insufficient) {
+        this.onboarding.reopenReview();
+      }
+      this.failPending(pendingId, error);
+    }
   }
 
   private async requestReply(
@@ -152,17 +290,23 @@ export class Chat {
   private restoreMessages(): ChatMessage[] {
     const restored = this.history.load();
     const ordered = [...restored].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-    return ordered.length > 0 ? ordered : [this.createWelcomeMessage()];
+    return ordered.length > 0 ? ordered : this.createWelcomeMessages();
   }
 
-  private createWelcomeMessage(): ChatMessage {
-    return {
+  private createWelcomeMessages(): ChatMessage[] {
+    const welcome = (text: string): ChatMessage => ({
       id: crypto.randomUUID(),
       role: 'assistant',
-      text: WELCOME_TEXT,
+      text,
       attachments: [],
       createdAt: new Date(),
-    };
+    });
+    if (!this.onboarding.active()) {
+      return [welcome(WELCOME_TEXT)];
+    }
+    const first = welcome(ONBOARDING_INTRO_TEXT);
+    const question = welcome(this.questionText());
+    return [first, { ...question, createdAt: new Date(first.createdAt.getTime() + 1) }];
   }
 
   private revokePreviews(message: ChatMessage): void {

@@ -3,7 +3,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideServiceWorker } from '@angular/service-worker';
 import { App } from './app';
-import { ACCESS_PASSWORD_STORAGE_KEY } from './constants';
+import { ACCESS_PASSWORD_STORAGE_KEY, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY } from './constants';
 
 describe('App', () => {
   beforeEach(async () => {
@@ -32,14 +32,33 @@ describe('App', () => {
     expect(element.querySelector('app-composer')).toBeNull();
   });
 
-  it('renders the welcome message and the settings toggle once the password is stored', async () => {
+  it('renders the introduction with the first question once the password is stored', async () => {
     localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.querySelector('app-access-gate')).toBeNull();
-    expect(element.querySelectorAll('app-message-bubble').length).toBe(1);
+    expect(element.querySelectorAll('app-message-bubble').length).toBe(2);
+    expect(element.querySelector('.shell__strategy')).toBeNull();
     expect(element.querySelector('app-composer')).toBeTruthy();
+  });
+
+  it('shows the strategy button once the profile is complete', async () => {
+    localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
+    localStorage.setItem(
+      ONBOARDING_STORAGE_KEY,
+      JSON.stringify({
+        index: ONBOARDING_STEPS.length,
+        answers: { specialty: 'маникюр' },
+        confirmed: true,
+      }),
+    );
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('.shell__strategy')).toBeTruthy();
+    expect(element.querySelectorAll('app-message-bubble').length).toBe(1);
   });
 });

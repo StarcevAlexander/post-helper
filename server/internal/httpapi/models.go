@@ -7,10 +7,12 @@ import (
 
 	"post-helper/server/internal/chat"
 	"post-helper/server/internal/store"
+	"post-helper/server/internal/strategy"
 )
 
 type Options struct {
 	Responder      chat.Responder
+	Strategist     strategy.Generator
 	Password       string
 	AllowedOrigins []string
 	Store          store.Store
