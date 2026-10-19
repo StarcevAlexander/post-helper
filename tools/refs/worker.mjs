@@ -3,8 +3,8 @@ import { writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AgentError, loadConfig, parseArgs } from '../agent/lib.mjs';
-import { COMFY_DEFAULTS, ensureComfy, makeReference } from './comfy.mjs';
-import { failRef, nextRef, submitRefs } from './lib.mjs';
+import { COMFY_DEFAULTS, comfyAlive, ensureComfy, freeVramMb, makeReference, stopComfy } from './comfy.mjs';
+import { MIN_FREE_VRAM_MB, failRef, nextRef, submitRefs } from './lib.mjs';
 
 const HELP = `Воркер референсов «Помощника»: на вашем ПК делает по 3 фото или коротких видео к пунктам плана.
 
@@ -41,6 +41,19 @@ async function main(argv) {
     console.log(HELP);
     return 0;
   }
+  let ours;
+  let waitingForGpu = false;
+  const release = () => {
+    if (ours) {
+      log('освобождаю видеокарту: останавливаю ComfyUI');
+      stopComfy(ours);
+      ours = undefined;
+    }
+  };
+  process.on('SIGINT', () => {
+    release();
+    process.exit(0);
+  });
   const comfy = { dir: process.env.COMFY_DIR ?? COMFY_DEFAULTS.dir, url: process.env.COMFY_URL ?? COMFY_DEFAULTS.url };
 
   if (flags.sample) {
@@ -58,6 +71,21 @@ async function main(argv) {
   const interval = (flags.interval ? Number(flags.interval) : 120) * 1000;
   log(`слежу за очередью референсов ${config.server}`);
   for (;;) {
+    if (!(await comfyAlive(comfy.url))) {
+      const free = freeVramMb();
+      if (free !== undefined && free < MIN_FREE_VRAM_MB) {
+        if (!waitingForGpu) {
+          log(`видеокарта занята (свободно ${free} МБ из нужных ${MIN_FREE_VRAM_MB}), жду, попытки не тратятся`);
+          waitingForGpu = true;
+        }
+        if (flags.once) {
+          return 4;
+        }
+        await sleep(interval);
+        continue;
+      }
+    }
+    waitingForGpu = false;
     let item;
     try {
       item = await nextRef(config);
@@ -69,17 +97,19 @@ async function main(argv) {
     }
     if (item) {
       try {
-        await ensureComfy(comfy, log);
+        ours = (await ensureComfy(comfy, log)) ?? ours;
         await processItem(config, comfy, item);
       } catch (error) {
         log(`ошибка: ${error.message}`);
         await failRef(config, item.id, 'Не удалось сделать референсы на ПК', false).catch(() => undefined);
       }
       if (flags.once) {
+        release();
         return 0;
       }
       continue;
     }
+    release();
     if (flags.once) {
       log('очередь пуста');
       return 3;

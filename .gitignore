@@ -7,3 +7,4 @@ dist/
 server/advisor.exe
 server/advisor
 .idea/
+tools/refs/worker.log

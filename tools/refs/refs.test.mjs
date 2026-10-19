@@ -7,6 +7,7 @@ import {
   mediaTypeOf,
   nextRef,
   outputName,
+  parseFreeVram,
   photoWorkflow,
   submitRefs,
   videoLength,
@@ -124,5 +125,17 @@ describe('talking to the server', () => {
   it('knows a wrong token and an unreachable server', async () => {
     await assert.rejects(() => nextRef({ ...config, token: 'x'.repeat(30) }), (error) => error.code === 5);
     await assert.rejects(() => nextRef({ server: 'http://127.0.0.1:1', token: TOKEN }), (error) => error.code === 4);
+  });
+});
+
+describe('video memory guard', () => {
+  it('reads the free memory of the emptiest card', () => {
+    assert.equal(parseFreeVram('6200\n'), 6200);
+    assert.equal(parseFreeVram('1000\r\n15000\r\n'), 15000);
+  });
+
+  it('knows nothing when nvidia-smi says nothing', () => {
+    assert.equal(parseFreeVram(''), undefined);
+    assert.equal(parseFreeVram('N/A'), undefined);
   });
 });

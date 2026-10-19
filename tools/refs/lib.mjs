@@ -92,6 +92,16 @@ export function videoWorkflow(prompt, seed, prefix) {
   };
 }
 
+export const MIN_FREE_VRAM_MB = 9500;
+
+export function parseFreeVram(text) {
+  const values = String(text)
+    .split(/\r?\n/)
+    .map((line) => Number.parseInt(line.trim(), 10))
+    .filter((value) => Number.isFinite(value));
+  return values.length === 0 ? undefined : Math.max(...values);
+}
+
 export function workflowFor(kind, prompt, seed, prefix) {
   if (kind === 'video') {
     return videoWorkflow(prompt, seed, prefix);

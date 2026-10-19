@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AgentError } from '../agent/lib.mjs';
-import { ffmpegArgs, mediaTypeOf, outputName, workflowFor } from './lib.mjs';
+import { ffmpegArgs, mediaTypeOf, outputName, parseFreeVram, workflowFor } from './lib.mjs';
 
 export const COMFY_DEFAULTS = {
   dir: 'C:/Users/master/WebstormProjects/test/ComfyUI',
@@ -18,6 +18,11 @@ async function json(url, init) {
     throw new Error(`${response.status} ${await response.text()}`);
   }
   return response.json();
+}
+
+export function freeVramMb() {
+  const result = spawnSync('nvidia-smi', ['--query-gpu=memory.free', '--format=csv,noheader,nounits'], { stdio: 'pipe' });
+  return result.status === 0 ? parseFreeVram(String(result.stdout)) : undefined;
 }
 
 export async function comfyAlive(url) {
@@ -53,6 +58,17 @@ export async function ensureComfy(options, log) {
   }
   child.kill();
   throw new AgentError('ComfyUI не поднялся за 3 минуты', 2);
+}
+
+export function stopComfy(child) {
+  if (!child?.pid) {
+    return;
+  }
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    return;
+  }
+  child.kill();
 }
 
 export async function runWorkflow(url, workflow, timeoutMs) {
