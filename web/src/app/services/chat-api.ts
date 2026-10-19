@@ -4,7 +4,6 @@ import { firstValueFrom } from 'rxjs';
 import {
   API_CHAT_PATH,
   API_CLIENT_ERROR_PATH,
-  API_ADMIN_MASTERS_PATH,
   API_AUDIT_JOBS_PATH,
   API_AUDIT_PATH,
   API_DEV_URL,
@@ -23,9 +22,6 @@ import {
 } from '../constants';
 import {
   AccountInfo,
-  MasterEvent,
-  MasterExport,
-  MasterVersion,
   AuditJob,
   AuditResult,
   ApiErrorBody,
@@ -34,10 +30,8 @@ import {
   ChatApiError,
   ClientErrorReport,
   ComposerPayload,
-  CreatedMaster,
   KitRequest,
   MasterProfile,
-  MasterSummary,
   PublicationKit,
   ReviewRequest,
   ReviewResult,
@@ -136,42 +130,6 @@ export class ChatApi {
     );
   }
 
-  masterEvents(id: string, limit: number): Promise<MasterEvent[]> {
-    return this.send<MasterEvent[]>(
-      'GET',
-      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/events?limit=${limit}`,
-    );
-  }
-
-  masterVersions(id: string, limit: number): Promise<MasterVersion[]> {
-    return this.send<MasterVersion[]>(
-      'GET',
-      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/versions?limit=${limit}`,
-    );
-  }
-
-  exportMaster(id: string): Promise<MasterExport> {
-    return this.send<MasterExport>(
-      'GET',
-      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/export`,
-    );
-  }
-
-  restoreMaster(id: string, version: number): Promise<ServerState> {
-    return this.send<ServerState>(
-      'POST',
-      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/restore`,
-      { version },
-    );
-  }
-
-  deleteMaster(id: string): Promise<{ deleted: boolean }> {
-    return this.send<{ deleted: boolean }>(
-      'DELETE',
-      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}`,
-    );
-  }
-
   me(): Promise<AccountInfo> {
     return this.send<AccountInfo>('GET', API_ME_PATH);
   }
@@ -182,22 +140,6 @@ export class ChatApi {
 
   saveState(baseVersion: number, data: SyncBundle): Promise<ServerState> {
     return this.send<ServerState>('PUT', API_STATE_PATH, { baseVersion, data });
-  }
-
-  listMasters(): Promise<MasterSummary[]> {
-    return this.send<MasterSummary[]>('GET', API_ADMIN_MASTERS_PATH);
-  }
-
-  createMaster(name: string): Promise<CreatedMaster> {
-    return this.send<CreatedMaster>('POST', API_ADMIN_MASTERS_PATH, { name });
-  }
-
-  setMasterDisabled(id: string, disabled: boolean): Promise<{ disabled: boolean }> {
-    return this.send<{ disabled: boolean }>(
-      'POST',
-      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/disabled`,
-      { disabled },
-    );
   }
 
   requestReview(request: ReviewRequest): Promise<ReviewResult> {

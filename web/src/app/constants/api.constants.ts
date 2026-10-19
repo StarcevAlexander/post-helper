@@ -12,8 +12,6 @@ export const API_ME_PATH = '/api/me';
 
 export const API_STATE_PATH = '/api/state';
 
-export const API_ADMIN_MASTERS_PATH = '/api/admin/masters';
-
 export const API_REVIEW_PATH = '/api/review';
 
 export const API_CLIENT_ERROR_PATH = '/api/client-error';

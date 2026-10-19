@@ -22,5 +22,4 @@ export interface ThemeOption {
   themeColor: string;
 }
 
-export type SettingsScreen =
-  'main' | 'appearance' | 'theme' | 'scale' | 'errors' | 'requests' | 'masters';
+export type SettingsScreen = 'main' | 'appearance' | 'theme' | 'scale' | 'errors' | 'requests';

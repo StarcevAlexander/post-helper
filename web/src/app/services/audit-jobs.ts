@@ -56,7 +56,13 @@ export class AuditJobs {
   }
 
   async autoOrder(handle: string): Promise<void> {
-    if (!this.access.granted() || this.audit.stored() || this.active()) {
+    const known = this.job();
+    if (
+      !this.access.granted() ||
+      this.audit.stored() ||
+      this.active() ||
+      (known && handle.toLowerCase().includes(known.handle))
+    ) {
       return;
     }
     await this.order(handle.trim(), true);

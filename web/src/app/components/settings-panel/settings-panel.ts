@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import {
   ACCOUNT_LABELS,
-  ADMIN_MASTERS_TITLE,
   RETENTION_NOTE_FOR_MASTER,
   SYNC_STATUS_TEXT,
   APPEARANCE_TITLE,
@@ -33,12 +32,11 @@ import { Speech } from '../../services/speech';
 import { Account } from '../../services/account';
 import { formatRetention } from '../../utils/format-retention';
 import { Sync } from '../../services/sync';
-import { AdminMasters } from '../admin-masters/admin-masters';
 import { ErrorLogScreen } from '../error-log/error-log';
 import { RequestLogScreen } from '../request-log/request-log';
 
 @Component({
-  imports: [AdminMasters, ErrorLogScreen, RequestLogScreen],
+  imports: [ErrorLogScreen, RequestLogScreen],
   selector: 'app-settings-panel',
   styleUrl: './settings-panel.scss',
   templateUrl: './settings-panel.html',
@@ -53,7 +51,6 @@ export class SettingsPanel {
   protected readonly retention = computed(() =>
     formatRetention(this.account.info()?.retentionDays ?? 0),
   );
-  protected readonly mastersTitle = ADMIN_MASTERS_TITLE;
   protected readonly syncText = computed(() => SYNC_STATUS_TEXT[this.sync.status()]);
   protected readonly title = SETTINGS_TITLE;
   protected readonly closeLabel = SETTINGS_CLOSE_LABEL;
@@ -86,8 +83,6 @@ export class SettingsPanel {
         return this.errorLogTitle;
       case 'requests':
         return this.requestLogTitle;
-      case 'masters':
-        return this.mastersTitle;
       default:
         return this.title;
     }

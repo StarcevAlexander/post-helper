@@ -58,7 +58,7 @@ describe('SettingsPanel account block', () => {
     expect(element.textContent).not.toContain('Мастера и расходы');
   });
 
-  it('gives the owner the list of masters and hides the limit line', async () => {
+  it('shows the owner without the limit line and without the masters screen', async () => {
     const element = await render({
       role: 'admin',
       name: 'owner',
@@ -70,7 +70,7 @@ describe('SettingsPanel account block', () => {
     expect(element.querySelector('.account')?.textContent).toContain('владелец');
     expect(element.querySelector('.account')?.textContent).not.toContain('из 80');
     expect(element.querySelector('.account')?.textContent).not.toContain('хранится');
-    expect(element.textContent).toContain('Мастера и расходы');
+    expect(element.textContent).not.toContain('Мастера и расходы');
   });
 
   it('refreshes the daily use of the AI each time the settings are opened', async () => {

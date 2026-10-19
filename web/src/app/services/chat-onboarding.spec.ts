@@ -111,6 +111,24 @@ describe('Chat onboarding', () => {
     });
   });
 
+  it('orders the analysis when the instagram link is added while checking the answers', () => {
+    answerAll(['instagram']);
+    http.expectNone({ method: 'POST', url: jobsUrl });
+
+    onboarding.saveDraft({ ...onboarding.toDraft(), instagram: 'massage_experience' });
+    chat.buildStrategy();
+
+    const order = http.expectOne({ method: 'POST', url: jobsUrl });
+    expect(order.request.body).toEqual({ handle: 'massage_experience', consent: true });
+    order.flush({
+      id: 'j1',
+      handle: 'massage_experience',
+      status: 'queued',
+      createdAt: '2026-10-19T08:00:00Z',
+    });
+    http.expectOne(strategyUrl).flush(strategy);
+  });
+
   it('does not order the analysis when the instagram question is skipped', () => {
     for (const step of ONBOARDING_STEPS) {
       chat.send({

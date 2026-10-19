@@ -122,6 +122,10 @@ export class Chat {
     if (this.busy() || !this.onboarding.profile()) {
       return;
     }
+    const instagram = this.onboarding.answers().instagram;
+    if (instagram) {
+      void this.auditJobs.autoOrder(instagram);
+    }
     const pendingId = this.appendPending();
     void this.requestStrategy(pendingId);
   }
