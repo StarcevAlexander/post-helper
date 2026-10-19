@@ -255,3 +255,44 @@
     opacity: 0.6;
   }
 }
+
+.week__progress {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 0.875rem;
+}
+
+.item__kit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0 0.5rem 1.875rem;
+}
+
+.item__button {
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border: 0.0625rem solid var(--accent-strong);
+  border-radius: 1.125rem;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}
+
+.item__status {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}

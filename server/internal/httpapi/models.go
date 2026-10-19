@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"post-helper/server/internal/chat"
+	"post-helper/server/internal/kit"
 	"post-helper/server/internal/store"
 	"post-helper/server/internal/strategy"
 )
@@ -13,6 +14,7 @@ import (
 type Options struct {
 	Responder      chat.Responder
 	Strategist     strategy.Generator
+	KitMaker       kit.Generator
 	Password       string
 	AllowedOrigins []string
 	Store          store.Store
@@ -54,4 +56,12 @@ type ReplyResponse struct {
 
 type ErrorResponse struct {
 	Error string `json:"error"`
+}
+
+type KitRequest struct {
+	Profile     strategy.Profile `json:"profile"`
+	Positioning string           `json:"positioning"`
+	Format      string           `json:"format"`
+	Pillar      string           `json:"pillar"`
+	Idea        string           `json:"idea"`
 }

@@ -96,7 +96,7 @@ func TestNormalizeCapsAndTrims(t *testing.T) {
 }
 
 func TestDescribeProfileSkipsEmptyFields(t *testing.T) {
-	text := describeProfile(Profile{Specialty: "маникюр", City: " Иркутск ", Name: ""})
+	text := DescribeProfile(Profile{Specialty: "маникюр", City: " Иркутск ", Name: ""})
 
 	if !strings.Contains(text, "Чем занимается: маникюр") || !strings.Contains(text, "Город: Иркутск") {
 		t.Errorf("text = %q", text)

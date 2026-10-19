@@ -24,6 +24,12 @@ import {
   EXPORT_LABEL,
   FORMAT_LABELS,
   ICS_FILE_NAME,
+  KIT_OPEN_LABEL,
+  KIT_PREPARE_LABEL,
+  KIT_PREPARE_WEEK_LABEL,
+  KIT_PREPARING_LABEL,
+  KIT_RETRY_LABEL,
+  KIT_WEEK_READY_LABEL,
   NO_SECOND_DAY_LABEL,
   PLAN_EMPTY_TEXT,
   PLAN_TITLE,
@@ -36,8 +42,9 @@ import {
   WEEKDAY_NAMES,
   WEEK_LABEL,
 } from '../../constants';
-import { PlanItem, ScheduleDraft } from '../../models';
+import { KitStatus, PlanItem, ScheduleDraft } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
+import { Kits } from '../../services/kits';
 import { Onboarding } from '../../services/onboarding';
 import { buildIcs } from '../../utils/ics-builder';
 import { fromDateKey } from '../../utils/date-utils';
@@ -46,6 +53,8 @@ interface ItemView {
   item: PlanItem;
   dayLabel: string;
   formatLabel: string;
+  status: KitStatus;
+  error?: string;
 }
 
 interface WeekView {
@@ -53,6 +62,7 @@ interface WeekView {
   title: string;
   contentDays: string[];
   items: ItemView[];
+  pending: number;
 }
 
 const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
@@ -74,6 +84,13 @@ export class CalendarScreen {
 
   protected readonly plan = inject(CalendarPlan);
   protected readonly onboarding = inject(Onboarding);
+  protected readonly kits = inject(Kits);
+  protected readonly openKitLabel = KIT_OPEN_LABEL;
+  protected readonly prepareKitLabel = KIT_PREPARE_LABEL;
+  protected readonly preparingLabel = KIT_PREPARING_LABEL;
+  protected readonly retryLabel = KIT_RETRY_LABEL;
+  protected readonly prepareWeekLabel = KIT_PREPARE_WEEK_LABEL;
+  protected readonly weekReadyLabel = KIT_WEEK_READY_LABEL;
   protected readonly title = CALENDAR_TITLE;
   protected readonly hint = CALENDAR_HINT;
   protected readonly closeLabel = CALENDAR_CLOSE_LABEL;
@@ -128,7 +145,10 @@ export class CalendarScreen {
         item,
         dayLabel: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time}`,
         formatLabel: FORMAT_LABELS[item.format],
+        status: this.kits.statusOf(item),
+        error: this.kits.errorOf(item),
       })),
+      pending: week.items.filter((item) => this.kits.statusOf(item) !== 'ready').length,
     })),
   );
 
@@ -156,6 +176,10 @@ export class CalendarScreen {
       return;
     }
     this.plan.build(this.draft(), strategy);
+  }
+
+  protected onPrepareWeek(week: WeekView): void {
+    void this.kits.generateMany(week.items.map((view) => view.item));
   }
 
   protected onExport(): void {

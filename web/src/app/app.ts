@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
+import { KitScreen } from './components/kit-screen/kit-screen';
 import { MessageBubble } from './components/message-bubble/message-bubble';
 import { SettingsPanel } from './components/settings-panel/settings-panel';
 import { CalendarScreen } from './components/calendar-screen/calendar-screen';
@@ -42,6 +43,7 @@ import { APP_VERSION } from './version';
     AccessGate,
     CalendarScreen,
     Composer,
+    KitScreen,
     MessageBubble,
     ProfileScreen,
     SettingsPanel,

@@ -30,7 +30,7 @@ func (c *Claude) Generate(ctx context.Context, profile Profile) (Strategy, error
 		MaxTokens:    MaxOutputTokens,
 		System:       []anthropic.TextBlockParam{{Text: SystemPrompt}},
 		OutputConfig: anthropic.OutputConfigParam{Effort: anthropic.OutputConfigEffortMedium},
-		Messages:     []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(describeProfile(profile)))},
+		Messages:     []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(DescribeProfile(profile)))},
 	})
 	if err != nil {
 		return Strategy{}, fmt.Errorf("claude strategy request: %w", err)
@@ -49,7 +49,7 @@ func (c *Claude) Generate(ctx context.Context, profile Profile) (Strategy, error
 	return parseStrategy(text.String())
 }
 
-func describeProfile(profile Profile) string {
+func DescribeProfile(profile Profile) string {
 	fields := []struct{ label, value string }{
 		{"Имя", profile.Name},
 		{"Чем занимается", profile.Specialty},

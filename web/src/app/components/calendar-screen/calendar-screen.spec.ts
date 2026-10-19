@@ -3,6 +3,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY, STRATEGY_STORAGE_KEY } from '../../constants';
 import { CalendarPlan } from '../../services/calendar-plan';
+import { Kits } from '../../services/kits';
 import { CalendarScreen } from './calendar-screen';
 
 const strategy = {
@@ -135,11 +136,57 @@ describe('CalendarScreen', () => {
     submitButton(element).click();
     await fixture.whenStable();
 
-    element.querySelector<HTMLButtonElement>('.screen__secondary')?.click();
+    element.querySelector<HTMLButtonElement>('.plan > .screen__secondary')?.click();
 
     expect(createUrl).toHaveBeenCalledTimes(1);
     const blob = (createUrl.mock.calls[0] as unknown as [Blob])[0];
     expect(blob.type).toContain('text/calendar');
     expect(click).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers to prepare a kit for every publication and for the whole week', async () => {
+    const { fixture, element } = setUp();
+    await fixture.whenStable();
+    submitButton(element).click();
+    await fixture.whenStable();
+
+    expect(element.querySelectorAll('.item__kit .item__button').length).toBe(16);
+    expect(element.querySelector('.week .screen__secondary')?.textContent).toContain('на неделю');
+  });
+
+  it('opens a ready kit and shows the retry after a failure', async () => {
+    const { fixture, element } = setUp();
+    await fixture.whenStable();
+    submitButton(element).click();
+    await fixture.whenStable();
+    const plan = TestBed.inject(CalendarPlan);
+    const kits = TestBed.inject(Kits);
+    const [first, second] = plan.items();
+    kits.stored.set({
+      [first.id]: {
+        itemId: first.id,
+        format: first.format,
+        pillar: first.pillar,
+        idea: first.idea,
+        kit: {
+          shots: [],
+          frames: [{ visual: 'a', overlay: 'b' }],
+          caption: 'c',
+          hashtags: [],
+          tip: '',
+        },
+      },
+    });
+    kits.progress.set({ [second.id]: 'failed' });
+    kits.errors.set({ [second.id]: 'Сбой' });
+    await fixture.whenStable();
+
+    const buttons = element.querySelectorAll<HTMLButtonElement>('.item__kit .item__button');
+    expect(buttons[0].textContent).toContain('Открыть комплект');
+    expect(buttons[1].textContent).toContain('Повторить');
+    expect(element.querySelector('.item__kit .field__error')?.textContent).toContain('Сбой');
+
+    buttons[0].click();
+    expect(kits.viewing()).toBe(first.id);
   });
 });

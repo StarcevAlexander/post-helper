@@ -6,6 +6,8 @@ export const API_CHAT_PATH = '/api/chat';
 
 export const API_STRATEGY_PATH = '/api/strategy';
 
+export const API_KIT_PATH = '/api/kit';
+
 export const API_CLIENT_ERROR_PATH = '/api/client-error';
 
 export const CONVERSATION_STORAGE_KEY = 'helper.conversation-id';

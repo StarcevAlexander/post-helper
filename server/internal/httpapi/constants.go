@@ -66,3 +66,14 @@ const (
 	MsgNoSpecialty                = "Расскажите, чем вы занимаетесь"
 	MsgProfileTooLong             = "Ответ в анкете слишком длинный"
 )
+
+const (
+	KitRoute                 = "POST /api/kit"
+	MaxKitBodyBytes    int64 = 32 << 10
+	MaxKitFieldRunes         = 600
+	MsgKitFailed             = "Не удалось подготовить комплект, попробуйте ещё раз"
+	MsgKitRefused            = "Для этой идеи комплект подготовить не получилось. Попробуйте другую публикацию"
+	MsgBadFormat             = "Неизвестный формат публикации"
+	MsgNoIdea                = "Не указана идея публикации"
+	MsgKitFieldTooLong       = "Описание публикации слишком длинное"
+)

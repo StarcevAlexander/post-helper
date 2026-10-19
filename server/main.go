@@ -14,6 +14,7 @@ import (
 	"post-helper/server/internal/chat"
 	"post-helper/server/internal/config"
 	"post-helper/server/internal/httpapi"
+	"post-helper/server/internal/kit"
 	"post-helper/server/internal/store"
 	"post-helper/server/internal/strategy"
 )
@@ -65,6 +66,7 @@ func run() error {
 	handler := httpapi.NewHandler(httpapi.Options{
 		Responder:      claude,
 		Strategist:     strategy.NewClaude(cfg.APIKey, cfg.Model),
+		KitMaker:       kit.NewClaude(cfg.APIKey, cfg.Model),
 		Password:       cfg.AccessPassword,
 		AllowedOrigins: cfg.AllowedOrigins,
 		Store:          history,

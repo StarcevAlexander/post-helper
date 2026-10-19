@@ -37,4 +37,5 @@ export const REQUEST_STATUS_SUMMARIES: Record<RequestStatus, string> = {
 export const REQUEST_DESCRIPTIONS = {
   chat: 'Вопрос помощнику',
   strategy: 'Составление стратегии',
+  kit: 'Комплект публикации',
 } as const;

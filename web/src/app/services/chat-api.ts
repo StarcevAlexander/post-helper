@@ -5,6 +5,7 @@ import {
   API_CHAT_PATH,
   API_CLIENT_ERROR_PATH,
   API_DEV_URL,
+  API_KIT_PATH,
   API_MESSAGES,
   API_PRODUCTION_URL,
   API_STRATEGY_PATH,
@@ -20,7 +21,9 @@ import {
   ChatApiError,
   ClientErrorReport,
   ComposerPayload,
+  KitRequest,
   MasterProfile,
+  PublicationKit,
   RequestDescriptor,
   Strategy,
 } from '../models';
@@ -74,6 +77,13 @@ export class ChatApi {
     return this.send<Strategy>('POST', API_STRATEGY_PATH, profile, {
       description: REQUEST_DESCRIPTIONS.strategy,
       sent: [profile.specialty, profile.city].filter(Boolean).join(', '),
+    });
+  }
+
+  requestKit(request: KitRequest): Promise<PublicationKit> {
+    return this.send<PublicationKit>('POST', API_KIT_PATH, request, {
+      description: REQUEST_DESCRIPTIONS.kit,
+      sent: `${request.format}: ${request.idea}`,
     });
   }
 
