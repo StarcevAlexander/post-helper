@@ -41,7 +41,13 @@ describe('Account', () => {
 
     const request = http.expectOne(meUrl);
     expect(request.request.headers.get('Authorization')).toBe('Bearer ABCDE-FGHJK-LMNPQ-RSTUV');
-    request.flush({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 3 });
+    request.flush({
+      role: 'master',
+      name: 'Анна',
+      dailyLimit: 80,
+      usageToday: 3,
+      retentionDays: 1095,
+    });
 
     return vi
       .waitFor(() => expect(account.role()).toBe('master'))
@@ -56,7 +62,9 @@ describe('Account', () => {
     access.save('owner-secret-1');
     TestBed.tick();
 
-    http.expectOne(meUrl).flush({ role: 'admin', name: 'owner', dailyLimit: 80, usageToday: 0 });
+    http
+      .expectOne(meUrl)
+      .flush({ role: 'admin', name: 'owner', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
 
     await vi.waitFor(() => expect(account.role()).toBe('admin'));
   });
@@ -77,7 +85,9 @@ describe('Account', () => {
     const account = TestBed.inject(Account);
     access.save('ABCDE-FGHJK-LMNPQ-RSTUV');
     TestBed.tick();
-    http.expectOne(meUrl).flush({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 0 });
+    http
+      .expectOne(meUrl)
+      .flush({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
     await vi.waitFor(() => expect(account.role()).toBe('master'));
 
     access.clear();

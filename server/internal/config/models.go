@@ -8,4 +8,7 @@ type Config struct {
 	Model          string
 	DatabaseURL    string
 	DailyAILimit   int
+	RetentionDays  int
+	HistoryKeep    int
+	AgentToken     string
 }

@@ -32,6 +32,64 @@ type State struct {
 	UpdatedAt time.Time       `json:"updatedAt"`
 }
 
+type Event struct {
+	ID        int64           `json:"id"`
+	Kind      string          `json:"kind"`
+	Payload   json.RawMessage `json:"payload"`
+	CreatedAt time.Time       `json:"createdAt"`
+}
+
+type StateVersion struct {
+	Version int       `json:"version"`
+	SavedAt time.Time `json:"savedAt"`
+	Size    int       `json:"size"`
+}
+
+type StateSnapshot struct {
+	Version int             `json:"version"`
+	SavedAt time.Time       `json:"savedAt"`
+	Data    json.RawMessage `json:"data"`
+}
+
+type Export struct {
+	ExportedAt time.Time       `json:"exportedAt"`
+	Master     Master          `json:"master"`
+	State      *State          `json:"state"`
+	History    []StateSnapshot `json:"history"`
+	Events     []Event         `json:"events"`
+}
+
+const DefaultHistoryKeep = 200
+
+const (
+	JobQueued   = "queued"
+	JobRunning  = "running"
+	JobDone     = "done"
+	JobFailed   = "failed"
+	JobCanceled = "canceled"
+
+	MaxJobAttempts = 3
+)
+
+var (
+	ErrJobActive = errors.New("an audit job is already active")
+	ErrJobState  = errors.New("audit job is not in the right state")
+)
+
+type AuditJob struct {
+	ID         string          `json:"id"`
+	MasterID   string          `json:"masterId"`
+	MasterName string          `json:"masterName,omitempty"`
+	Handle     string          `json:"handle"`
+	Status     string          `json:"status"`
+	Attempts   int             `json:"attempts"`
+	CreatedAt  time.Time       `json:"createdAt"`
+	ClaimedAt  time.Time       `json:"claimedAt"`
+	FinishedAt time.Time       `json:"finishedAt"`
+	Error      string          `json:"error,omitempty"`
+	Result     json.RawMessage `json:"result,omitempty"`
+}
+
 type Store interface {
 	CreateMaster(ctx context.Context, name, codeHash string) (Master, error)
 	FindByCodeHash(ctx context.Context, codeHash string) (Master, error)
@@ -42,4 +100,19 @@ type Store interface {
 	SaveState(ctx context.Context, id string, baseVersion int, data json.RawMessage, at time.Time) (State, error)
 	CountUsage(ctx context.Context, id string, since time.Time) (int, error)
 	RecordUsage(ctx context.Context, id, kind string, at time.Time) error
+	RecordEvent(ctx context.Context, id, kind string, payload json.RawMessage, at time.Time) error
+	ListEvents(ctx context.Context, id string, limit int) ([]Event, error)
+	StateVersions(ctx context.Context, id string, limit int) ([]StateVersion, error)
+	StateSnapshot(ctx context.Context, id string, version int) (StateSnapshot, error)
+	ExportMaster(ctx context.Context, id string) (Export, error)
+	DeleteMaster(ctx context.Context, id string) error
+	Purge(ctx context.Context, before time.Time) (int64, error)
+	CreateAuditJob(ctx context.Context, masterID, handle string, at time.Time) (AuditJob, error)
+	LatestAuditJob(ctx context.Context, masterID string) (AuditJob, error)
+	AuditJob(ctx context.Context, id string) (AuditJob, error)
+	ClaimAuditJob(ctx context.Context, now time.Time, lease time.Duration) (AuditJob, error)
+	CompleteAuditJob(ctx context.Context, id string, result json.RawMessage, at time.Time) error
+	FailAuditJob(ctx context.Context, id, reason string, final bool, at time.Time) error
+	CancelAuditJob(ctx context.Context, masterID, id string, at time.Time) error
+	ListAuditJobs(ctx context.Context, limit int) ([]AuditJob, error)
 }

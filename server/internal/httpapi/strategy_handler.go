@@ -15,6 +15,7 @@ import (
 )
 
 type strategyHandler struct {
+	journal   *journal
 	generator strategy.Generator
 	recorder  store.Recorder
 	logger    *slog.Logger
@@ -50,6 +51,7 @@ func (h *strategyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		h.logger.Info("strategy generated", slog.Int("pillars", len(result.Pillars)))
 		h.recorder.SaveEvent(store.EventStrategy, "", map[string]any{"profile": profile, "strategy": result})
+		h.journal.record(r, UsageStrategy, map[string]any{"profile": profile, "strategy": result})
 		writeJSON(w, http.StatusOK, result)
 	}
 }

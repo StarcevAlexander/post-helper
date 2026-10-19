@@ -1,6 +1,6 @@
 import { Service, inject, signal } from '@angular/core';
 import { AUDIT_STORAGE_KEY, AUDIT_TEXTS } from '../constants';
-import { AuditResult, ChatApiError, StoredAudit } from '../models';
+import { AuditJob, AuditResult, ChatApiError, StoredAudit } from '../models';
 import { buildAuditDigest } from '../utils/audit-digest';
 import { Access } from './access';
 import { ChatApi } from './chat-api';
@@ -89,6 +89,20 @@ export class Audit {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  adoptJob(job: AuditJob): void {
+    if (!job.result || this.stored()?.jobId === job.id) {
+      return;
+    }
+    this.stored.set({
+      createdAt: new Date().toISOString(),
+      imageCount: 0,
+      jobId: job.id,
+      result: job.result,
+    });
+    this.save();
+    this.onboarding.setAudit(buildAuditDigest(job.result));
   }
 
   clear(): void {

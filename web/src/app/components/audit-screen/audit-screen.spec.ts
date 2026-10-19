@@ -2,18 +2,21 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import {
+  API_AUDIT_JOBS_PATH,
   API_AUDIT_PATH,
   API_DEV_URL,
   MAX_AUDIT_IMAGES,
   ONBOARDING_STEPS,
   ONBOARDING_STORAGE_KEY,
 } from '../../constants';
-import { AuditResult } from '../../models';
+import { AuditJob, AuditResult } from '../../models';
 import { Access } from '../../services/access';
 import { Audit } from '../../services/audit';
+import { AuditJobs } from '../../services/audit-jobs';
 import { AuditScreen } from './audit-screen';
 
 const auditUrl = `${API_DEV_URL}${API_AUDIT_PATH}`;
+const jobsUrl = `${API_DEV_URL}${API_AUDIT_JOBS_PATH}`;
 
 const result: AuditResult = {
   summary: 'Профиль аккуратный, но без призыва записаться.',
@@ -66,9 +69,19 @@ describe('AuditScreen', () => {
     vi.unstubAllGlobals();
   });
 
-  async function open() {
+  async function open(latest: AuditJob | null = null) {
     const fixture = TestBed.createComponent(AuditScreen);
     audit.show();
+    await fixture.whenStable();
+    http
+      .expectOne({ method: 'GET', url: `${jobsUrl}/latest` })
+      .flush(
+        latest,
+        latest ? { status: 200, statusText: 'OK' } : { status: 204, statusText: 'No Content' },
+      );
+    if (latest) {
+      await vi.waitFor(() => expect(TestBed.inject(AuditJobs).job()).toBeDefined());
+    }
     await fixture.whenStable();
     fixture.detectChanges();
     return { fixture, element: fixture.nativeElement as HTMLElement };
@@ -97,6 +110,102 @@ describe('AuditScreen', () => {
     }
     return button;
   }
+
+  describe('order by link', () => {
+    function type(element: HTMLElement, value: string): void {
+      const input = element.querySelector<HTMLInputElement>('#audit-handle');
+      if (!input) {
+        throw new Error('no handle input');
+      }
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function consent(element: HTMLElement): HTMLInputElement {
+      const box = element.querySelector<HTMLInputElement>('.order__consent input');
+      if (!box) {
+        throw new Error('no consent box');
+      }
+      return box;
+    }
+
+    function orderButton(element: HTMLElement): HTMLButtonElement {
+      const button = element.querySelector<HTMLButtonElement>('.order .screen__secondary');
+      if (!button) {
+        throw new Error('no order button');
+      }
+      return button;
+    }
+
+    it('keeps the order button off until the handle and the consent are given', async () => {
+      const { fixture, element } = await open();
+      expect(orderButton(element).disabled).toBe(true);
+
+      type(element, 'anna_nails');
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(orderButton(element).disabled).toBe(true);
+
+      consent(element).click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(orderButton(element).disabled).toBe(false);
+    });
+
+    it('sends the order and shows that it waits in the queue', async () => {
+      const { fixture, element } = await open();
+      type(element, 'anna_nails');
+      consent(element).click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      orderButton(element).click();
+      const request = http.expectOne({ method: 'POST', url: jobsUrl });
+      expect(request.request.body).toEqual({ handle: 'anna_nails', consent: true });
+      request.flush({
+        id: 'j1',
+        handle: 'anna_nails',
+        status: 'queued',
+        createdAt: '2026-10-19T08:00:00Z',
+      });
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(element.querySelector('.order')?.textContent).toContain('Заказ в очереди');
+      });
+
+      expect(element.querySelector('#audit-handle')).toBeNull();
+      expect(orderButton(element).textContent).toContain('Отменить заказ');
+    });
+
+    it('shows why the analysis failed and lets order again', async () => {
+      const { element } = await open({
+        id: 'j1',
+        handle: 'anna_nails',
+        status: 'failed',
+        createdAt: '2026-10-19T08:00:00Z',
+        error: 'Профиль закрытый',
+      });
+
+      expect(element.querySelector('.order .screen__error')?.textContent).toContain(
+        'Профиль закрытый',
+      );
+      expect(orderButton(element).textContent).toContain('Заказать ещё раз');
+    });
+
+    it('shows the finished analysis from the order', async () => {
+      const { fixture, element } = await open({
+        id: 'j1',
+        handle: 'anna_nails',
+        status: 'done',
+        createdAt: '2026-10-19T08:00:00Z',
+        result,
+      });
+      fixture.detectChanges();
+
+      expect(audit.stored()?.jobId).toBe('j1');
+      expect(element.querySelector('.headline')?.textContent).toContain('Профиль аккуратный');
+    });
+  });
 
   it('explains what to shoot and starts with a disabled button', async () => {
     const { element } = await open();

@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -47,6 +49,7 @@ func newAccountFixture(t *testing.T, dailyLimit int) *accountFixture {
 		Reviewer:       fixture.reviewer,
 		Accounts:       fixture.store,
 		DailyAILimit:   dailyLimit,
+		RetentionDays:  1095,
 		Password:       testPassword,
 		AllowedOrigins: []string{testOrigin},
 		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -91,7 +94,7 @@ func TestMe(t *testing.T) {
 	if !strings.Contains(admin.Body.String(), `"role":"admin"`) {
 		t.Errorf("admin = %s", admin.Body)
 	}
-	for _, want := range []string{`"role":"master"`, `"name":"Анна"`, `"dailyLimit":5`, `"usageToday":0`} {
+	for _, want := range []string{`"role":"master"`, `"name":"Анна"`, `"dailyLimit":5`, `"usageToday":0`, `"retentionDays":1095`} {
 		if !strings.Contains(master.Body.String(), want) {
 			t.Errorf("master %s lacks %s", master.Body, want)
 		}
@@ -358,5 +361,142 @@ func TestReviewNeedsALogin(t *testing.T) {
 
 	if got := fixture.call(http.MethodPost, "/api/review", "", reviewBody).Code; got != http.StatusUnauthorized {
 		t.Errorf("status = %d", got)
+	}
+}
+
+func TestJournalRecordsWhatTheAIAnsweredForTheMaster(t *testing.T) {
+	fixture := newAccountFixture(t, 50)
+	code, master := fixture.master(t, "Анна")
+	fixture.responder.reply = "ответ помощника"
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	_ = writer.WriteField(FieldText, "как привлечь клиентов")
+	_ = writer.Close()
+	request := httptest.NewRequest(http.MethodPost, "/api/chat", body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	request.Header.Set("Authorization", BearerPrefix+code)
+	recorder := httptest.NewRecorder()
+	fixture.handler.ServeHTTP(recorder, request)
+	fixture.call(http.MethodPost, "/api/review", code, reviewBody)
+
+	events, _ := fixture.store.ListEvents(context.Background(), master.ID, 0)
+
+	if len(events) != 2 || events[0].Kind != "review" || events[1].Kind != "chat" {
+		t.Fatalf("events = %+v", events)
+	}
+	if !strings.Contains(string(events[1].Payload), "как привлечь клиентов") || !strings.Contains(string(events[1].Payload), "ответ помощника") {
+		t.Errorf("chat payload = %s", events[1].Payload)
+	}
+	if !strings.Contains(string(events[0].Payload), `"headline":"Итог"`) {
+		t.Errorf("review payload = %s", events[0].Payload)
+	}
+}
+
+func TestJournalSkipsTheOwnerAndFailedRequests(t *testing.T) {
+	fixture := newAccountFixture(t, 50)
+	_, master := fixture.master(t, "Анна")
+	fixture.reviewer.err = errors.New("boom")
+	code, _ := fixture.master(t, "Вера")
+
+	fixture.call(http.MethodPost, "/api/review", testPassword, reviewBody)
+	fixture.call(http.MethodPost, "/api/review", code, reviewBody)
+
+	events, _ := fixture.store.ListEvents(context.Background(), master.ID, 0)
+	if len(events) != 0 {
+		t.Errorf("events = %+v", events)
+	}
+}
+
+func TestAdminSeesTheJournalAndTheVersionsOfAMaster(t *testing.T) {
+	fixture := newAccountFixture(t, 50)
+	code, master := fixture.master(t, "Анна")
+	fixture.call(http.MethodPost, "/api/review", code, reviewBody)
+	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":0,"data":{"a":1}}`)
+	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":1,"data":{"a":2}}`)
+
+	events := fixture.call(http.MethodGet, "/api/admin/masters/"+master.ID+"/events?limit=10", testPassword, "")
+	versions := fixture.call(http.MethodGet, "/api/admin/masters/"+master.ID+"/versions", testPassword, "")
+
+	if events.Code != http.StatusOK || !strings.Contains(events.Body.String(), `"kind":"review"`) {
+		t.Errorf("events = %d %s", events.Code, events.Body)
+	}
+	if versions.Code != http.StatusOK || !strings.Contains(versions.Body.String(), `"version":2`) || !strings.Contains(versions.Body.String(), `"version":1`) {
+		t.Errorf("versions = %d %s", versions.Code, versions.Body)
+	}
+	if got := fixture.call(http.MethodGet, "/api/admin/masters/"+master.ID+"/events", code, "").Code; got != http.StatusForbidden {
+		t.Errorf("a master must not read the journal, status = %d", got)
+	}
+}
+
+func TestAdminExportsEverythingAsAFile(t *testing.T) {
+	fixture := newAccountFixture(t, 50)
+	code, master := fixture.master(t, "Анна")
+	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":0,"data":{"a":1}}`)
+	fixture.call(http.MethodPost, "/api/review", code, reviewBody)
+
+	recorder := fixture.call(http.MethodGet, "/api/admin/masters/"+master.ID+"/export", testPassword, "")
+
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Header().Get("Content-Disposition"), "attachment") {
+		t.Fatalf("status = %d, headers = %v", recorder.Code, recorder.Header())
+	}
+	for _, want := range []string{`"name":"Анна"`, `"history"`, `"events"`, `"kind":"review"`, `"a":1`} {
+		if !strings.Contains(recorder.Body.String(), want) {
+			t.Errorf("export lacks %s", want)
+		}
+	}
+	if got := fixture.call(http.MethodGet, "/api/admin/masters/missing/export", testPassword, "").Code; got != http.StatusNotFound {
+		t.Errorf("unknown master: status = %d", got)
+	}
+}
+
+func TestAdminRestoresAnOlderVersionAsANewOne(t *testing.T) {
+	fixture := newAccountFixture(t, 50)
+	code, master := fixture.master(t, "Анна")
+	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":0,"data":{"a":"первая"}}`)
+	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":1,"data":{"a":"вторая"}}`)
+
+	restored := fixture.call(http.MethodPost, "/api/admin/masters/"+master.ID+"/restore", testPassword, `{"version":1}`)
+	current := fixture.call(http.MethodGet, "/api/state", code, "")
+
+	if restored.Code != http.StatusOK || !strings.Contains(restored.Body.String(), `"version":3`) {
+		t.Fatalf("restored = %d %s", restored.Code, restored.Body)
+	}
+	if !strings.Contains(current.Body.String(), "первая") || !strings.Contains(current.Body.String(), `"version":3`) {
+		t.Errorf("current = %s", current.Body)
+	}
+	events, _ := fixture.store.ListEvents(context.Background(), master.ID, 0)
+	if len(events) == 0 || events[0].Kind != "admin.restore" {
+		t.Errorf("the restore must be journaled, events = %+v", events)
+	}
+	for name, body := range map[string]string{"missing version": `{"version":99}`, "bad json": `nope`, "zero": `{"version":0}`} {
+		want := http.StatusBadRequest
+		if name == "missing version" {
+			want = http.StatusNotFound
+		}
+		if got := fixture.call(http.MethodPost, "/api/admin/masters/"+master.ID+"/restore", testPassword, body).Code; got != want {
+			t.Errorf("%s: status = %d, want %d", name, got, want)
+		}
+	}
+}
+
+func TestAdminDeletesAMasterWithAllHerData(t *testing.T) {
+	fixture := newAccountFixture(t, 50)
+	code, master := fixture.master(t, "Анна")
+	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":0,"data":{"a":1}}`)
+
+	deleted := fixture.call(http.MethodDelete, "/api/admin/masters/"+master.ID, testPassword, "")
+
+	if deleted.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", deleted.Code, deleted.Body)
+	}
+	if got := fixture.call(http.MethodGet, "/api/me", code, "").Code; got != http.StatusUnauthorized {
+		t.Errorf("the deleted master must be signed out, status = %d", got)
+	}
+	if got := fixture.call(http.MethodDelete, "/api/admin/masters/"+master.ID, testPassword, "").Code; got != http.StatusNotFound {
+		t.Errorf("second delete: status = %d", got)
+	}
+	if got := fixture.call(http.MethodDelete, "/api/admin/masters/x", code, "").Code; got == http.StatusOK {
+		t.Error("a master must not delete anything")
 	}
 }

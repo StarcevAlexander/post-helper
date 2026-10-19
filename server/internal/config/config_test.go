@@ -115,3 +115,69 @@ func TestDailyAILimit(t *testing.T) {
 		})
 	}
 }
+
+func TestRetentionAndHistorySettings(t *testing.T) {
+	t.Setenv(EnvAPIKey, "key")
+	t.Setenv(EnvAccessPassword, "long-enough-pass")
+
+	t.Run("defaults keep data for three years and 200 versions", func(t *testing.T) {
+		t.Setenv(EnvRetentionDays, "")
+		t.Setenv(EnvHistoryKeep, "")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.RetentionDays != 1095 || cfg.HistoryKeep != 200 {
+			t.Errorf("cfg = %+v", cfg)
+		}
+	})
+	t.Run("zero retention means forever", func(t *testing.T) {
+		t.Setenv(EnvRetentionDays, "0")
+		cfg, _ := Load()
+		if cfg.RetentionDays != 0 {
+			t.Errorf("retention = %d", cfg.RetentionDays)
+		}
+	})
+	t.Run("custom values", func(t *testing.T) {
+		t.Setenv(EnvRetentionDays, " 365 ")
+		t.Setenv(EnvHistoryKeep, "50")
+		cfg, _ := Load()
+		if cfg.RetentionDays != 365 || cfg.HistoryKeep != 50 {
+			t.Errorf("cfg = %+v", cfg)
+		}
+	})
+	t.Run("garbage falls back", func(t *testing.T) {
+		t.Setenv(EnvRetentionDays, "-3")
+		t.Setenv(EnvHistoryKeep, "0")
+		cfg, _ := Load()
+		if cfg.RetentionDays != DefaultRetentionDays || cfg.HistoryKeep != DefaultHistoryKeep {
+			t.Errorf("cfg = %+v", cfg)
+		}
+	})
+}
+
+func TestAgentToken(t *testing.T) {
+	t.Setenv(EnvAPIKey, "key")
+	t.Setenv(EnvAccessPassword, "long-enough-pass")
+
+	t.Run("not set means the agent is off", func(t *testing.T) {
+		t.Setenv(EnvAgentToken, "")
+		cfg, err := Load()
+		if err != nil || cfg.AgentToken != "" {
+			t.Fatalf("cfg = %+v, err = %v", cfg, err)
+		}
+	})
+	t.Run("a long token is accepted and trimmed", func(t *testing.T) {
+		t.Setenv(EnvAgentToken, "  0123456789abcdef0123456789abcdef  ")
+		cfg, err := Load()
+		if err != nil || cfg.AgentToken != "0123456789abcdef0123456789abcdef" {
+			t.Fatalf("cfg = %+v, err = %v", cfg, err)
+		}
+	})
+	t.Run("a short token is refused", func(t *testing.T) {
+		t.Setenv(EnvAgentToken, "short")
+		if _, err := Load(); err == nil {
+			t.Fatal("a weak agent token must stop the server from starting")
+		}
+	})
+}

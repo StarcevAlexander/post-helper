@@ -94,3 +94,127 @@ func TestPostgresMastersStateAndUsage(t *testing.T) {
 		}
 	}
 }
+
+func TestPostgresHistoryEventsExportAndErasure(t *testing.T) {
+	db := openPostgres(t)
+	db.HistoryKeep = 3
+	ctx := context.Background()
+	master, err := db.CreateMaster(ctx, "Тест", "history-hash-"+time.Now().Format("150405.000000000"))
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	for version := 0; version < 5; version++ {
+		if _, err := db.SaveState(ctx, master.ID, version, json.RawMessage(`{"v":`+string(rune('0'+version))+`}`), time.Now()); err != nil {
+			t.Fatalf("save %d: %v", version, err)
+		}
+	}
+	versions, err := db.StateVersions(ctx, master.ID, 0)
+	if err != nil || len(versions) != 3 || versions[0].Version != 5 || versions[2].Version != 3 {
+		t.Fatalf("versions = %+v, %v", versions, err)
+	}
+	snapshot, err := db.StateSnapshot(ctx, master.ID, 4)
+	if err != nil || snapshot.Version != 4 {
+		t.Fatalf("snapshot = %+v, %v", snapshot, err)
+	}
+	if _, err := db.StateSnapshot(ctx, master.ID, 1); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("an old version must be gone, got %v", err)
+	}
+
+	old := time.Now().AddDate(-4, 0, 0)
+	if err := db.RecordEvent(ctx, master.ID, "chat", json.RawMessage(`{"text":"старое"}`), old); err != nil {
+		t.Fatalf("event: %v", err)
+	}
+	if err := db.RecordEvent(ctx, master.ID, "kit", json.RawMessage(`{"text":"новое"}`), time.Now()); err != nil {
+		t.Fatalf("event: %v", err)
+	}
+	events, err := db.ListEvents(ctx, master.ID, 0)
+	if err != nil || len(events) != 2 || events[0].Kind != "kit" {
+		t.Fatalf("events = %+v, %v", events, err)
+	}
+
+	export, err := db.ExportMaster(ctx, master.ID)
+	if err != nil || export.State == nil || len(export.History) != 3 || len(export.Events) != 2 || export.Events[0].Kind != "chat" {
+		t.Fatalf("export = %+v, %v", export, err)
+	}
+
+	if _, err := db.Purge(ctx, time.Now().AddDate(-3, 0, 0)); err != nil {
+		t.Fatalf("purge: %v", err)
+	}
+	events, _ = db.ListEvents(ctx, master.ID, 0)
+	if len(events) != 1 || events[0].Kind != "kit" {
+		t.Errorf("only the fresh event must stay, got %+v", events)
+	}
+
+	if err := db.DeleteMaster(ctx, master.ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := db.LoadState(ctx, master.ID); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("the state must be gone with the master, got %v", err)
+	}
+	if err := db.DeleteMaster(ctx, master.ID); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestPostgresAuditJobs(t *testing.T) {
+	db := openPostgres(t)
+	ctx := context.Background()
+	master, err := db.CreateMaster(ctx, "Тест", "jobs-hash-"+time.Now().Format("150405.000000000"))
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	t.Cleanup(func() { _ = db.DeleteMaster(ctx, master.ID) })
+	now := time.Now()
+
+	job, err := db.CreateAuditJob(ctx, master.ID, "anna_nails", now)
+	if err != nil || job.Status != accounts.JobQueued || job.MasterName != "Тест" {
+		t.Fatalf("job = %+v, %v", job, err)
+	}
+	if active, err := db.CreateAuditJob(ctx, master.ID, "other", now); !errors.Is(err, accounts.ErrJobActive) || active.ID != job.ID {
+		t.Errorf("a second active job must be refused with the first one, got %+v, %v", active, err)
+	}
+
+	claimed, err := db.ClaimAuditJob(ctx, now, time.Minute)
+	if err != nil || claimed.ID != job.ID || claimed.Status != accounts.JobRunning || claimed.Attempts != 1 {
+		t.Fatalf("claimed = %+v, %v", claimed, err)
+	}
+	if _, err := db.ClaimAuditJob(ctx, now.Add(time.Second), time.Minute); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("a running job must not be handed out twice, got %v", err)
+	}
+
+	if err := db.FailAuditJob(ctx, job.ID, "капча", false, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ClaimAuditJob(ctx, now, time.Minute); err != nil {
+		t.Fatalf("a failed job returns to the queue: %v", err)
+	}
+	if err := db.CompleteAuditJob(ctx, job.ID, json.RawMessage(`{"summary":"ок"}`), now); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.CompleteAuditJob(ctx, job.ID, json.RawMessage(`{}`), now); !errors.Is(err, accounts.ErrJobState) {
+		t.Errorf("err = %v", err)
+	}
+	done, err := db.LatestAuditJob(ctx, master.ID)
+	if err != nil || done.Status != accounts.JobDone || string(done.Result) != `{"summary": "ок"}` && string(done.Result) != `{"summary":"ок"}` {
+		t.Fatalf("done = %+v, %v", done, err)
+	}
+
+	next, err := db.CreateAuditJob(ctx, master.ID, "anna_nails", now.Add(time.Second))
+	if err != nil {
+		t.Fatalf("a new job after a finished one: %v", err)
+	}
+	if err := db.CancelAuditJob(ctx, "someone-else", next.ID, now); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+	if err := db.CancelAuditJob(ctx, master.ID, next.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.CancelAuditJob(ctx, master.ID, next.ID, now); !errors.Is(err, accounts.ErrJobState) {
+		t.Errorf("err = %v", err)
+	}
+	jobs, err := db.ListAuditJobs(ctx, 10)
+	if err != nil || len(jobs) == 0 || jobs[0].Result != nil {
+		t.Errorf("jobs = %+v, %v", jobs, err)
+	}
+}

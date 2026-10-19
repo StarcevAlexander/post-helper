@@ -21,8 +21,10 @@ type Options struct {
 	KitMaker       kit.Generator
 	Auditor        audit.Generator
 	Reviewer       review.Generator
+	AgentToken     string
 	Accounts       accounts.Store
 	DailyAILimit   int
+	RetentionDays  int
 	Password       string
 	AllowedOrigins []string
 	Store          store.Store
@@ -75,10 +77,11 @@ type KitRequest struct {
 }
 
 type MeResponse struct {
-	Role       string `json:"role"`
-	Name       string `json:"name"`
-	DailyLimit int    `json:"dailyLimit"`
-	UsageToday int    `json:"usageToday"`
+	Role          string `json:"role"`
+	Name          string `json:"name"`
+	DailyLimit    int    `json:"dailyLimit"`
+	UsageToday    int    `json:"usageToday"`
+	RetentionDays int    `json:"retentionDays"`
 }
 
 type StateRequest struct {
@@ -111,4 +114,30 @@ type ReviewRequest struct {
 	Pillars     []review.Pillar  `json:"pillars"`
 	Items       []review.Item    `json:"items"`
 	Results     review.Results   `json:"results"`
+}
+
+type RestoreRequest struct {
+	Version int `json:"version"`
+}
+
+type AuditJobRequest struct {
+	Handle  string `json:"handle"`
+	Consent bool   `json:"consent"`
+}
+
+type AuditJobConflict struct {
+	Error string            `json:"error"`
+	Job   accounts.AuditJob `json:"job"`
+}
+
+type AgentJob struct {
+	ID       string     `json:"id"`
+	Handle   string     `json:"handle"`
+	Attempts int        `json:"attempts"`
+	Profile  JobProfile `json:"profile"`
+}
+
+type AgentFailRequest struct {
+	Reason string `json:"reason"`
+	Final  bool   `json:"final"`
 }

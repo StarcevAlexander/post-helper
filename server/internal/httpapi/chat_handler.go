@@ -16,6 +16,7 @@ import (
 )
 
 type chatHandler struct {
+	journal   *journal
 	responder chat.Responder
 	recorder  store.Recorder
 	logger    *slog.Logger
@@ -40,6 +41,12 @@ func (h *chatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, MsgUpstreamFailed)
 	default:
 		h.record(r.FormValue(FieldConversation), conversation, reply)
+		h.journal.record(r, UsageChat, map[string]any{
+			"text":         conversation.Text,
+			"reply":        reply,
+			"attachments":  attachmentNames(conversation),
+			"historyTurns": len(conversation.History),
+		})
 		writeJSON(w, http.StatusOK, ReplyResponse{Reply: reply})
 	}
 }
@@ -114,4 +121,12 @@ func readFile(header *multipart.FileHeader) ([]byte, error) {
 	}
 	defer file.Close()
 	return io.ReadAll(file)
+}
+
+func attachmentNames(conversation chat.Conversation) []string {
+	names := make([]string, 0, len(conversation.Attachments))
+	for _, attachment := range conversation.Attachments {
+		names = append(names, attachment.Name)
+	}
+	return names
 }

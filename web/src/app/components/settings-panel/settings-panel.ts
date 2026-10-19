@@ -11,6 +11,7 @@ import {
 import {
   ACCOUNT_LABELS,
   ADMIN_MASTERS_TITLE,
+  RETENTION_NOTE_FOR_MASTER,
   SYNC_STATUS_TEXT,
   APPEARANCE_TITLE,
   BACK_LABEL,
@@ -30,6 +31,7 @@ import { SettingsScreen, ThemeId } from '../../models';
 import { Settings } from '../../services/settings';
 import { Speech } from '../../services/speech';
 import { Account } from '../../services/account';
+import { formatRetention } from '../../utils/format-retention';
 import { Sync } from '../../services/sync';
 import { AdminMasters } from '../admin-masters/admin-masters';
 import { ErrorLogScreen } from '../error-log/error-log';
@@ -47,6 +49,10 @@ export class SettingsPanel {
   protected readonly account = inject(Account);
   protected readonly sync = inject(Sync);
   protected readonly accountLabels = ACCOUNT_LABELS;
+  protected readonly retentionNote = RETENTION_NOTE_FOR_MASTER;
+  protected readonly retention = computed(() =>
+    formatRetention(this.account.info()?.retentionDays ?? 0),
+  );
   protected readonly mastersTitle = ADMIN_MASTERS_TITLE;
   protected readonly syncText = computed(() => SYNC_STATUS_TEXT[this.sync.status()]);
   protected readonly title = SETTINGS_TITLE;

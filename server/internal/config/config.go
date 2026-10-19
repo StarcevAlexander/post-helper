@@ -18,6 +18,9 @@ func Load() (Config, error) {
 		Model:          valueOr(os.Getenv(EnvModel), DefaultModel),
 		DatabaseURL:    strings.TrimSpace(os.Getenv(EnvDatabaseURL)),
 		DailyAILimit:   dailyLimit(os.Getenv(EnvDailyAILimit)),
+		RetentionDays:  nonNegative(os.Getenv(EnvRetentionDays), DefaultRetentionDays),
+		AgentToken:     strings.TrimSpace(os.Getenv(EnvAgentToken)),
+		HistoryKeep:    positive(os.Getenv(EnvHistoryKeep), DefaultHistoryKeep),
 	}
 
 	var problems []error
@@ -26,6 +29,9 @@ func Load() (Config, error) {
 	}
 	if len(cfg.AccessPassword) < MinPasswordLength {
 		problems = append(problems, fmt.Errorf("%s must be at least %d characters", EnvAccessPassword, MinPasswordLength))
+	}
+	if cfg.AgentToken != "" && len(cfg.AgentToken) < MinAgentTokenLength {
+		problems = append(problems, fmt.Errorf("%s must be at least %d characters", EnvAgentToken, MinAgentTokenLength))
 	}
 	if err := errors.Join(problems...); err != nil {
 		return Config{}, err
@@ -97,6 +103,22 @@ func dailyLimit(raw string) int {
 	value, err := strconv.Atoi(strings.TrimSpace(raw))
 	if err != nil || value < 0 {
 		return DefaultDailyLimit
+	}
+	return value
+}
+
+func nonNegative(raw string, fallback int) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || value < 0 {
+		return fallback
+	}
+	return value
+}
+
+func positive(raw string, fallback int) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || value <= 0 {
+		return fallback
 	}
 	return value
 }

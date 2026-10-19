@@ -25,6 +25,7 @@ import { Access } from './access';
 import { Account } from './account';
 import { Audit } from './audit';
 import { CalendarPlan } from './calendar-plan';
+import { Chat } from './chat';
 import { ChatApi } from './chat-api';
 import { Kits } from './kits';
 import { Onboarding } from './onboarding';
@@ -38,6 +39,7 @@ const SYNC_KEYS: Record<SyncKey, string> = {
   kits: KITS_STORAGE_KEY,
   reviews: REVIEWS_STORAGE_KEY,
   audit: AUDIT_STORAGE_KEY,
+  chat: CHAT_HISTORY_STORAGE_KEY,
 };
 
 const KEYS = Object.keys(SYNC_KEYS) as SyncKey[];
@@ -52,6 +54,7 @@ export class Sync {
   private readonly kits = inject(Kits);
   private readonly reviews = inject(Reviews);
   private readonly audit = inject(Audit);
+  private readonly chat = inject(Chat);
   private readonly reload = inject(PAGE_RELOAD);
 
   readonly status = signal<SyncStatus>('off');
@@ -59,6 +62,7 @@ export class Sync {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private running = false;
   private revision = 0;
+  private lastSyncedJson: string | undefined;
   private started = false;
 
   constructor() {
@@ -81,6 +85,7 @@ export class Sync {
       this.kits.stored();
       this.reviews.items();
       this.audit.stored();
+      this.chat.messages();
       if (!this.started) {
         this.started = true;
         return;
@@ -118,15 +123,21 @@ export class Sync {
     clearTimeout(this.timer);
     this.timer = undefined;
     const meta = this.readMeta();
-    if (this.account.role() === 'master' && meta?.dirty && !this.running) {
-      void this.push(meta.version);
+    if (this.account.role() !== 'master' || !meta?.dirty || this.running) {
+      return;
     }
+    if (meta.version > 0 && JSON.stringify(this.readBundle()) === this.lastSyncedJson) {
+      this.writeMeta({ version: meta.version, dirty: false });
+      this.status.set('ok');
+      return;
+    }
+    void this.push(meta.version);
   }
 
   private async reconcile(server: ServerState): Promise<void> {
     const meta = this.readMeta();
     const local = this.readBundle();
-    const localEmpty = Object.keys(local).length === 0;
+    const localEmpty = !Object.keys(local).some((key) => key !== 'chat');
 
     if (server.version === 0 || !server.data) {
       if (localEmpty) {
@@ -140,6 +151,7 @@ export class Sync {
       if (meta.dirty) {
         await this.push(meta.version);
       } else {
+        this.lastSyncedJson = JSON.stringify(local);
         this.status.set('ok');
       }
       return;
@@ -158,7 +170,6 @@ export class Sync {
       this.writeRaw(SYNC_BACKUP_STORAGE_KEY, JSON.stringify(local));
     }
     if (!same) {
-      this.removeRaw(CHAT_HISTORY_STORAGE_KEY);
       KEYS.forEach((key) => {
         const value = remote[key];
         if (value === undefined) {
@@ -169,6 +180,7 @@ export class Sync {
       });
     }
     this.writeMeta({ version: server.version, dirty: false });
+    this.lastSyncedJson = JSON.stringify(remote);
     this.status.set('ok');
     if (!same) {
       this.reload();
@@ -191,7 +203,9 @@ export class Sync {
     this.status.set('syncing');
     const startedAt = this.revision;
     try {
-      const saved = await this.api.saveState(baseVersion, this.readBundle());
+      const bundle = this.readBundle();
+      const saved = await this.api.saveState(baseVersion, bundle);
+      this.lastSyncedJson = JSON.stringify(bundle);
       const changedMeanwhile = this.revision !== startedAt;
       this.writeMeta({ version: saved.version, dirty: changedMeanwhile });
       this.status.set(changedMeanwhile ? 'idle' : 'ok');

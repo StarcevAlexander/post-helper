@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { API_DEV_URL, API_ME_PATH } from '../../constants';
 import { Access } from '../../services/access';
+import { AccountInfo } from '../../models';
 import { Account } from '../../services/account';
 import { SettingsPanel } from './settings-panel';
 
@@ -27,11 +28,7 @@ describe('SettingsPanel account block', () => {
     localStorage.clear();
   });
 
-  async function render(
-    info:
-      | { role: 'master' | 'admin'; name: string; dailyLimit: number; usageToday: number }
-      | undefined,
-  ) {
+  async function render(info: AccountInfo | undefined) {
     const fixture = TestBed.createComponent(SettingsPanel);
     const account = TestBed.inject(Account);
     await fixture.whenStable();
@@ -47,18 +44,32 @@ describe('SettingsPanel account block', () => {
   });
 
   it('shows the master name and the daily use of the AI', async () => {
-    const element = await render({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 3 });
+    const element = await render({
+      role: 'master',
+      name: 'Анна',
+      dailyLimit: 80,
+      usageToday: 3,
+      retentionDays: 1095,
+    });
 
     expect(element.querySelector('.account')?.textContent).toContain('Анна');
     expect(element.querySelector('.account')?.textContent).toContain('3 из 80');
+    expect(element.querySelector('.account')?.textContent).toContain('хранится 3 года');
     expect(element.textContent).not.toContain('Мастера и расходы');
   });
 
   it('gives the owner the list of masters and hides the limit line', async () => {
-    const element = await render({ role: 'admin', name: 'owner', dailyLimit: 80, usageToday: 0 });
+    const element = await render({
+      role: 'admin',
+      name: 'owner',
+      dailyLimit: 80,
+      usageToday: 0,
+      retentionDays: 1095,
+    });
 
     expect(element.querySelector('.account')?.textContent).toContain('владелец');
     expect(element.querySelector('.account')?.textContent).not.toContain('из 80');
+    expect(element.querySelector('.account')?.textContent).not.toContain('хранится');
     expect(element.textContent).toContain('Мастера и расходы');
   });
 
@@ -67,11 +78,15 @@ describe('SettingsPanel account block', () => {
     const http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(SettingsPanel);
     TestBed.tick();
-    http
-      .match(`${API_DEV_URL}${API_ME_PATH}`)
-      .forEach((request) =>
-        request.flush({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 1 }),
-      );
+    http.match(`${API_DEV_URL}${API_ME_PATH}`).forEach((request) =>
+      request.flush({
+        role: 'master',
+        name: 'Анна',
+        dailyLimit: 80,
+        usageToday: 1,
+        retentionDays: 1095,
+      }),
+    );
     await fixture.whenStable();
 
     fixture.componentRef.setInput('open', true);
@@ -80,7 +95,13 @@ describe('SettingsPanel account block', () => {
 
     const requests = http.match(`${API_DEV_URL}${API_ME_PATH}`);
     expect(requests.length).toBe(1);
-    requests[0].flush({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 7 });
+    requests[0].flush({
+      role: 'master',
+      name: 'Анна',
+      dailyLimit: 80,
+      usageToday: 7,
+      retentionDays: 1095,
+    });
     await vi.waitFor(() => expect(TestBed.inject(Account).info()?.usageToday).toBe(7));
   });
 });

@@ -1,5 +1,7 @@
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { form, FormField } from '@angular/forms/signals';
 import {
+  AUDIT_JOB_TEXTS,
   AUDIT_SHOTS,
   AUDIT_TEXTS,
   COPY_FEEDBACK_MS,
@@ -9,6 +11,7 @@ import {
 } from '../../constants';
 import { AuditPick } from '../../models';
 import { Audit } from '../../services/audit';
+import { AuditJobs } from '../../services/audit-jobs';
 import { Chat } from '../../services/chat';
 import { ImageCompressor } from '../../services/image-compressor';
 import { Onboarding } from '../../services/onboarding';
@@ -17,6 +20,7 @@ import { copyText } from '../../utils/clipboard';
 type CopyTarget = 'bio' | 'name';
 
 @Component({
+  imports: [FormField],
   selector: 'app-audit-screen',
   styleUrl: './audit-screen.scss',
   templateUrl: './audit-screen.html',
@@ -25,7 +29,18 @@ export class AuditScreen {
   protected readonly audit = inject(Audit);
   protected readonly chat = inject(Chat);
   protected readonly onboarding = inject(Onboarding);
+  protected readonly jobs = inject(AuditJobs);
   protected readonly texts = AUDIT_TEXTS;
+  protected readonly jobTexts = AUDIT_JOB_TEXTS;
+  protected readonly orderModel = signal({ handle: '', consent: false });
+  protected readonly orderForm = form(this.orderModel);
+  protected readonly canOrder = computed(
+    () =>
+      this.orderForm.handle().value().trim().length > 0 &&
+      this.orderForm.consent().value() &&
+      !this.jobs.busy() &&
+      !this.jobs.active(),
+  );
   protected readonly shots = AUDIT_SHOTS;
   protected readonly maxImages = MAX_AUDIT_IMAGES;
   protected readonly picks = signal<AuditPick[]>([]);
@@ -56,9 +71,15 @@ export class AuditScreen {
       const element = this.dialog().nativeElement;
       if (this.audit.open() && !element.open) {
         this.editing.set(false);
+        this.orderModel.update((current) => ({
+          ...current,
+          handle: current.handle || this.onboarding.answers().instagram || '',
+        }));
+        void this.jobs.refresh();
         element.showModal();
       } else if (!this.audit.open() && element.open) {
         this.clearPicks();
+        this.jobs.stop();
         element.close();
       }
     });
@@ -109,6 +130,20 @@ export class AuditScreen {
       this.clearPicks();
       this.editing.set(false);
     }
+  }
+
+  protected async onOrder(): Promise<void> {
+    if (!this.canOrder()) {
+      return;
+    }
+    const { handle, consent } = this.orderModel();
+    if (await this.jobs.order(handle.trim(), consent)) {
+      this.orderModel.update((current) => ({ ...current, consent: false }));
+    }
+  }
+
+  protected onCancelOrder(): void {
+    void this.jobs.cancel();
   }
 
   protected onAgain(): void {

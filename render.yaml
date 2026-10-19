@@ -16,3 +16,7 @@ services:
         sync: false
       - key: DAILY_AI_LIMIT
         value: "80"
+      - key: RETENTION_DAYS
+        value: "1095"
+      - key: AGENT_TOKEN
+        sync: false

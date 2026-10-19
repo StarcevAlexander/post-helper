@@ -15,6 +15,7 @@ import (
 )
 
 type kitHandler struct {
+	journal   *journal
 	generator kit.Generator
 	recorder  store.Recorder
 	logger    *slog.Logger
@@ -47,6 +48,10 @@ func (h *kitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		h.logger.Info("kit generated", slog.String("format", request.Format), slog.Int("frames", len(result.Frames)))
 		h.recorder.SaveEvent(store.EventKit, "", map[string]any{"format": request.Format, "pillar": request.Pillar, "idea": request.Idea})
+		h.journal.record(r, UsageKit, map[string]any{
+			"request": map[string]string{"format": request.Format, "pillar": request.Pillar, "idea": request.Idea},
+			"kit":     result,
+		})
 		writeJSON(w, http.StatusOK, result)
 	}
 }

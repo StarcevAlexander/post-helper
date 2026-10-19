@@ -39,6 +39,70 @@
         <p class="screen__hint">{{ texts.count }}</p>
       </section>
 
+      <section class="section order">
+        <h3 class="section__heading">{{ jobTexts.title }}</h3>
+        <p class="screen__hint">{{ jobTexts.intro }}</p>
+
+        @if (jobs.job(); as job) {
+          @switch (job.status) {
+            @case ('queued') {
+              <p class="screen__hint" role="status">{{ jobTexts.queued }}</p>
+            }
+            @case ('running') {
+              <p class="screen__hint" role="status">{{ jobTexts.running }}</p>
+            }
+            @case ('done') {
+              <p class="screen__hint" role="status">{{ jobTexts.done }}</p>
+            }
+            @case ('failed') {
+              <p class="screen__error" role="alert">
+                {{ jobTexts.failed }}{{ job.error ? ': ' + job.error : '' }}
+              </p>
+            }
+            @case ('canceled') {
+              <p class="screen__hint" role="status">{{ jobTexts.canceled }}</p>
+            }
+          }
+        }
+
+        @if (jobs.error(); as message) {
+          <p class="screen__error" role="alert">{{ message }}</p>
+        }
+
+        @if (jobs.active()) {
+          <button
+            type="button"
+            class="screen__secondary"
+            [disabled]="jobs.busy()"
+            (click)="onCancelOrder()"
+          >
+            {{ jobTexts.cancel }}
+          </button>
+        } @else {
+          <label class="order__label" for="audit-handle">{{ jobTexts.handleLabel }}</label>
+          <input
+            id="audit-handle"
+            class="order__input"
+            type="text"
+            autocomplete="off"
+            autocapitalize="off"
+            [placeholder]="jobTexts.handlePlaceholder"
+            [formField]="orderForm.handle"
+          />
+          <label class="order__consent">
+            <input type="checkbox" [formField]="orderForm.consent" />
+            <span>{{ jobTexts.consent }}</span>
+          </label>
+          <button
+            type="button"
+            class="screen__secondary"
+            [disabled]="!canOrder()"
+            (click)="onOrder()"
+          >
+            {{ jobs.job() ? jobTexts.retry : jobTexts.submit }}
+          </button>
+        }
+      </section>
       <p class="screen__hint screen__hint--note">{{ texts.privacy }}</p>
 
       <label class="picker">

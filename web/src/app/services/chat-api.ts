@@ -5,6 +5,7 @@ import {
   API_CHAT_PATH,
   API_CLIENT_ERROR_PATH,
   API_ADMIN_MASTERS_PATH,
+  API_AUDIT_JOBS_PATH,
   API_AUDIT_PATH,
   API_DEV_URL,
   API_KIT_PATH,
@@ -22,6 +23,10 @@ import {
 } from '../constants';
 import {
   AccountInfo,
+  MasterEvent,
+  MasterExport,
+  MasterVersion,
+  AuditJob,
   AuditResult,
   ApiErrorBody,
   ApiReply,
@@ -114,6 +119,59 @@ export class ChatApi {
     });
   }
 
+  createAuditJob(handle: string, consent: boolean): Promise<AuditJob> {
+    return this.send<AuditJob>('POST', API_AUDIT_JOBS_PATH, { handle, consent });
+  }
+
+  async latestAuditJob(): Promise<AuditJob | undefined> {
+    const job = await this.send<AuditJob | null>('GET', `${API_AUDIT_JOBS_PATH}/latest`);
+    return job ?? undefined;
+  }
+
+  cancelAuditJob(id: string): Promise<{ canceled: boolean }> {
+    return this.send<{ canceled: boolean }>(
+      'POST',
+      `${API_AUDIT_JOBS_PATH}/${encodeURIComponent(id)}/cancel`,
+      {},
+    );
+  }
+
+  masterEvents(id: string, limit: number): Promise<MasterEvent[]> {
+    return this.send<MasterEvent[]>(
+      'GET',
+      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/events?limit=${limit}`,
+    );
+  }
+
+  masterVersions(id: string, limit: number): Promise<MasterVersion[]> {
+    return this.send<MasterVersion[]>(
+      'GET',
+      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/versions?limit=${limit}`,
+    );
+  }
+
+  exportMaster(id: string): Promise<MasterExport> {
+    return this.send<MasterExport>(
+      'GET',
+      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/export`,
+    );
+  }
+
+  restoreMaster(id: string, version: number): Promise<ServerState> {
+    return this.send<ServerState>(
+      'POST',
+      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}/restore`,
+      { version },
+    );
+  }
+
+  deleteMaster(id: string): Promise<{ deleted: boolean }> {
+    return this.send<{ deleted: boolean }>(
+      'DELETE',
+      `${API_ADMIN_MASTERS_PATH}/${encodeURIComponent(id)}`,
+    );
+  }
+
   me(): Promise<AccountInfo> {
     return this.send<AccountInfo>('GET', API_ME_PATH);
   }
@@ -150,7 +208,7 @@ export class ChatApi {
   }
 
   private async send<T>(
-    method: 'GET' | 'POST' | 'PUT',
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
     body?: FormData | object,
     descriptor?: RequestDescriptor,

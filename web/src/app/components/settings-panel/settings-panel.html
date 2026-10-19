@@ -122,6 +122,9 @@
                 {{ info.dailyLimit }}
               </p>
             }
+            @if (info.role === 'master' && info.retentionDays >= 0) {
+              <p class="account__hint">{{ retentionNote }} {{ retention() }}.</p>
+            }
             @if (syncText()) {
               <p class="account__hint" role="status">{{ syncText() }}</p>
             }

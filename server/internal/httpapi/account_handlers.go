@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -18,14 +19,15 @@ import (
 )
 
 type meHandler struct {
-	accounts   accounts.Store
-	dailyLimit int
-	logger     *slog.Logger
+	retentionDays int
+	accounts      accounts.Store
+	dailyLimit    int
+	logger        *slog.Logger
 }
 
 func (h *meHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	identity, _ := auth.FromContext(r.Context())
-	response := MeResponse{Role: "master", Name: identity.Name, DailyLimit: h.dailyLimit}
+	response := MeResponse{Role: "master", Name: identity.Name, DailyLimit: h.dailyLimit, RetentionDays: h.retentionDays}
 	if identity.Admin {
 		response.Role = "admin"
 		writeJSON(w, http.StatusOK, response)
@@ -155,6 +157,7 @@ func (h *adminHandler) disable(w http.ResponseWriter, r *http.Request) {
 }
 
 type reviewHandler struct {
+	journal   *journal
 	generator review.Generator
 	recorder  store.Recorder
 	logger    *slog.Logger
@@ -186,6 +189,7 @@ func (h *reviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		h.logger.Info("review generated", slog.Int("items", len(request.Items)))
 		h.recorder.SaveEvent(store.EventReview, "", map[string]any{"items": len(request.Items)})
+		h.journal.record(r, UsageReview, map[string]any{"request": request, "review": result})
 		writeJSON(w, http.StatusOK, result)
 	}
 }
@@ -234,4 +238,98 @@ func cleanReviewRequest(body ReviewRequest) (review.Request, string) {
 		Items:       body.Items,
 		Results:     body.Results,
 	}, ""
+}
+
+func (h *adminHandler) events(w http.ResponseWriter, r *http.Request) {
+	limit := limitParam(r.URL.Query().Get(QueryLimit))
+	if limit > MaxEventsLimit {
+		limit = MaxEventsLimit
+	}
+	events, err := h.accounts.ListEvents(r.Context(), r.PathValue("id"), limit)
+	if err != nil {
+		h.logger.Error("list events failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgMasterFailed)
+		return
+	}
+	writeJSON(w, http.StatusOK, events)
+}
+
+func (h *adminHandler) versions(w http.ResponseWriter, r *http.Request) {
+	limit := limitParam(r.URL.Query().Get(QueryLimit))
+	if limit > MaxEventsLimit {
+		limit = MaxEventsLimit
+	}
+	versions, err := h.accounts.StateVersions(r.Context(), r.PathValue("id"), limit)
+	if err != nil {
+		h.logger.Error("list versions failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgMasterFailed)
+		return
+	}
+	writeJSON(w, http.StatusOK, versions)
+}
+
+func (h *adminHandler) export(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	export, err := h.accounts.ExportMaster(r.Context(), id)
+	switch {
+	case errors.Is(err, accounts.ErrNotFound):
+		writeError(w, http.StatusNotFound, MsgMasterFailed)
+	case err != nil:
+		h.logger.Error("export master failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgMasterFailed)
+	default:
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="`+ExportFileNameFormat+`"`, id))
+		writeJSON(w, http.StatusOK, export)
+	}
+}
+
+func (h *adminHandler) deleteMaster(w http.ResponseWriter, r *http.Request) {
+	err := h.accounts.DeleteMaster(r.Context(), r.PathValue("id"))
+	switch {
+	case errors.Is(err, accounts.ErrNotFound):
+		writeError(w, http.StatusNotFound, MsgMasterFailed)
+	case err != nil:
+		h.logger.Error("delete master failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgMasterFailed)
+	default:
+		h.logger.Info("master deleted", slog.String("id", r.PathValue("id")))
+		writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+	}
+}
+
+func (h *adminHandler) restore(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, MaxAdminBodyBytes)
+	var body RestoreRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Version <= 0 {
+		writeError(w, http.StatusBadRequest, MsgBadRequest)
+		return
+	}
+	id := r.PathValue("id")
+	snapshot, err := h.accounts.StateSnapshot(r.Context(), id, body.Version)
+	if errors.Is(err, accounts.ErrNotFound) {
+		writeError(w, http.StatusNotFound, MsgNoVersion)
+		return
+	}
+	if err != nil {
+		h.logger.Error("load snapshot failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgRestoreFailed)
+		return
+	}
+	current, err := h.accounts.LoadState(r.Context(), id)
+	if err != nil && !errors.Is(err, accounts.ErrNotFound) {
+		h.logger.Error("load state failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgRestoreFailed)
+		return
+	}
+	saved, err := h.accounts.SaveState(r.Context(), id, current.Version, snapshot.Data, time.Now())
+	if err != nil {
+		h.logger.Error("restore state failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgRestoreFailed)
+		return
+	}
+	payload, _ := json.Marshal(map[string]int{"fromVersion": body.Version, "newVersion": saved.Version})
+	if err := h.accounts.RecordEvent(r.Context(), id, UsageAdminRestore, payload, time.Now()); err != nil {
+		h.logger.Error("record restore failed", slog.Any("error", err))
+	}
+	writeJSON(w, http.StatusOK, saved)
 }

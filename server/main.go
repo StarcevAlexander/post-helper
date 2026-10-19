@@ -30,6 +30,8 @@ const (
 	shutdownTimeout   = 10 * time.Second
 
 	databaseOpenTimeout = 20 * time.Second
+	retentionInterval   = 24 * time.Hour
+	retentionTimeout    = 2 * time.Minute
 )
 
 func main() {
@@ -50,7 +52,9 @@ func run() error {
 
 	logger := slog.Default()
 	var history store.Store = store.Noop{}
-	var accountStore accounts.Store = accounts.NewMemory()
+	memoryAccounts := accounts.NewMemory()
+	memoryAccounts.HistoryKeep = cfg.HistoryKeep
+	var accountStore accounts.Store = memoryAccounts
 	if cfg.DatabaseURL != "" {
 		openCtx, cancel := context.WithTimeout(context.Background(), databaseOpenTimeout)
 		postgres, err := store.Open(openCtx, cfg.DatabaseURL, logger)
@@ -59,13 +63,19 @@ func run() error {
 			return fmt.Errorf("store: %w", err)
 		}
 		history = postgres
-		accountStore = accounts.NewPostgres(postgres.Pool())
+		postgresAccounts := accounts.NewPostgres(postgres.Pool())
+		postgresAccounts.HistoryKeep = cfg.HistoryKeep
+		accountStore = postgresAccounts
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
 		slog.SetDefault(logger)
 	} else {
 		slog.Warn("DATABASE_URL is not set: history, master accounts and master data live in memory and are lost on restart")
 	}
 	defer history.Close()
+
+	ctxRetention, stopRetention := context.WithCancel(context.Background())
+	defer stopRetention()
+	go runRetention(ctxRetention, accountStore, cfg.RetentionDays)
 
 	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{
@@ -74,8 +84,10 @@ func run() error {
 		KitMaker:       kit.NewClaude(cfg.APIKey, cfg.Model),
 		Reviewer:       review.NewClaude(cfg.APIKey, cfg.Model),
 		Auditor:        audit.NewClaude(cfg.APIKey, cfg.Model),
+		AgentToken:     cfg.AgentToken,
 		Accounts:       accountStore,
 		DailyAILimit:   cfg.DailyAILimit,
+		RetentionDays:  cfg.RetentionDays,
 		Password:       cfg.AccessPassword,
 		AllowedOrigins: cfg.AllowedOrigins,
 		Store:          history,
@@ -109,5 +121,33 @@ func run() error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		return server.Shutdown(shutdownCtx)
+	}
+}
+
+func runRetention(ctx context.Context, store accounts.Store, days int) {
+	if days <= 0 {
+		return
+	}
+	purge := func() {
+		before := time.Now().AddDate(0, 0, -days)
+		purgeCtx, cancel := context.WithTimeout(ctx, retentionTimeout)
+		defer cancel()
+		removed, err := store.Purge(purgeCtx, before)
+		if err != nil {
+			slog.Error("retention purge failed", slog.Any("error", err))
+			return
+		}
+		slog.Info("retention purge done", slog.Int64("removed", removed), slog.Int("days", days))
+	}
+	purge()
+	ticker := time.NewTicker(retentionInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			purge()
+		}
 	}
 }

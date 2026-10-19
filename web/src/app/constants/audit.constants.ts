@@ -59,3 +59,26 @@ export const AUDIT_TEXTS = {
   failed: 'Не удалось разобрать профиль',
   needProfile: 'Сначала ответьте на вопросы анкеты.',
 } as const;
+
+export const API_AUDIT_JOBS_PATH = '/api/audit/jobs';
+
+export const AUDIT_JOB_POLL_MS = 25000;
+
+export const AUDIT_JOB_TEXTS = {
+  title: 'Или разберём по ссылке',
+  intro:
+    'Если аккаунт открытый, скриншоты не нужны: назовите ник, и разбор сделают сами. Обычно это занимает несколько часов.',
+  handleLabel: 'Ник или ссылка на Instagram',
+  handlePlaceholder: 'anna_nails или instagram.com/anna_nails',
+  consent: 'Согласна, что мой открытый аккаунт посмотрят и разберут с помощью ИИ',
+  submit: 'Заказать разбор',
+  cancel: 'Отменить заказ',
+  retry: 'Заказать ещё раз',
+  queued: 'Заказ в очереди. Откройте приложение позже, результат появится сам.',
+  running: 'Профиль разбирают. Это займёт немного времени.',
+  done: 'Разбор по ссылке готов и показан выше.',
+  failed: 'Не получилось разобрать аккаунт',
+  canceled: 'Заказ отменён.',
+  loadFailed: 'Не удалось узнать состояние заказа',
+  createFailed: 'Не удалось отправить заказ',
+} as const;

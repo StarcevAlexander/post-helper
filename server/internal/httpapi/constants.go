@@ -41,7 +41,7 @@ const (
 	MaxFiles            = 8
 	AuthFailDelay       = 400 * time.Millisecond
 	CORSMaxAge          = "600"
-	CORSMethods         = "GET, POST, PUT, OPTIONS"
+	CORSMethods         = "GET, POST, PUT, DELETE, OPTIONS"
 	CORSHeaders         = "Authorization, Content-Type"
 	BearerPrefix        = "Bearer "
 )
@@ -124,3 +124,46 @@ const (
 	MsgAuditUnreadable       = "Скриншоты не подошли: "
 	UsageAudit               = "audit"
 )
+
+const (
+	AdminEventsRoute       = "GET /api/admin/masters/{id}/events"
+	AdminVersionsRoute     = "GET /api/admin/masters/{id}/versions"
+	AdminExportRoute       = "GET /api/admin/masters/{id}/export"
+	AdminDeleteMasterRoute = "DELETE /api/admin/masters/{id}"
+	AdminRestoreRoute      = "POST /api/admin/masters/{id}/restore"
+	MsgNoVersion           = "Такой версии нет в истории"
+	MsgRestoreFailed       = "Не удалось вернуть версию"
+	UsageAdminRestore      = "admin.restore"
+	MaxEventsLimit         = 500
+	ExportFileNameFormat   = "master-%s-export.json"
+)
+
+const (
+	AuditJobCreateRoute  = "POST /api/audit/jobs"
+	AuditJobLatestRoute  = "GET /api/audit/jobs/latest"
+	AuditJobCancelRoute  = "POST /api/audit/jobs/{id}/cancel"
+	AgentNextRoute       = "GET /api/agent/jobs/next"
+	AgentResultRoute     = "POST /api/agent/jobs/{id}/result"
+	AgentFailRoute       = "POST /api/agent/jobs/{id}/fail"
+	AdminAuditJobsRoute  = "GET /api/admin/audit-jobs"
+	FieldData            = "data"
+	JobLease             = 20 * time.Minute
+	MaxJobReasonRunes    = 300
+	MsgConsentRequired   = "Нужно согласие на разбор вашего открытого аккаунта"
+	MsgBadHandle         = "Не удалось понять ссылку или ник. Пример: anna_nails или instagram.com/anna_nails"
+	MsgJobActive         = "Разбор уже заказан и ещё не закончен"
+	MsgJobFailed         = "Не удалось выполнить действие с заказом на разбор"
+	MsgJobNotFound       = "Заказ на разбор не найден"
+	MsgJobState          = "Заказ в другом состоянии"
+	MsgAgentUnauthorized = "Неверный токен агента"
+	MsgBadCollected      = "Не удалось разобрать данные профиля"
+	UsageAuditJob        = "audit.job"
+	EventJobCreated      = "audit.job.created"
+	EventJobFailed       = "audit.job.failed"
+)
+
+type JobProfile struct {
+	Name      string `json:"name,omitempty"`
+	Specialty string `json:"specialty,omitempty"`
+	City      string `json:"city,omitempty"`
+}

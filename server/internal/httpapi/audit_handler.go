@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"strings"
 
@@ -16,6 +17,7 @@ import (
 )
 
 type auditHandler struct {
+	journal   *journal
 	generator audit.Generator
 	recorder  store.Recorder
 	logger    *slog.Logger
@@ -56,6 +58,10 @@ func (h *auditHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		h.logger.Info("audit generated", slog.Int("images", len(request.Images)))
 		h.recorder.SaveEvent(store.EventAudit, "", map[string]any{"images": len(request.Images)})
+		h.journal.record(r, UsageAudit, map[string]any{
+			"images": imageNames(request.Images),
+			"result": result,
+		})
 		writeJSON(w, http.StatusOK, result)
 	}
 }
@@ -70,35 +76,50 @@ func (h *auditHandler) readRequest(r *http.Request) (audit.Request, int, string)
 		return audit.Request{}, status, message
 	}
 
-	headers := r.MultipartForm.File[FieldImages]
+	images, status, message := readAuditImages(r.MultipartForm.File[FieldImages], audit.MaxImages, h.logger)
+	if message != "" {
+		return audit.Request{}, status, message
+	}
+	return audit.Request{Profile: profile, Images: images}, 0, ""
+}
+
+func imageNames(images []audit.Image) []string {
+	names := make([]string, 0, len(images))
+	for _, image := range images {
+		names = append(names, image.Name)
+	}
+	return names
+}
+
+func readAuditImages(headers []*multipart.FileHeader, limit int, logger *slog.Logger) ([]audit.Image, int, string) {
 	switch {
 	case len(headers) == 0:
-		return audit.Request{}, http.StatusBadRequest, MsgNoImages
-	case len(headers) > audit.MaxImages:
-		return audit.Request{}, http.StatusBadRequest, MsgTooManyImages
+		return nil, http.StatusBadRequest, MsgNoImages
+	case len(headers) > limit:
+		return nil, http.StatusBadRequest, MsgTooManyImages
 	}
 
 	images := make([]audit.Image, 0, len(headers))
 	for _, header := range headers {
 		file, err := header.Open()
 		if err != nil {
-			h.logger.Error("open image failed", slog.Any("error", err))
-			return audit.Request{}, http.StatusBadRequest, MsgBadRequest
+			logger.Error("open image failed", slog.Any("error", err))
+			return nil, http.StatusBadRequest, MsgBadRequest
 		}
 		data, err := io.ReadAll(io.LimitReader(file, audit.MaxImageBytes+1))
 		_ = file.Close()
 		if err != nil {
-			h.logger.Error("read image failed", slog.Any("error", err))
-			return audit.Request{}, http.StatusBadRequest, MsgBadRequest
+			logger.Error("read image failed", slog.Any("error", err))
+			return nil, http.StatusBadRequest, MsgBadRequest
 		}
 		if len(data) > audit.MaxImageBytes {
-			return audit.Request{}, http.StatusRequestEntityTooLarge, MsgTooLarge
+			return nil, http.StatusRequestEntityTooLarge, MsgTooLarge
 		}
 		mediaType, _, _ := strings.Cut(http.DetectContentType(data[:min(len(data), chat.SniffLength)]), ";")
 		if _, ok := audit.MediaTypes[mediaType]; !ok {
-			return audit.Request{}, http.StatusUnsupportedMediaType, MsgUnsupportedFile
+			return nil, http.StatusUnsupportedMediaType, MsgUnsupportedFile
 		}
 		images = append(images, audit.Image{Name: header.Filename, MediaType: mediaType, Data: data})
 	}
-	return audit.Request{Profile: profile, Images: images}, 0, ""
+	return images, 0, ""
 }

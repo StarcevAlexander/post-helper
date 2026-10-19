@@ -79,3 +79,43 @@ export const REVIEW_BEST_PREFIX = 'Лучше всего сработало';
 export const MAX_INQUIRIES = 100000;
 
 export const MAX_IDEAS_PER_PILLAR = 12;
+
+export const ADMIN_JOURNAL_TEXTS = {
+  journal: 'Журнал',
+  hideJournal: 'Свернуть журнал',
+  export: 'Выгрузить',
+  delete: 'Удалить',
+  deleteConfirm: 'Точно удалить всё?',
+  deleteDone: 'Мастер и все его данные удалены',
+  title: 'Журнал мастера',
+  events: 'Действия и ответы ИИ',
+  versions: 'Версии данных',
+  noEvents: 'Записей пока нет',
+  noVersions: 'Версий пока нет',
+  restore: 'Вернуть',
+  restoreConfirm: 'Точно вернуть?',
+  restored: 'Версия возвращена: мастер получит её при следующем входе в приложение',
+  retention: 'Журнал и история хранятся',
+  days: 'дн.',
+  forever: 'бессрочно',
+  loadFailed: 'Не удалось загрузить журнал',
+} as const;
+
+export const EVENT_LABELS: Record<string, string> = {
+  chat: 'Вопрос в чате',
+  strategy: 'Составлена стратегия',
+  kit: 'Комплект публикации',
+  review: 'Итоги недели',
+  audit: 'Разбор Instagram',
+  'admin.restore': 'Возврат версии (владелец)',
+};
+
+export const EVENTS_LIMIT = 100;
+
+export const VERSIONS_LIMIT = 50;
+
+export const MAX_EVENT_SUMMARY_RUNES = 120;
+
+export const RETENTION_NOTE_FOR_MASTER = 'История ваших действий и ответов ИИ хранится';
+
+export const EXPORT_FILE_PREFIX = 'master-export';

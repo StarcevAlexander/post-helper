@@ -230,3 +230,34 @@
   background: transparent;
   color: var(--accent-strong);
 }
+
+.order {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.order__label {
+  font-size: 0.875rem;
+}
+
+.order__input {
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0.0625rem solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+  }
+}
+
+.order__consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}

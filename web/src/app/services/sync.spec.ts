@@ -14,6 +14,7 @@ import {
 } from '../constants';
 import { Access } from './access';
 import { Account } from './account';
+import { Chat } from './chat';
 import { Onboarding } from './onboarding';
 import { PAGE_RELOAD } from './page-reload';
 import { Sync } from './sync';
@@ -37,7 +38,9 @@ describe('Sync', () => {
   async function signIn(role: 'master' | 'admin' = 'master'): Promise<void> {
     TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
     TestBed.tick();
-    http.expectOne(meUrl).flush({ role, name: 'Анна', dailyLimit: 80, usageToday: 0 });
+    http
+      .expectOne(meUrl)
+      .flush({ role, name: 'Анна', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
     await vi.waitFor(() => expect(account.role()).toBe(role));
     TestBed.tick();
   }
@@ -117,7 +120,7 @@ describe('Sync', () => {
 
     http.expectOne(stateUrl).flush({
       version: 5,
-      data: { onboarding: remoteOnboarding },
+      data: { onboarding: remoteOnboarding, chat: [] },
       updatedAt: '2026-10-19T10:00:00Z',
     });
     await vi.waitFor(() => expect(sync.status()).toBe('ok'));
@@ -139,7 +142,7 @@ describe('Sync', () => {
     });
     await vi.waitFor(() => expect(sync.status()).toBe('ok'));
 
-    expect(JSON.parse(localStorage.getItem(SYNC_BACKUP_STORAGE_KEY) ?? '{}')).toEqual({
+    expect(JSON.parse(localStorage.getItem(SYNC_BACKUP_STORAGE_KEY) ?? '{}')).toMatchObject({
       onboarding: { index: 1, answers: { name: 'Вера' } },
     });
     expect(JSON.parse(localStorage.getItem(ONBOARDING_STORAGE_KEY) ?? '{}')).toEqual(
@@ -153,7 +156,10 @@ describe('Sync', () => {
 
     http.expectOne(stateUrl).flush({
       version: 5,
-      data: { onboarding: remoteOnboarding },
+      data: {
+        onboarding: remoteOnboarding,
+        chat: JSON.parse(localStorage.getItem(CHAT_HISTORY_STORAGE_KEY) ?? 'null'),
+      },
       updatedAt: '2026-10-19T10:00:00Z',
     });
     await vi.waitFor(() => expect(sync.status()).toBe('ok'));
@@ -168,7 +174,10 @@ describe('Sync', () => {
 
     http.expectOne(stateUrl).flush({ version: 0, data: null, updatedAt: '' });
     const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: stateUrl }));
-    expect(put.request.body).toEqual({ baseVersion: 0, data: { onboarding: remoteOnboarding } });
+    expect(put.request.body).toMatchObject({
+      baseVersion: 0,
+      data: { onboarding: remoteOnboarding },
+    });
     put.flush({ version: 1, data: {}, updatedAt: '2026-10-19T10:00:00Z' });
 
     await vi.waitFor(() => expect(sync.status()).toBe('ok'));
@@ -293,5 +302,45 @@ describe('Sync', () => {
     const second = http.expectOne({ method: 'PUT', url: stateUrl });
     expect((second.request.body as { baseVersion: number }).baseVersion).toBe(1);
     second.flush({ version: 2, data: {}, updatedAt: '2026-10-19T10:00:10Z' });
+  });
+
+  it('sends the chat history together with the rest of the data', async () => {
+    await signIn();
+    http.expectOne(stateUrl).flush({ version: 0, data: null, updatedAt: '' });
+    await vi.waitFor(() => expect(sync.status()).toBe('ok'));
+    vi.useFakeTimers();
+
+    TestBed.inject(Onboarding).answer('Анна');
+    TestBed.inject(Chat).clear();
+    TestBed.tick();
+    await vi.advanceTimersByTimeAsync(SYNC_PUSH_DELAY_MS + 10);
+
+    const put = http.expectOne({ method: 'PUT', url: stateUrl });
+    const data = (put.request.body as { data: { chat?: { text: string }[] } }).data;
+    expect(Array.isArray(data.chat)).toBe(true);
+    expect(data.chat?.length).toBeGreaterThan(0);
+    put.flush({ version: 1, data: {}, updatedAt: '2026-10-19T10:00:00Z' });
+  });
+
+  it('does not bother the server when nothing really changed', async () => {
+    await signIn();
+    http.expectOne(stateUrl).flush({ version: 0, data: null, updatedAt: '' });
+    await vi.waitFor(() => expect(sync.status()).toBe('ok'));
+    vi.useFakeTimers();
+    TestBed.inject(Onboarding).answer('Анна');
+    TestBed.tick();
+    await vi.advanceTimersByTimeAsync(SYNC_PUSH_DELAY_MS + 10);
+    http
+      .expectOne({ method: 'PUT', url: stateUrl })
+      .flush({ version: 1, data: {}, updatedAt: '2026-10-19T10:00:00Z' });
+    await vi.advanceTimersByTimeAsync(1);
+
+    TestBed.inject(Chat).messages.update((messages) => [...messages]);
+    TestBed.tick();
+    await vi.advanceTimersByTimeAsync(SYNC_PUSH_DELAY_MS + 10);
+
+    http.expectNone({ method: 'PUT', url: stateUrl });
+    expect(meta()).toEqual({ version: 1, dirty: false });
+    expect(sync.status()).toBe('ok');
   });
 });

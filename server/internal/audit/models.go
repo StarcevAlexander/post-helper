@@ -15,6 +15,7 @@ type Image struct {
 type Request struct {
 	Profile strategy.Profile
 	Images  []Image
+	Extra   string
 }
 
 type Result struct {
