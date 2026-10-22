@@ -86,6 +86,8 @@ func run() error {
 	var notifier intake.Notifier
 	if telegram := intake.NewTelegram(cfg.TelegramToken, cfg.TelegramChatID); telegram != nil {
 		notifier = telegram
+	} else if cfg.TelegramToken != "" || cfg.TelegramChatID != "" {
+		slog.Warn("only one of TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID is set: owner notifications are off")
 	}
 	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{

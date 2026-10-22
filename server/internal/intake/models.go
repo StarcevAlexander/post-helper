@@ -23,7 +23,7 @@ type Request struct {
 	Networks   []Network `json:"networks"`
 	Goals      []string  `json:"goals"`
 	GoalTitles []string  `json:"goalTitles,omitempty"`
-	Note      string    `json:"note,omitempty"`
+	Note       string    `json:"note,omitempty"`
 	Status     string    `json:"status"`
 	ReplyNote  string    `json:"replyNote,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`

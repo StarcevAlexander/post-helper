@@ -3,9 +3,11 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import {
   API_AUDIT_JOBS_PATH,
+  API_CHAT_PATH,
   API_DEV_URL,
   API_STRATEGY_PATH,
   ONBOARDING_FIRST_QUESTION_BACK_TEXT,
+  ONBOARDING_INTRO_TEXT,
   ONBOARDING_REPEAT_TEXT,
   ONBOARDING_REVIEWING_REMINDER_TEXT,
   ONBOARDING_REVIEW_TEXT,
@@ -13,8 +15,9 @@ import {
   ONBOARDING_STORAGE_KEY,
   STRATEGY_READY_TEXT,
   STRATEGY_STORAGE_KEY,
+  WELCOME_TEXT,
 } from '../constants';
-import { MasterProfile, ProfileField, Strategy } from '../models';
+import { MasterProfile, ProfileField, StoredOnboarding, Strategy } from '../models';
 import { Access } from './access';
 import { CalendarPlan } from './calendar-plan';
 import { Chat } from './chat';
@@ -54,12 +57,15 @@ describe('Chat onboarding', () => {
   let onboarding: Onboarding;
   let http: HttpTestingController;
 
-  function setUp(): void {
+  function setUp(optional = false): void {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
-    chat = TestBed.inject(Chat);
     onboarding = TestBed.inject(Onboarding);
+    if (!optional) {
+      onboarding.start();
+    }
+    chat = TestBed.inject(Chat);
     http = TestBed.inject(HttpTestingController);
     TestBed.inject(Access).save('secret-pass');
   }
@@ -549,7 +555,12 @@ describe('Chat onboarding', () => {
     expect(onboarding.strategy()).toBeUndefined();
     expect(onboarding.profile()).toBeUndefined();
     expect(chat.messages().length).toBe(2);
-    expect(localStorage.getItem(ONBOARDING_STORAGE_KEY)).toBeNull();
+    expect(JSON.parse(localStorage.getItem(ONBOARDING_STORAGE_KEY) ?? 'null')).toEqual({
+      index: 0,
+      answers: {},
+      confirmed: false,
+      started: true,
+    });
     expect(localStorage.getItem(STRATEGY_STORAGE_KEY)).toBeNull();
   });
 
@@ -565,6 +576,72 @@ describe('Chat onboarding', () => {
     chat.restartOnboarding();
 
     expect(calendar.hasPlan()).toBe(false);
+  });
+
+  describe('when the acquaintance is optional', () => {
+    const chatUrl = `${API_DEV_URL}${API_CHAT_PATH}`;
+
+    function reopen(saved?: StoredOnboarding): void {
+      TestBed.resetTestingModule();
+      localStorage.clear();
+      if (saved) {
+        localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(saved));
+      }
+      setUp(true);
+    }
+
+    it('opens a plain chat for a new user without any questions', () => {
+      reopen();
+
+      expect(onboarding.started()).toBe(false);
+      expect(onboarding.active()).toBe(false);
+      expect(onboarding.reviewing()).toBe(false);
+      expect(chat.messages().length).toBe(1);
+      expect(chat.messages()[0].text).toBe(WELCOME_TEXT);
+      expect(chat.messages()[0].onboarding).toBe(false);
+    });
+
+    it('sends a message to the assistant instead of treating it as an answer', () => {
+      reopen();
+
+      chat.send({ text: 'Привет', attachments: [] });
+
+      http.expectOne(chatUrl).flush({ reply: 'Здравствуйте' });
+      expect(onboarding.index()).toBe(0);
+      expect(onboarding.answers()).toEqual({});
+    });
+
+    it('starts the questions only on request and only once', () => {
+      reopen();
+
+      chat.beginOnboarding();
+      chat.beginOnboarding();
+
+      expect(onboarding.started()).toBe(true);
+      expect(onboarding.active()).toBe(true);
+      expect(chat.messages().length).toBe(3);
+      expect(chat.messages()[1].text).toBe(ONBOARDING_INTRO_TEXT);
+      expect(chat.messages()[2].text).toContain(`1 из ${ONBOARDING_STEPS.length}`);
+    });
+
+    it('keeps the questions for someone who already has answers', () => {
+      reopen({ index: 2, answers: { specialty: 'маникюр', name: 'Анна' } });
+
+      expect(onboarding.started()).toBe(true);
+      expect(onboarding.active()).toBe(true);
+    });
+
+    it('treats a finished questionnaire as started', () => {
+      reopen({
+        index: ONBOARDING_STEPS.length,
+        answers: { specialty: 'маникюр' },
+        confirmed: true,
+      });
+
+      expect(onboarding.started()).toBe(true);
+      expect(onboarding.active()).toBe(false);
+      expect(onboarding.reviewing()).toBe(false);
+    });
   });
 
   it('ignores an empty answer', () => {

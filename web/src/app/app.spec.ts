@@ -32,13 +32,28 @@ describe('App', () => {
     expect(element.querySelector('app-composer')).toBeNull();
   });
 
-  it('renders the introduction with the first question once the password is stored', async () => {
+  it('renders a plain welcome without questions once the password is stored', async () => {
     localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.querySelector('app-access-gate')).toBeNull();
+    expect(element.querySelectorAll('app-message-bubble').length).toBe(1);
+    expect(element.querySelector('.shell__strategy')).toBeNull();
+    expect(element.querySelector('app-composer')).toBeTruthy();
+  });
+
+  it('renders the introduction with the first question once the user has started', async () => {
+    localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
+    localStorage.setItem(
+      ONBOARDING_STORAGE_KEY,
+      JSON.stringify({ index: 0, answers: {}, started: true }),
+    );
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
     expect(element.querySelectorAll('app-message-bubble').length).toBe(2);
     expect(element.querySelector('.shell__strategy')).toBeNull();
     expect(element.querySelector('app-composer')).toBeTruthy();

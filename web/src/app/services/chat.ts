@@ -136,10 +136,20 @@ export class Chat {
     }
     this.messages().forEach((message) => this.revokePreviews(message));
     this.onboarding.reset();
+    this.onboarding.start();
     this.calendarPlan.reset();
     this.audit.reset();
     this.messages.set(this.createWelcomeMessages());
     this.conversation.reset();
+  }
+
+  beginOnboarding(): void {
+    if (this.busy() || this.onboarding.started()) {
+      return;
+    }
+    this.onboarding.start();
+    this.appendAssistantText(ONBOARDING_INTRO_TEXT);
+    this.appendAssistantText(this.questionText());
   }
 
   editAnswer(id: string): void {

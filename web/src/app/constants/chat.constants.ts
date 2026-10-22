@@ -35,7 +35,7 @@ export const SENDABLE_IMAGE_TYPES: readonly string[] = ['image/jpeg', 'image/png
 export const ACCEPTED_FILE_TYPES = 'image/*,application/pdf,text/plain,text/markdown,text/csv';
 
 export const WELCOME_TEXT =
-  'Я ваш помощник. Напишите, что нужно, и при необходимости приложите файл.';
+  'Я ваш помощник. Напишите, что нужно, и при необходимости приложите файл. Контент-план я готовлю по ссылкам на ваши соцсети: отправьте заявку кнопкой в шапке. Знакомиться в чате необязательно, это можно сделать в настройках.';
 
 export const VOICE_INPUT_LABELS = {
   start: 'Голосовой ввод',

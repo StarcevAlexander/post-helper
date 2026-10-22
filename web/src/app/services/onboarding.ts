@@ -46,6 +46,7 @@ function isStoredOnboarding(value: unknown): value is StoredOnboarding {
     typeof candidate['answers'] === 'object' &&
     candidate['answers'] !== null &&
     (candidate['confirmed'] === undefined || typeof candidate['confirmed'] === 'boolean') &&
+    (candidate['started'] === undefined || typeof candidate['started'] === 'boolean') &&
     (candidate['resumeIndex'] === undefined ||
       (typeof candidate['resumeIndex'] === 'number' &&
         Number.isInteger(candidate['resumeIndex']) &&
@@ -74,12 +75,15 @@ export class Onboarding {
   readonly strategy = signal<Strategy | undefined>(this.restoreStrategy());
   readonly confirmed = signal(this.stored.confirmed ?? this.strategy() !== undefined);
   readonly resumeIndex = signal<number | undefined>(this.stored.resumeIndex);
+  readonly started = signal(this.stored.started ?? this.hasProgress());
   readonly strategyRevision = signal(0);
 
   readonly total = ONBOARDING_STEPS.length;
-  readonly active = computed(() => this.index() < this.total);
+  readonly active = computed(() => this.started() && this.index() < this.total);
   readonly editing = computed(() => this.resumeIndex() !== undefined);
-  readonly reviewing = computed(() => !this.active() && !this.confirmed());
+  readonly reviewing = computed(
+    () => this.started() && this.index() >= this.total && !this.confirmed(),
+  );
   readonly step = computed<OnboardingStep | undefined>(() => ONBOARDING_STEPS[this.index()]);
   readonly profile = computed<MasterProfile | undefined>(() => {
     const answers = this.answers();
@@ -87,6 +91,11 @@ export class Onboarding {
       ? undefined
       : { ...answers, specialty: answers.specialty };
   });
+
+  start(): void {
+    this.started.set(true);
+    this.saveProgress();
+  }
 
   answer(text: string): AnswerResult {
     const step = this.step();
@@ -215,6 +224,7 @@ export class Onboarding {
     this.index.set(0);
     this.confirmed.set(false);
     this.resumeIndex.set(undefined);
+    this.started.set(false);
     this.strategy.set(undefined);
     try {
       localStorage.removeItem(ONBOARDING_STORAGE_KEY);
@@ -222,6 +232,15 @@ export class Onboarding {
     } catch {
       return;
     }
+  }
+
+  private hasProgress(): boolean {
+    return (
+      this.stored.index > 0 ||
+      this.stored.confirmed === true ||
+      Object.keys(this.stored.answers).length > 0 ||
+      this.strategy() !== undefined
+    );
   }
 
   private without(answers: Partial<MasterProfile>, field: ProfileField): Partial<MasterProfile> {
@@ -236,6 +255,7 @@ export class Onboarding {
       answers: this.answers(),
       confirmed: this.confirmed(),
       resumeIndex: this.resumeIndex(),
+      started: this.started(),
     };
     try {
       localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(progress));
