@@ -127,17 +127,6 @@
             }
           </section>
         }
-        @if (account.role() === 'master' && !onboarding.started()) {
-          <button
-            type="button"
-            class="panel__item"
-            [disabled]="chat.busy()"
-            (click)="onOptInClicked()"
-          >
-            {{ optInLabel }}
-          </button>
-          <p class="account__hint">{{ optInHint }}</p>
-        }
         <button type="button" class="panel__item" (click)="screen.set('appearance')">
           {{ appearanceTitle }}
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">

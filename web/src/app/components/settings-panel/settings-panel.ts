@@ -15,8 +15,6 @@ import {
   APPEARANCE_TITLE,
   BACK_LABEL,
   ERROR_LOG_TITLE,
-  ONBOARDING_OPT_IN_HINT,
-  ONBOARDING_OPT_IN_LABEL,
   REQUEST_LOG_TITLE,
   MAX_SCALE,
   MIN_SCALE,
@@ -29,8 +27,6 @@ import {
   THEMES,
 } from '../../constants';
 import { SettingsScreen, ThemeId } from '../../models';
-import { Chat } from '../../services/chat';
-import { Onboarding } from '../../services/onboarding';
 import { Settings } from '../../services/settings';
 import { Speech } from '../../services/speech';
 import { Account } from '../../services/account';
@@ -50,10 +46,6 @@ export class SettingsPanel {
   protected readonly speech = inject(Speech);
   protected readonly account = inject(Account);
   protected readonly sync = inject(Sync);
-  protected readonly chat = inject(Chat);
-  protected readonly onboarding = inject(Onboarding);
-  protected readonly optInLabel = ONBOARDING_OPT_IN_LABEL;
-  protected readonly optInHint = ONBOARDING_OPT_IN_HINT;
   protected readonly accountLabels = ACCOUNT_LABELS;
   protected readonly retentionNote = RETENTION_NOTE_FOR_MASTER;
   protected readonly retention = computed(() =>
@@ -121,11 +113,6 @@ export class SettingsPanel {
     if (!enabled) {
       this.speech.stopSpeaking();
     }
-  }
-
-  protected onOptInClicked(): void {
-    this.chat.beginOnboarding();
-    this.open.set(false);
   }
 
   protected onThemeChanged(id: ThemeId): void {

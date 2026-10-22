@@ -143,15 +143,6 @@ export class Chat {
     this.conversation.reset();
   }
 
-  beginOnboarding(): void {
-    if (this.busy() || this.onboarding.started()) {
-      return;
-    }
-    this.onboarding.start();
-    this.appendAssistantText(ONBOARDING_INTRO_TEXT);
-    this.appendAssistantText(this.questionText());
-  }
-
   editAnswer(id: string): void {
     const target = this.messages().find((message) => message.id === id);
     if (this.busy() || !target?.answerFor || !this.onboarding.startEdit(target.answerFor)) {

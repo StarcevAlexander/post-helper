@@ -7,7 +7,6 @@ import {
   API_DEV_URL,
   API_STRATEGY_PATH,
   ONBOARDING_FIRST_QUESTION_BACK_TEXT,
-  ONBOARDING_INTRO_TEXT,
   ONBOARDING_REPEAT_TEXT,
   ONBOARDING_REVIEWING_REMINDER_TEXT,
   ONBOARDING_REVIEW_TEXT,
@@ -609,19 +608,6 @@ describe('Chat onboarding', () => {
       http.expectOne(chatUrl).flush({ reply: 'Здравствуйте' });
       expect(onboarding.index()).toBe(0);
       expect(onboarding.answers()).toEqual({});
-    });
-
-    it('starts the questions only on request and only once', () => {
-      reopen();
-
-      chat.beginOnboarding();
-      chat.beginOnboarding();
-
-      expect(onboarding.started()).toBe(true);
-      expect(onboarding.active()).toBe(true);
-      expect(chat.messages().length).toBe(3);
-      expect(chat.messages()[1].text).toBe(ONBOARDING_INTRO_TEXT);
-      expect(chat.messages()[2].text).toContain(`1 из ${ONBOARDING_STEPS.length}`);
     });
 
     it('keeps the questions for someone who already has answers', () => {
