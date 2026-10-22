@@ -9,6 +9,7 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/audit"
 	"post-helper/server/internal/chat"
+	"post-helper/server/internal/intake"
 	"post-helper/server/internal/kit"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/review"
@@ -24,6 +25,8 @@ type Options struct {
 	Reviewer       review.Generator
 	Refs           refs.Store
 	RefPlanner     refs.Generator
+	Intake         intake.Store
+	Notifier       intake.Notifier
 	AgentToken     string
 	Accounts       accounts.Store
 	DailyAILimit   int

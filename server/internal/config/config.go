@@ -21,6 +21,8 @@ func Load() (Config, error) {
 		RetentionDays:  nonNegative(os.Getenv(EnvRetentionDays), DefaultRetentionDays),
 		AgentToken:     strings.TrimSpace(os.Getenv(EnvAgentToken)),
 		HistoryKeep:    positive(os.Getenv(EnvHistoryKeep), DefaultHistoryKeep),
+		TelegramToken:  strings.TrimSpace(os.Getenv(EnvTelegramToken)),
+		TelegramChatID: strings.TrimSpace(os.Getenv(EnvTelegramChatID)),
 	}
 
 	var problems []error
@@ -32,6 +34,9 @@ func Load() (Config, error) {
 	}
 	if cfg.AgentToken != "" && len(cfg.AgentToken) < MinAgentTokenLength {
 		problems = append(problems, fmt.Errorf("%s must be at least %d characters", EnvAgentToken, MinAgentTokenLength))
+	}
+	if (cfg.TelegramToken == "") != (cfg.TelegramChatID == "") {
+		problems = append(problems, fmt.Errorf("%s and %s must be set together", EnvTelegramToken, EnvTelegramChatID))
 	}
 	if err := errors.Join(problems...); err != nil {
 		return Config{}, err

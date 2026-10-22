@@ -3,6 +3,7 @@ export * from './api.models';
 export * from './audit.models';
 export * from './chat.models';
 export * from './error-log.models';
+export * from './intake.models';
 export * from './kit.models';
 export * from './profile.models';
 export * from './request-log.models';

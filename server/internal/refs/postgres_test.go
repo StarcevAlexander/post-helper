@@ -123,6 +123,41 @@ func TestPostgresReferencesLifecycle(t *testing.T) {
 	}
 }
 
+func TestPostgresOwnerDeliversReferences(t *testing.T) {
+	db, people := openStores(t)
+	ctx := context.Background()
+	now := time.Now()
+	master, err := people.CreateMaster(ctx, "Тест выдачи", "refs-deliver-"+now.Format("150405.000000000"))
+	if err != nil {
+		t.Fatalf("create master: %v", err)
+	}
+	t.Cleanup(func() { _ = people.DeleteMaster(ctx, master.ID) })
+	item := refs.OrderItem{Key: "w1-a", Format: refs.FormatPost, Pillar: "p", Idea: "i", Date: day(3)}
+
+	if err := db.Deliver(ctx, master.ID, item, []refs.File{
+		{Index: 0, Kind: refs.KindPhoto, MediaType: "image/png", Caption: "один", Data: []byte{1, 2, 3}},
+		{Index: 1, Kind: refs.KindPhoto, MediaType: "image/png", Caption: "два", Data: []byte{4}},
+	}, now); err != nil {
+		t.Fatalf("deliver: %v", err)
+	}
+	if err := db.Deliver(ctx, master.ID, item, []refs.File{
+		{Index: 0, Kind: refs.KindPhoto, MediaType: "image/png", Caption: "новый", Data: []byte{9, 9}},
+	}, now); err != nil {
+		t.Fatalf("redeliver: %v", err)
+	}
+	if added, removed, err := db.Sync(ctx, master.ID, []refs.OrderItem{item}, now); err != nil || added != 0 || removed != 0 {
+		t.Fatalf("the client order must keep a delivered item: %d, %d, %v", added, removed, err)
+	}
+
+	statuses, err := db.Statuses(ctx, master.ID, now)
+	if err != nil || len(statuses) != 1 {
+		t.Fatalf("statuses = %+v, %v", statuses, err)
+	}
+	if got := statuses[0]; got.Status != refs.StatusDone || len(got.Files) != 1 || got.Files[0].Caption != "новый" || got.Date != item.Date {
+		t.Errorf("status = %+v", got)
+	}
+}
+
 func TestPostgresMasterDeletionTakesTheReferencesAway(t *testing.T) {
 	db, people := openStores(t)
 	ctx := context.Background()

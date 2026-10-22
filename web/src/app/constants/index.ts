@@ -3,6 +3,7 @@ export * from './api.constants';
 export * from './audit.constants';
 export * from './chat.constants';
 export * from './error-log.constants';
+export * from './intake.constants';
 export * from './kit.constants';
 export * from './notification.constants';
 export * from './onboarding.constants';

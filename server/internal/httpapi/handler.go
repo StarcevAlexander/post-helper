@@ -6,6 +6,7 @@ import (
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
+	"post-helper/server/internal/intake"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/store"
 )
@@ -79,6 +80,16 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(RefsStatusRoute, protected(requireMaster(http.HandlerFunc(refsMaster.status))))
 	mux.Handle(RefsMadeRoute, protected(requireMaster(http.HandlerFunc(refsMaster.made))))
 	mux.Handle(RefsFileRoute, protected(requireMaster(http.HandlerFunc(refsMaster.file))))
+	intakeStore := options.Intake
+	if intakeStore == nil {
+		intakeStore = intake.NewMemory()
+	}
+	intakes := &intakeHandler{intake: intakeStore, accounts: accountStore, refs: refsStore, notifier: options.Notifier, logger: logger}
+	mux.Handle(IntakeSubmitRoute, protected(requireMaster(http.HandlerFunc(intakes.submit))))
+	mux.Handle(IntakeLatestRoute, protected(requireMaster(http.HandlerFunc(intakes.latest))))
+	mux.Handle(AdminIntakesRoute, protected(requireAdmin(http.HandlerFunc(intakes.list))))
+	mux.Handle(AdminPlanRoute, protected(requireAdmin(http.HandlerFunc(intakes.deliverPlan))))
+	mux.Handle(AdminRefsDeliverRoute, protected(requireAdmin(http.HandlerFunc(intakes.deliverRefs))))
 	if options.AgentToken != "" && options.RefPlanner != nil {
 		refsAgent := &refsAgentHandler{refsHandler: *refsMaster}
 		mux.Handle(AgentRefsNextRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.next)))

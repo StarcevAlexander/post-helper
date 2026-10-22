@@ -231,6 +231,39 @@ func staleDays() int {
 	return int(StaleAfter/(24*time.Hour)) + 1
 }
 
+func (p *Postgres) Deliver(ctx context.Context, masterID string, item OrderItem, files []File, now time.Time) error {
+	transaction, err := p.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = transaction.Rollback(ctx) }()
+	var id string
+	err = transaction.QueryRow(ctx, `
+		INSERT INTO ref_items (id, master_id, item_key, format, pillar, idea, status, created_at, finished_at, planned_date)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, NULLIF($9, '')::date)
+		ON CONFLICT (master_id, item_key) DO UPDATE SET
+			format = EXCLUDED.format, pillar = EXCLUDED.pillar, idea = EXCLUDED.idea, status = EXCLUDED.status,
+			attempts = 0, error = '', claimed_at = NULL, finished_at = EXCLUDED.finished_at,
+			planned_date = EXCLUDED.planned_date
+		RETURNING id`,
+		newID(), masterID, item.Key, item.Format, item.Pillar, item.Idea, StatusDone, now, item.Date).Scan(&id)
+	if err != nil {
+		return err
+	}
+	if _, err := transaction.Exec(ctx, `DELETE FROM ref_files WHERE item_id = $1`, id); err != nil {
+		return err
+	}
+	for _, file := range files {
+		if _, err := transaction.Exec(ctx, `
+			INSERT INTO ref_files (id, item_id, idx, kind, media_type, caption, data)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			newID(), id, file.Index, file.Kind, file.MediaType, file.Caption, file.Data); err != nil {
+			return err
+		}
+	}
+	return transaction.Commit(ctx)
+}
+
 func (p *Postgres) Confirm(ctx context.Context, masterID, key string) error {
 	transaction, err := p.pool.Begin(ctx)
 	if err != nil {

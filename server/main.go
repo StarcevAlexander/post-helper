@@ -16,6 +16,7 @@ import (
 	"post-helper/server/internal/chat"
 	"post-helper/server/internal/config"
 	"post-helper/server/internal/httpapi"
+	"post-helper/server/internal/intake"
 	"post-helper/server/internal/kit"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/review"
@@ -57,6 +58,7 @@ func run() error {
 	memoryAccounts.HistoryKeep = cfg.HistoryKeep
 	var accountStore accounts.Store = memoryAccounts
 	var refsStore refs.Store = refs.NewMemory()
+	var intakeStore intake.Store = intake.NewMemory()
 	if cfg.DatabaseURL != "" {
 		openCtx, cancel := context.WithTimeout(context.Background(), databaseOpenTimeout)
 		postgres, err := store.Open(openCtx, cfg.DatabaseURL, logger)
@@ -69,6 +71,7 @@ func run() error {
 		postgresAccounts.HistoryKeep = cfg.HistoryKeep
 		accountStore = postgresAccounts
 		refsStore = refs.NewPostgres(postgres.Pool())
+		intakeStore = intake.NewPostgres(postgres.Pool())
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
 		slog.SetDefault(logger)
 	} else {
@@ -80,8 +83,14 @@ func run() error {
 	defer stopRetention()
 	go runRetention(ctxRetention, accountStore, cfg.RetentionDays)
 
+	var notifier intake.Notifier
+	if telegram := intake.NewTelegram(cfg.TelegramToken, cfg.TelegramChatID); telegram != nil {
+		notifier = telegram
+	}
 	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{
+		Intake:         intakeStore,
+		Notifier:       notifier,
 		Responder:      claude,
 		Strategist:     strategy.NewClaude(cfg.APIKey, cfg.Model),
 		KitMaker:       kit.NewClaude(cfg.APIKey, cfg.Model),

@@ -187,6 +187,34 @@ const (
 )
 
 const (
+	IntakeSubmitRoute           = "POST /api/intake"
+	IntakeLatestRoute           = "GET /api/intake"
+	AdminIntakesRoute           = "GET /api/admin/intakes"
+	AdminPlanRoute              = "POST /api/admin/masters/{id}/plan"
+	AdminRefsDeliverRoute       = "POST /api/admin/masters/{id}/refs/{key}"
+	QueryStatus                 = "status"
+	EventPlanDelivered          = "plan.delivered"
+	MaxIntakeBodyBytes    int64 = 16 << 10
+	MaxPlanBodyBytes      int64 = 512 << 10
+	MsgIntakeFailed             = "Не удалось обработать заявку, попробуйте ещё раз"
+	MsgIntakeNoLinks            = "Добавьте хотя бы одну ссылку на свою соцсеть"
+	MsgIntakeTooManyLinks       = "Слишком много ссылок"
+	MsgIntakeBadLink            = "Не удалось понять ссылку. Пример: instagram.com/anna_nails или t.me/anna_nails"
+	MsgIntakeBadGoal            = "Неизвестная цель в списке"
+	MsgIntakeNoGoals            = "Отметьте хотя бы одну цель"
+	MsgIntakeLongNote           = "Пожелания слишком длинные, сократите до двух тысяч знаков"
+	MsgBadPlan                  = "Не удалось разобрать план"
+	MsgPlanFailed               = "Не удалось сохранить план"
+	MsgRefsNoItem               = "Такой публикации нет в календаре мастера"
+)
+
+type IntakeRequest struct {
+	Links []string `json:"links"`
+	Goals []string `json:"goals"`
+	Note  string   `json:"note"`
+}
+
+const (
 	RefsMadeRoute = "POST /api/refs/made"
 	MsgRefsBusy   = "Референсы сейчас делаются, подтвердите чуть позже"
 )

@@ -5,6 +5,7 @@ import {
   API_CHAT_PATH,
   API_CLIENT_ERROR_PATH,
   API_AUDIT_JOBS_PATH,
+  API_INTAKE_PATH,
   API_REFS_FILES_PATH,
   API_REFS_MADE_PATH,
   API_REFS_ORDER_PATH,
@@ -36,6 +37,8 @@ import {
   ChatApiError,
   ClientErrorReport,
   ComposerPayload,
+  IntakeDraft,
+  IntakeRequest,
   KitRequest,
   MasterProfile,
   PublicationKit,
@@ -134,6 +137,15 @@ export class ChatApi {
       `${API_AUDIT_JOBS_PATH}/${encodeURIComponent(id)}/cancel`,
       {},
     );
+  }
+
+  submitIntake(draft: IntakeDraft): Promise<IntakeRequest> {
+    return this.send<IntakeRequest>('POST', API_INTAKE_PATH, draft);
+  }
+
+  async latestIntake(): Promise<IntakeRequest | undefined> {
+    const request = await this.send<IntakeRequest | null>('GET', API_INTAKE_PATH);
+    return request ?? undefined;
   }
 
   orderRefs(items: RefOrderItem[]): Promise<{ added: number; removed: number }> {

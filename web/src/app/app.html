@@ -39,6 +39,25 @@
         </button>
       }
       <span class="shell__version">v{{ version }}</span>
+      @if (account.role() === 'master') {
+        <button
+          type="button"
+          class="shell__intake"
+          [attr.aria-label]="intakeOpenLabel"
+          (click)="intake.show()"
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+            <path
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1zM8 6H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2M8 12h8M8 16h5"
+            />
+          </svg>
+        </button>
+      }
       @if (onboarding.strategy()) {
         <button
           type="button"
@@ -147,6 +166,8 @@
 />
 
 <app-calendar-screen [(open)]="calendarOpen" />
+
+<app-intake-screen (calendarRequested)="calendarOpen.set(true)" />
 
 <app-kit-screen />
 <app-refs-screen />

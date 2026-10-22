@@ -200,6 +200,31 @@ func isStale(item Item, now time.Time) bool {
 	return err == nil && now.Sub(planned) >= time.Duration(staleDays())*24*time.Hour
 }
 
+func (m *Memory) Deliver(_ context.Context, masterID string, item OrderItem, files []File, now time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var target *memoryItem
+	for _, stored := range m.items {
+		if stored.MasterID == masterID && stored.Key == item.Key {
+			target = stored
+			break
+		}
+	}
+	if target == nil {
+		id := newID()
+		target = &memoryItem{Item: Item{ID: id, MasterID: masterID, Key: item.Key, CreatedAt: now}}
+		m.items[id] = target
+	}
+	target.Format, target.Pillar, target.Idea, target.Date = item.Format, item.Pillar, item.Idea, item.Date
+	target.Status, target.Attempts, target.Error, target.FinishedAt = StatusDone, 0, "", now
+	target.files = make([]File, 0, len(files))
+	for _, file := range files {
+		file.ID = newID()
+		target.files = append(target.files, file)
+	}
+	return nil
+}
+
 func (m *Memory) Confirm(_ context.Context, masterID, key string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

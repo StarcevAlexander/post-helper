@@ -1,0 +1,179 @@
+<dialog
+  #dialog
+  class="screen"
+  aria-labelledby="intake-title"
+  (click)="onDialogClicked($event)"
+  (close)="onDialogClosed()"
+>
+  <div class="screen__body">
+    <header class="screen__header">
+      <h2 id="intake-title" class="screen__title">{{ texts.title }}</h2>
+      <button
+        type="button"
+        class="screen__close"
+        [attr.aria-label]="texts.closeLabel"
+        (click)="onClose()"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </header>
+
+    @if (intake.showForm()) {
+      <p class="screen__text">{{ texts.intro }}</p>
+
+      <section class="section">
+        <h3 class="section__heading">{{ texts.linksTitle }}</h3>
+        <p class="screen__hint">{{ texts.linksHint }}</p>
+        @for (row of rows(); track row.index) {
+          <div class="link">
+            <div class="link__row">
+              <label class="link__label" [for]="'intake-link-' + row.index">
+                {{ texts.linkLabel }} {{ row.index + 1 }}
+              </label>
+              <input
+                [id]="'intake-link-' + row.index"
+                class="field"
+                type="text"
+                inputmode="url"
+                autocomplete="off"
+                autocapitalize="off"
+                [placeholder]="texts.linkPlaceholder"
+                [value]="row.url"
+                (input)="onLinkInput(row.index, $event)"
+              />
+              @if (rows().length > 1) {
+                <button
+                  type="button"
+                  class="link__remove"
+                  [attr.aria-label]="texts.removeLink + ' ' + (row.index + 1)"
+                  (click)="intake.removeLink(row.index)"
+                >
+                  ×
+                </button>
+              }
+            </div>
+            @if (row.platformLabel; as platform) {
+              <p class="link__platform">{{ platform }}</p>
+            }
+          </div>
+        }
+        @if (rows().length < maxLinks) {
+          <button type="button" class="screen__secondary" (click)="intake.addLink()">
+            {{ texts.addLink }}
+          </button>
+        }
+      </section>
+
+      <fieldset class="section goals">
+        <legend class="section__heading">{{ texts.goalsTitle }}</legend>
+        <p class="screen__hint">{{ texts.goalsHint }}</p>
+        @for (goal of goals; track goal.id) {
+          <label class="goal">
+            <input
+              type="checkbox"
+              [checked]="isChosen(goal.id)"
+              (change)="intake.toggleGoal(goal.id)"
+            />
+            <span>{{ goal.label }}</span>
+          </label>
+        }
+      </fieldset>
+
+      <section class="section">
+        <label class="section__heading" for="intake-note">{{ texts.noteTitle }}</label>
+        <p class="screen__hint" id="intake-note-hint">{{ texts.noteHint }}</p>
+        <textarea
+          id="intake-note"
+          class="field field--note"
+          rows="6"
+          aria-describedby="intake-note-hint"
+          [attr.maxlength]="maxNote"
+          [placeholder]="texts.notePlaceholder"
+          [value]="intake.draft().note"
+          (input)="onNoteInput($event)"
+        ></textarea>
+        <p class="screen__hint screen__hint--counter">
+          {{ intake.draft().note.length }} / {{ maxNote }} {{ texts.noteCounter }}
+        </p>
+      </section>
+
+      @if (intake.error(); as message) {
+        <p class="screen__error" role="alert">{{ message }}</p>
+      }
+
+      <button
+        type="button"
+        class="screen__primary"
+        [disabled]="!intake.canSubmit()"
+        (click)="onSubmit()"
+      >
+        {{
+          intake.busy()
+            ? texts.sending
+            : intake.request() && intake.pending()
+              ? texts.resubmit
+              : texts.submit
+        }}
+      </button>
+      @if (intake.request()) {
+        <button type="button" class="screen__secondary" (click)="intake.cancelEdit()">
+          {{ texts.cancel }}
+        </button>
+      }
+    } @else if (intake.ready()) {
+      <p class="headline" role="status">{{ texts.readyText }}</p>
+      @if (intake.request()?.replyNote; as reply) {
+        <section class="section">
+          <h3 class="section__heading">{{ texts.readyNote }}</h3>
+          <p class="suggestion">{{ reply }}</p>
+        </section>
+      }
+      @if (hasPlan()) {
+        <button type="button" class="screen__primary" (click)="onOpenCalendar()">
+          {{ texts.openCalendar }}
+        </button>
+      }
+      <button type="button" class="screen__secondary" (click)="intake.startNew()">
+        {{ texts.again }}
+      </button>
+    } @else {
+      <p class="headline" role="status">
+        <strong>{{ texts.sentTitle }}.</strong> {{ texts.sentText }}
+      </p>
+
+      <section class="section">
+        <h3 class="section__heading">{{ texts.links }}</h3>
+        <ul class="section__list">
+          @for (network of summary().networks; track network.url) {
+            <li>{{ network.label }}: {{ network.url }}</li>
+          }
+        </ul>
+      </section>
+      <section class="section">
+        <h3 class="section__heading">{{ texts.goals }}</h3>
+        <ul class="section__list">
+          @for (goal of summary().goals; track goal) {
+            <li>{{ goal }}</li>
+          }
+        </ul>
+      </section>
+      @if (intake.request()?.note; as note) {
+        <section class="section">
+          <h3 class="section__heading">{{ texts.sentWishes }}</h3>
+          <p class="suggestion suggestion--wish">{{ note }}</p>
+        </section>
+      }
+      <button type="button" class="screen__secondary" (click)="intake.edit()">
+        {{ texts.edit }}
+      </button>
+    }
+  </div>
+</dialog>

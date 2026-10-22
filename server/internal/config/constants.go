@@ -11,6 +11,8 @@ const (
 	EnvRetentionDays     = "RETENTION_DAYS"
 	EnvAgentToken        = "AGENT_TOKEN"
 	MinAgentTokenLength  = 24
+	EnvTelegramToken     = "TELEGRAM_BOT_TOKEN"
+	EnvTelegramChatID    = "TELEGRAM_CHAT_ID"
 	EnvHistoryKeep       = "STATE_HISTORY_KEEP"
 	DefaultRetentionDays = 1095
 	DefaultHistoryKeep   = 200

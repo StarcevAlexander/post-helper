@@ -81,6 +81,7 @@ type Store interface {
 	Sync(ctx context.Context, masterID string, items []OrderItem, now time.Time) (added, removed int, err error)
 	Statuses(ctx context.Context, masterID string, now time.Time) ([]Status, error)
 	Confirm(ctx context.Context, masterID, key string) error
+	Deliver(ctx context.Context, masterID string, item OrderItem, files []File, now time.Time) error
 	File(ctx context.Context, masterID, fileID string) (File, error)
 	Claim(ctx context.Context, now time.Time, lease time.Duration) (Item, error)
 	Complete(ctx context.Context, id string, files []File, now time.Time) error

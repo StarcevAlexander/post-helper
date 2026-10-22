@@ -19,6 +19,7 @@ import { MessageBubble } from './components/message-bubble/message-bubble';
 import { SettingsPanel } from './components/settings-panel/settings-panel';
 import { AuditScreen } from './components/audit-screen/audit-screen';
 import { CalendarScreen } from './components/calendar-screen/calendar-screen';
+import { IntakeScreen } from './components/intake-screen/intake-screen';
 import { ProfileScreen } from './components/profile-screen/profile-screen';
 import { StrategyScreen } from './components/strategy-screen/strategy-screen';
 import {
@@ -27,12 +28,15 @@ import {
   NOTIFY_BUTTON_LABEL,
   NOTIFY_WAITING_LABEL,
   CALENDAR_OPEN_LABEL,
+  INTAKE_TEXTS,
   SETTINGS_OPEN_LABEL,
   STRATEGY_OPEN_LABEL,
   UPDATE_BUTTON_LABEL,
 } from './constants';
 import { ComposerPayload } from './models';
 import { Access } from './services/access';
+import { Account } from './services/account';
+import { Intake } from './services/intake';
 import { AppUpdate } from './services/app-update';
 import { Chat } from './services/chat';
 import { Kits } from './services/kits';
@@ -52,6 +56,7 @@ import { APP_VERSION } from './version';
     AuditScreen,
     CalendarScreen,
     Composer,
+    IntakeScreen,
     KitScreen,
     RefsScreen,
     MessageBubble,
@@ -66,6 +71,8 @@ import { APP_VERSION } from './version';
 })
 export class App {
   protected readonly access = inject(Access);
+  protected readonly account = inject(Account);
+  protected readonly intake = inject(Intake);
   protected readonly chat = inject(Chat);
   protected readonly speech = inject(Speech);
   protected readonly settings = inject(Settings);
@@ -83,6 +90,7 @@ export class App {
   protected readonly strategyOpenLabel = STRATEGY_OPEN_LABEL;
   protected readonly calendarOpenLabel = CALENDAR_OPEN_LABEL;
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
+  protected readonly intakeOpenLabel = INTAKE_TEXTS.open;
   protected readonly contextLabel = HISTORY_CONTEXT_LABEL;
   protected readonly version = APP_VERSION;
   protected readonly composing = signal(false);
@@ -177,6 +185,7 @@ export class App {
       !Object.values(this.kits.progress()).includes('loading') &&
       !this.reviews.busy() &&
       !this.audit.busy() &&
+      !this.intake.busy() &&
       this.sync.status() !== 'syncing' &&
       document.querySelector('dialog[open]') === null
     );

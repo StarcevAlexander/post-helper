@@ -11,4 +11,6 @@ type Config struct {
 	RetentionDays  int
 	HistoryKeep    int
 	AgentToken     string
+	TelegramToken  string
+	TelegramChatID string
 }
