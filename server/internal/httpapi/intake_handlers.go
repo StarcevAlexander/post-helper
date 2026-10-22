@@ -32,7 +32,7 @@ func (h *intakeHandler) submit(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, MsgBadRequest)
 		return
 	}
-	draft, err := intake.Clean(body.Links, body.Goals, body.Note)
+	draft, err := intake.Clean(body.Links, body.References, body.Goals, body.Note)
 	if message := intakeMessage(err); message != "" {
 		writeError(w, http.StatusBadRequest, message)
 		return
@@ -227,6 +227,8 @@ func intakeMessage(err error) string {
 		return MsgIntakeNoLinks
 	case errors.Is(err, intake.ErrTooMany):
 		return MsgIntakeTooManyLinks
+	case errors.Is(err, intake.ErrTooManyRef):
+		return MsgIntakeTooManyRefs
 	case errors.Is(err, intake.ErrBadLink):
 		return MsgIntakeBadLink
 	case errors.Is(err, intake.ErrBadGoal):

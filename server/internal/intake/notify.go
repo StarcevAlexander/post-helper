@@ -59,6 +59,12 @@ func Announcement(request Request, masterName string, updated bool) string {
 	for _, network := range request.Networks {
 		fmt.Fprintf(&text, "• %s: %s\n", PlatformLabel(network.Platform), network.URL)
 	}
+	if len(request.References) > 0 {
+		text.WriteString("\nРеференсы (чей контент и стиль взять за образец или переработать):\n")
+		for _, reference := range request.References {
+			fmt.Fprintf(&text, "• %s: %s\n", PlatformLabel(reference.Platform), reference.URL)
+		}
+	}
 	text.WriteString("\nЦели:\n")
 	for _, goal := range request.Goals {
 		fmt.Fprintf(&text, "• %s\n", GoalLabel(goal))

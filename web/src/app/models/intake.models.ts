@@ -38,6 +38,7 @@ export interface IntakeNetwork {
 
 export interface IntakeDraft {
   links: string[];
+  references: string[];
   goals: IntakeGoalId[];
   note: string;
 }
@@ -45,6 +46,7 @@ export interface IntakeDraft {
 export interface IntakeRequest {
   id: string;
   networks: IntakeNetwork[];
+  references?: IntakeNetwork[];
   goals: IntakeGoalId[];
   note?: string;
   status: IntakeStatus;

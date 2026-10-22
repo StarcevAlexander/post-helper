@@ -72,6 +72,48 @@
         }
       </section>
 
+      <section class="section">
+        <h3 class="section__heading">{{ texts.referencesTitle }}</h3>
+        <p class="screen__hint">{{ texts.referencesHint }}</p>
+        @for (row of referenceRows().rows; track row.index) {
+          <div class="link">
+            <div class="link__row">
+              <label class="link__label" [for]="'intake-reference-' + row.index">
+                {{ texts.referenceLabel }} {{ row.index + 1 }}
+              </label>
+              <input
+                [id]="'intake-reference-' + row.index"
+                class="field"
+                type="text"
+                inputmode="url"
+                autocomplete="off"
+                autocapitalize="off"
+                [placeholder]="texts.referencePlaceholder"
+                [value]="row.url"
+                (input)="onReferenceInput(row.index, $event)"
+              />
+              <button
+                type="button"
+                class="link__remove"
+                [attr.aria-label]="texts.removeReference + ' ' + (row.index + 1)"
+                (click)="intake.removeReference(row.index)"
+              >
+                ×
+              </button>
+            </div>
+            @if (row.platformLabel; as platform) {
+              <p class="link__platform">{{ platform }}</p>
+            }
+          </div>
+        }
+        <p class="screen__hint">{{ texts.referencesCounter }}: {{ referenceRows().filled }}</p>
+        @if (referenceRows().rows.length < maxReferences) {
+          <button type="button" class="screen__secondary" (click)="intake.addReference()">
+            {{ texts.addReference }}
+          </button>
+        }
+      </section>
+
       <fieldset class="section goals">
         <legend class="section__heading">{{ texts.goalsTitle }}</legend>
         <p class="screen__hint">{{ texts.goalsHint }}</p>
@@ -157,6 +199,16 @@
           }
         </ul>
       </section>
+      @if (summary().references.length > 0) {
+        <section class="section">
+          <h3 class="section__heading">{{ texts.referencesSummary }}</h3>
+          <ul class="section__list">
+            @for (reference of summary().references; track reference.url) {
+              <li>{{ reference.label }}: {{ reference.url }}</li>
+            }
+          </ul>
+        </section>
+      }
       <section class="section">
         <h3 class="section__heading">{{ texts.goals }}</h3>
         <ul class="section__list">

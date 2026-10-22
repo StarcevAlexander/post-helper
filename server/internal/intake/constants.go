@@ -12,6 +12,7 @@ const (
 
 const (
 	MaxNetworks      = 12
+	MaxReferences    = 100
 	MaxGoals         = 12
 	MaxURLRunes      = 300
 	MaxNoteRunes     = 2000
@@ -39,6 +40,7 @@ var (
 	ErrNotFound   = errors.New("intake request not found")
 	ErrNoNetworks = errors.New("no social links")
 	ErrTooMany    = errors.New("too many social links")
+	ErrTooManyRef = errors.New("too many reference links")
 	ErrBadLink    = errors.New("bad social link")
 	ErrBadGoal    = errors.New("unknown goal")
 	ErrNoGoals    = errors.New("no goals")

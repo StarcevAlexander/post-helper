@@ -78,6 +78,12 @@ function describeIntake(request) {
     `Мастер: ${request.masterName || '?'} (id ${request.masterId})`,
     'Соцсети:',
     ...request.networks.map((network) => `  • ${network.platform}: ${network.url}`),
+    ...(request.references?.length
+      ? [
+          'Референсы (чей контент и стиль взять за образец или переработать):',
+          ...request.references.map((reference) => `  • ${reference.platform}: ${reference.url}`),
+        ]
+      : ['Референсов нет']),
     'Цели:',
     ...(request.goalTitles ?? request.goals).map((goal) => `  • ${goal}`),
     request.note ? `Пожелания и рекомендации (обязательно учесть в плане):\n  ${request.note.replace(/\n/g, '\n  ')}` : 'Пожеланий нет',

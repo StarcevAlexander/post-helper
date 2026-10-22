@@ -2,6 +2,7 @@ package intake
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -34,12 +35,36 @@ func TestNormalizeLinkRejectsGarbage(t *testing.T) {
 }
 
 func TestCleanDedupesAndValidates(t *testing.T) {
-	draft, err := Clean([]string{"instagram.com/anna", "https://INSTAGRAM.com/anna", "", "t.me/anna_m"}, []string{"reach", "reach", "leads"}, "  Не люблю танцы в кадре  ")
+	draft, err := Clean([]string{"instagram.com/anna", "https://INSTAGRAM.com/anna", "", "t.me/anna_m"}, nil, []string{"reach", "reach", "leads"}, "  Не люблю танцы в кадре  ")
 	if err != nil {
 		t.Fatalf("Clean: %v", err)
 	}
-	if len(draft.Networks) != 2 || len(draft.Goals) != 2 || draft.Note != "Не люблю танцы в кадре" {
+	if len(draft.Networks) != 2 || len(draft.Goals) != 2 || draft.Note != "Не люблю танцы в кадре" || len(draft.References) != 0 {
 		t.Errorf("draft = %+v", draft)
+	}
+}
+
+func TestCleanReferences(t *testing.T) {
+	refs := []string{"vk.com/ref_one", "https://VK.com/ref_one", "", "instagram.com/anna", "t.me/ref_two", "ref-blog.ru"}
+	draft, err := Clean([]string{"instagram.com/anna"}, refs, []string{"reach"}, "")
+	if err != nil {
+		t.Fatalf("Clean: %v", err)
+	}
+	if len(draft.References) != 3 || draft.References[0].URL != "https://vk.com/ref_one" || draft.References[2].Platform != PlatformOther {
+		t.Errorf("references = %+v", draft.References)
+	}
+	if _, err := Clean([]string{"instagram.com/anna"}, make([]string, MaxReferences+1), []string{"reach"}, ""); !errors.Is(err, ErrTooManyRef) {
+		t.Errorf("too many references: err = %v", err)
+	}
+	if _, err := Clean([]string{"instagram.com/anna"}, []string{"не ссылка"}, []string{"reach"}, ""); !errors.Is(err, ErrBadLink) {
+		t.Errorf("bad reference: err = %v", err)
+	}
+	many := make([]string, 0, 40)
+	for index := range 40 {
+		many = append(many, fmt.Sprintf("vk.com/ref_%d", index))
+	}
+	if draft, err := Clean([]string{"instagram.com/anna"}, many, []string{"reach"}, ""); err != nil || len(draft.References) != 40 {
+		t.Errorf("many references: %d, %v", len(draft.References), err)
 	}
 }
 
@@ -61,7 +86,7 @@ func TestCleanErrors(t *testing.T) {
 		{"long note", []string{"vk.com/anna"}, []string{"reach"}, long, ErrLongText},
 	}
 	for _, tc := range cases {
-		if _, err := Clean(tc.links, tc.goals, tc.note); !errors.Is(err, tc.want) {
+		if _, err := Clean(tc.links, nil, tc.goals, tc.note); !errors.Is(err, tc.want) {
 			t.Errorf("%s: err = %v, want %v", tc.name, err, tc.want)
 		}
 	}
@@ -69,12 +94,13 @@ func TestCleanErrors(t *testing.T) {
 
 func TestAnnouncementCarriesWishes(t *testing.T) {
 	text := Announcement(Request{
-		MasterID: "m1",
-		Networks: []Network{{Platform: PlatformVK, URL: "https://vk.com/anna"}},
-		Goals:    []string{"reach", "check"},
-		Note:     "Без танцев, больше про окрашивание",
+		MasterID:   "m1",
+		Networks:   []Network{{Platform: PlatformVK, URL: "https://vk.com/anna"}},
+		References: []Network{{Platform: PlatformInstagram, URL: "https://instagram.com/ref_master"}},
+		Goals:      []string{"reach", "check"},
+		Note:       "Без танцев, больше про окрашивание",
 	}, "Анна", false)
-	for _, want := range []string{"Новая заявка", "Анна", "ВКонтакте: https://vk.com/anna", "Увеличить охваты", "Поднять средний чек", "Пожелания и рекомендации", "Без танцев", "m1"} {
+	for _, want := range []string{"Референсы", "Instagram: https://instagram.com/ref_master", "Новая заявка", "Анна", "ВКонтакте: https://vk.com/anna", "Увеличить охваты", "Поднять средний чек", "Пожелания и рекомендации", "Без танцев", "m1"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("announcement lacks %q:\n%s", want, text)
 		}

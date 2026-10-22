@@ -17,8 +17,12 @@ func PlatformLabel(platform string) string {
 	return platformLabels[PlatformOther]
 }
 
-func Clean(links, goals []string, note string) (Draft, error) {
+func Clean(links, references, goals []string, note string) (Draft, error) {
 	networks, err := cleanLinks(links)
+	if err != nil {
+		return Draft{}, err
+	}
+	inspirations, err := cleanReferences(references, networks)
 	if err != nil {
 		return Draft{}, err
 	}
@@ -30,7 +34,41 @@ func Clean(links, goals []string, note string) (Draft, error) {
 	if utf8.RuneCountInString(note) > MaxNoteRunes {
 		return Draft{}, ErrLongText
 	}
-	return Draft{Networks: networks, Goals: chosen, Note: note}, nil
+	return Draft{Networks: networks, References: inspirations, Goals: chosen, Note: note}, nil
+}
+
+func nonNil(networks []Network) []Network {
+	if networks == nil {
+		return []Network{}
+	}
+	return networks
+}
+
+func cleanReferences(links []string, own []Network) ([]Network, error) {
+	if len(links) > MaxReferences {
+		return nil, ErrTooManyRef
+	}
+	seen := make(map[string]struct{}, len(links)+len(own))
+	for _, network := range own {
+		seen[strings.ToLower(network.URL)] = struct{}{}
+	}
+	references := make([]Network, 0, len(links))
+	for _, raw := range links {
+		if strings.TrimSpace(raw) == "" {
+			continue
+		}
+		link, platform, ok := NormalizeLink(raw)
+		if !ok {
+			return nil, ErrBadLink
+		}
+		key := strings.ToLower(link)
+		if _, duplicate := seen[key]; duplicate {
+			continue
+		}
+		seen[key] = struct{}{}
+		references = append(references, Network{Platform: platform, URL: link})
+	}
+	return references, nil
 }
 
 func cleanLinks(links []string) ([]Network, error) {

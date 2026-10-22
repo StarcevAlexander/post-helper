@@ -2,6 +2,8 @@ import { Service, computed, effect, inject, signal, untracked } from '@angular/c
 import {
   INTAKE_MAX_LINKS,
   INTAKE_MAX_NOTE_LENGTH,
+  INTAKE_MAX_REFERENCES,
+  INTAKE_MIN_REFERENCES,
   INTAKE_POLL_MS,
   INTAKE_SEEN_STORAGE_KEY,
   INTAKE_TEXTS,
@@ -14,13 +16,18 @@ import { ErrorLog } from './error-log';
 import { Onboarding } from './onboarding';
 import { Sync } from './sync';
 
+function referenceSlots(urls: readonly string[]): string[] {
+  return [...urls, ...Array<string>(Math.max(INTAKE_MIN_REFERENCES - urls.length, 0)).fill('')];
+}
+
 function emptyDraft(): IntakeDraft {
-  return { links: [''], goals: [], note: '' };
+  return { links: [''], references: referenceSlots([]), goals: [], note: '' };
 }
 
 function draftOf(request: IntakeRequest, withNote: boolean): IntakeDraft {
   return {
     links: request.networks.length > 0 ? request.networks.map((network) => network.url) : [''],
+    references: referenceSlots((request.references ?? []).map((network) => network.url)),
     goals: [...request.goals],
     note: withNote ? (request.note ?? '') : '',
   };
@@ -93,6 +100,7 @@ export class Intake {
       this.request.set(
         await this.api.submitIntake({
           links: draft.links.map((link) => link.trim()).filter(Boolean),
+          references: draft.references.map((link) => link.trim()).filter(Boolean),
           goals: draft.goals,
           note: draft.note.trim(),
         }),
@@ -158,6 +166,28 @@ export class Intake {
     });
   }
 
+  setReference(index: number, value: string): void {
+    this.draft.update((draft) => ({
+      ...draft,
+      references: draft.references.map((link, position) => (position === index ? value : link)),
+    }));
+  }
+
+  addReference(): void {
+    this.draft.update((draft) =>
+      draft.references.length >= INTAKE_MAX_REFERENCES
+        ? draft
+        : { ...draft, references: [...draft.references, ''] },
+    );
+  }
+
+  removeReference(index: number): void {
+    this.draft.update((draft) => ({
+      ...draft,
+      references: referenceSlots(draft.references.filter((_, position) => position !== index)),
+    }));
+  }
+
   toggleGoal(id: IntakeGoalId): void {
     this.draft.update((draft) => ({
       ...draft,
@@ -217,7 +247,10 @@ export class Intake {
   private draftIsPristine(): boolean {
     const draft = this.draft();
     return (
-      draft.goals.length === 0 && draft.note === '' && draft.links.every((link) => link === '')
+      draft.goals.length === 0 &&
+      draft.note === '' &&
+      draft.links.every((link) => link === '') &&
+      draft.references.every((link) => link === '')
     );
   }
 

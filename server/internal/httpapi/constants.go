@@ -194,11 +194,12 @@ const (
 	AdminRefsDeliverRoute       = "POST /api/admin/masters/{id}/refs/{key}"
 	QueryStatus                 = "status"
 	EventPlanDelivered          = "plan.delivered"
-	MaxIntakeBodyBytes    int64 = 16 << 10
+	MaxIntakeBodyBytes    int64 = 96 << 10
 	MaxPlanBodyBytes      int64 = 512 << 10
 	MsgIntakeFailed             = "Не удалось обработать заявку, попробуйте ещё раз"
 	MsgIntakeNoLinks            = "Добавьте хотя бы одну ссылку на свою соцсеть"
 	MsgIntakeTooManyLinks       = "Слишком много ссылок"
+	MsgIntakeTooManyRefs        = "Слишком много референсов, оставьте самые важные"
 	MsgIntakeBadLink            = "Не удалось понять ссылку. Пример: instagram.com/anna_nails или t.me/anna_nails"
 	MsgIntakeBadGoal            = "Неизвестная цель в списке"
 	MsgIntakeNoGoals            = "Отметьте хотя бы одну цель"
@@ -209,9 +210,10 @@ const (
 )
 
 type IntakeRequest struct {
-	Links []string `json:"links"`
-	Goals []string `json:"goals"`
-	Note  string   `json:"note"`
+	Links      []string `json:"links"`
+	References []string `json:"references"`
+	Goals      []string `json:"goals"`
+	Note       string   `json:"note"`
 }
 
 const (

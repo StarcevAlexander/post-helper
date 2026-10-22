@@ -5,6 +5,8 @@ import {
   API_DEV_URL,
   API_INTAKE_PATH,
   INTAKE_MAX_LINKS,
+  INTAKE_MAX_REFERENCES,
+  INTAKE_MIN_REFERENCES,
   INTAKE_POLL_MS,
   INTAKE_SEEN_STORAGE_KEY,
 } from '../constants';
@@ -19,6 +21,7 @@ function request(overrides: Partial<IntakeRequest> = {}): IntakeRequest {
   return {
     id: 'r1',
     networks: [{ platform: 'vk', url: 'https://vk.com/anna' }],
+    references: [{ platform: 'vk', url: 'https://vk.com/ref_one' }],
     goals: ['reach', 'check'],
     note: 'Без танцев',
     status: 'new',
@@ -72,6 +75,7 @@ describe('Intake', () => {
     const sent = http.expectOne({ method: 'POST', url: intakeUrl });
     expect(sent.request.body).toEqual({
       links: ['vk.com/anna'],
+      references: [],
       goals: ['reach'],
       note: 'Не показывать лицо',
     });
@@ -117,6 +121,7 @@ describe('Intake', () => {
     intake.edit();
     expect(intake.draft()).toEqual({
       links: ['https://vk.com/anna'],
+      references: ['https://vk.com/ref_one', '', '', '', ''],
       goals: ['reach', 'check'],
       note: 'Без танцев',
     });
@@ -165,9 +170,43 @@ describe('Intake', () => {
     expect(intake.showForm()).toBe(true);
     expect(intake.draft()).toEqual({
       links: ['https://vk.com/anna'],
+      references: ['https://vk.com/ref_one', '', '', '', ''],
       goals: ['reach', 'check'],
       note: '',
     });
+  });
+
+  it('offers five reference slots, sends the filled ones and allows more without a limit in the form', async () => {
+    expect(intake.draft().references).toHaveLength(INTAKE_MIN_REFERENCES);
+
+    intake.setReference(0, ' instagram.com/ref_one ');
+    intake.setReference(3, 'vk.com/ref_two');
+    for (let index = 0; index < 10; index += 1) {
+      intake.addReference();
+    }
+    expect(intake.draft().references).toHaveLength(INTAKE_MIN_REFERENCES + 10);
+    intake.setReference(14, 'ref-blog.ru');
+    fillDraft();
+
+    const pending = intake.submit();
+    const sent = http.expectOne({ method: 'POST', url: intakeUrl });
+    expect(sent.request.body).toMatchObject({
+      references: ['instagram.com/ref_one', 'vk.com/ref_two', 'ref-blog.ru'],
+    });
+    sent.flush(request());
+    expect(await pending).toBe(true);
+  });
+
+  it('caps the references and keeps the five slots after removal', () => {
+    for (let index = 0; index < INTAKE_MAX_REFERENCES + 5; index += 1) {
+      intake.addReference();
+    }
+    expect(intake.draft().references).toHaveLength(INTAKE_MAX_REFERENCES);
+
+    for (let index = 0; index < INTAKE_MAX_REFERENCES + 5; index += 1) {
+      intake.removeReference(0);
+    }
+    expect(intake.draft().references).toEqual(Array(INTAKE_MIN_REFERENCES).fill(''));
   });
 
   it('edits links: adds up to the limit and never leaves the list empty', () => {

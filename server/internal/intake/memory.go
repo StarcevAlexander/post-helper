@@ -30,14 +30,15 @@ func (m *Memory) Submit(_ context.Context, masterID string, draft Draft, now tim
 	defer m.mu.Unlock()
 	if current := m.latest(masterID); current != nil && current.Status == StatusNew {
 		current.Networks = slices.Clone(draft.Networks)
+		current.References = slices.Clone(draft.References)
 		current.Goals = slices.Clone(draft.Goals)
 		current.Note = draft.Note
 		current.UpdatedAt = now
 		return *current, true, nil
 	}
 	created := &Request{
-		ID: newID(), MasterID: masterID, Networks: slices.Clone(draft.Networks), Goals: slices.Clone(draft.Goals),
-		Note: draft.Note, Status: StatusNew, CreatedAt: now, UpdatedAt: now,
+		ID: newID(), MasterID: masterID, Networks: slices.Clone(draft.Networks), References: slices.Clone(draft.References),
+		Goals: slices.Clone(draft.Goals), Note: draft.Note, Status: StatusNew, CreatedAt: now, UpdatedAt: now,
 	}
 	m.requests = append(m.requests, created)
 	return *created, false, nil

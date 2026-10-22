@@ -11,9 +11,10 @@ type Network struct {
 }
 
 type Draft struct {
-	Networks []Network
-	Goals    []string
-	Note     string
+	Networks   []Network
+	References []Network
+	Goals      []string
+	Note       string
 }
 
 type Request struct {
@@ -21,6 +22,7 @@ type Request struct {
 	MasterID   string    `json:"masterId"`
 	MasterName string    `json:"masterName,omitempty"`
 	Networks   []Network `json:"networks"`
+	References []Network `json:"references"`
 	Goals      []string  `json:"goals"`
 	GoalTitles []string  `json:"goalTitles,omitempty"`
 	Note       string    `json:"note,omitempty"`

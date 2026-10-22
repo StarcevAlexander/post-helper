@@ -70,6 +70,22 @@ describe('IntakeScreen', () => {
     expect(html.querySelector<HTMLButtonElement>('.screen__primary')?.disabled).toBe(true);
   });
 
+  it('offers five reference fields and adds more on demand', async () => {
+    const fixture = await render();
+    const html = fixture.nativeElement as HTMLElement;
+
+    expect(html.textContent).toContain(INTAKE_TEXTS.referencesTitle);
+    expect(html.querySelectorAll('[id^="intake-reference-"]')).toHaveLength(5);
+
+    const add = Array.from(html.querySelectorAll<HTMLButtonElement>('.screen__secondary')).find(
+      (button) => button.textContent?.includes(INTAKE_TEXTS.addReference),
+    )!;
+    add.click();
+    fixture.detectChanges();
+
+    expect(html.querySelectorAll('[id^="intake-reference-"]')).toHaveLength(6);
+  });
+
   it('names the network under the pasted link', async () => {
     const fixture = await render();
     const html = fixture.nativeElement as HTMLElement;
@@ -85,6 +101,7 @@ describe('IntakeScreen', () => {
     const html = fixture.nativeElement as HTMLElement;
 
     type(html.querySelector<HTMLInputElement>('#intake-link-0')!, 'vk.com/anna');
+    type(html.querySelector<HTMLInputElement>('#intake-reference-1')!, 'instagram.com/ref_one');
     html.querySelectorAll<HTMLInputElement>('.goal input')[0].click();
     html.querySelectorAll<HTMLInputElement>('.goal input')[3].click();
     type(html.querySelector('textarea')!, 'Не показывать лицо');
@@ -96,6 +113,7 @@ describe('IntakeScreen', () => {
     const request = http.expectOne({ method: 'POST', url: intakeUrl });
     expect(request.request.body).toEqual({
       links: ['vk.com/anna'],
+      references: ['instagram.com/ref_one'],
       goals: ['reach', 'check'],
       note: 'Не показывать лицо',
     });

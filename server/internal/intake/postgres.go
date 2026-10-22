@@ -18,10 +18,14 @@ func NewPostgres(pool *pgxpool.Pool) *Postgres {
 	return &Postgres{pool: pool}
 }
 
-const selectColumns = `id, master_id, networks, goals, note, status, reply_note, created_at, updated_at, ready_at`
+const selectColumns = `id, master_id, networks, inspirations, goals, note, status, reply_note, created_at, updated_at, ready_at`
 
 func (p *Postgres) Submit(ctx context.Context, masterID string, draft Draft, now time.Time) (Request, bool, error) {
 	networks, err := json.Marshal(draft.Networks)
+	if err != nil {
+		return Request{}, false, err
+	}
+	references, err := json.Marshal(nonNil(draft.References))
 	if err != nil {
 		return Request{}, false, err
 	}
@@ -43,14 +47,14 @@ func (p *Postgres) Submit(ctx context.Context, masterID string, draft Draft, now
 	switch {
 	case updated:
 		_, err = transaction.Exec(ctx, `
-			UPDATE intake_requests SET networks = $2, goals = $3, note = $4, updated_at = $5 WHERE id = $1`,
-			id, networks, goals, draft.Note, now)
+			UPDATE intake_requests SET networks = $2, goals = $3, note = $4, updated_at = $5, inspirations = $6 WHERE id = $1`,
+			id, networks, goals, draft.Note, now, references)
 	case errors.Is(err, pgx.ErrNoRows):
 		id = newID()
 		_, err = transaction.Exec(ctx, `
-			INSERT INTO intake_requests (id, master_id, networks, goals, note, status, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $7)`,
-			id, masterID, networks, goals, draft.Note, StatusNew, now)
+			INSERT INTO intake_requests (id, master_id, networks, goals, note, status, created_at, updated_at, inspirations)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8)`,
+			id, masterID, networks, goals, draft.Note, StatusNew, now, references)
 	}
 	if err != nil {
 		return Request{}, false, err
@@ -107,14 +111,17 @@ func (p *Postgres) Ready(ctx context.Context, masterID, replyNote string, now ti
 
 func scan(row pgx.Row) (Request, error) {
 	var request Request
-	var networks, goals []byte
+	var networks, references, goals []byte
 	var ready *time.Time
-	err := row.Scan(&request.ID, &request.MasterID, &networks, &goals, &request.Note, &request.Status,
+	err := row.Scan(&request.ID, &request.MasterID, &networks, &references, &goals, &request.Note, &request.Status,
 		&request.ReplyNote, &request.CreatedAt, &request.UpdatedAt, &ready)
 	if err != nil {
 		return Request{}, err
 	}
 	if err := json.Unmarshal(networks, &request.Networks); err != nil {
+		return Request{}, err
+	}
+	if err := json.Unmarshal(references, &request.References); err != nil {
 		return Request{}, err
 	}
 	if err := json.Unmarshal(goals, &request.Goals); err != nil {

@@ -6,6 +6,10 @@ export const INTAKE_POLL_MS = 60000;
 
 export const INTAKE_MAX_LINKS = 12;
 
+export const INTAKE_MIN_REFERENCES = 5;
+
+export const INTAKE_MAX_REFERENCES = 100;
+
 export const INTAKE_MAX_NOTE_LENGTH = 2000;
 
 export const INTAKE_SEEN_STORAGE_KEY = 'helper.intake-seen';
@@ -69,6 +73,15 @@ export const INTAKE_TEXTS = {
   linkPlaceholder: 'Например, vk.com/anna_nails',
   addLink: 'Добавить ещё одну соцсеть',
   removeLink: 'Убрать ссылку',
+  referencesTitle: 'На кого равняться',
+  referencesHint:
+    'Страницы, чей контент и подачу стоит взять за образец или переработать под себя: коллеги, блогеры, даже из другой ниши. Я изучу их вместе с вашими страницами и учту в плане. Заполните сколько есть, пять мест уже готовы, можно добавить сколько угодно ещё.',
+  referenceLabel: 'Ссылка на страницу-референс',
+  referencePlaceholder: 'Например, instagram.com/master_nails',
+  addReference: 'Добавить ещё референс',
+  removeReference: 'Убрать референс',
+  referencesCounter: 'Заполнено',
+  referencesSummary: 'Референсы',
   goalsTitle: 'Что хотите получить',
   goalsHint: 'Отметьте всё, что для вас важно.',
   noteTitle: 'Пожелания и рекомендации',

@@ -3,6 +3,7 @@ import {
   INTAKE_GOALS,
   INTAKE_MAX_LINKS,
   INTAKE_MAX_NOTE_LENGTH,
+  INTAKE_MAX_REFERENCES,
   INTAKE_PLATFORM_LABELS,
   INTAKE_TEXTS,
 } from '../../constants';
@@ -25,6 +26,7 @@ export class IntakeScreen {
   protected readonly texts = INTAKE_TEXTS;
   protected readonly goals = INTAKE_GOALS;
   protected readonly maxLinks = INTAKE_MAX_LINKS;
+  protected readonly maxReferences = INTAKE_MAX_REFERENCES;
   protected readonly maxNote = INTAKE_MAX_NOTE_LENGTH;
   protected readonly hasPlan = this.plan.hasPlan;
   protected readonly rows = computed(() =>
@@ -33,9 +35,27 @@ export class IntakeScreen {
       return { index, url, platformLabel: platform ? INTAKE_PLATFORM_LABELS[platform] : undefined };
     }),
   );
+  protected readonly referenceRows = computed(() => {
+    const references = this.intake.draft().references;
+    return {
+      filled: references.filter((url) => url.trim().length > 0).length,
+      rows: references.map((url, index) => {
+        const platform = detectPlatform(url);
+        return {
+          index,
+          url,
+          platformLabel: platform ? INTAKE_PLATFORM_LABELS[platform] : undefined,
+        };
+      }),
+    };
+  });
   protected readonly summary = computed(() => {
     const request = this.intake.request();
     return {
+      references: (request?.references ?? []).map((network) => ({
+        label: INTAKE_PLATFORM_LABELS[network.platform],
+        url: network.url,
+      })),
       networks: (request?.networks ?? []).map((network) => ({
         label: INTAKE_PLATFORM_LABELS[network.platform],
         url: network.url,
@@ -61,6 +81,10 @@ export class IntakeScreen {
 
   protected onLinkInput(index: number, event: Event): void {
     this.intake.setLink(index, (event.target as HTMLInputElement).value);
+  }
+
+  protected onReferenceInput(index: number, event: Event): void {
+    this.intake.setReference(index, (event.target as HTMLInputElement).value);
   }
 
   protected onNoteInput(event: Event): void {
