@@ -18,6 +18,7 @@ import {
   REQUEST_LOG_TITLE,
   MAX_SCALE,
   MIN_SCALE,
+  PUSH_TEXTS,
   SCALE_SECTION_TITLE,
   SCALE_STEP,
   SETTINGS_CLOSE_LABEL,
@@ -30,6 +31,7 @@ import { SettingsScreen, ThemeId } from '../../models';
 import { Settings } from '../../services/settings';
 import { Speech } from '../../services/speech';
 import { Account } from '../../services/account';
+import { PushNotifications } from '../../services/push-notifications';
 import { formatRetention } from '../../utils/format-retention';
 import { Sync } from '../../services/sync';
 import { ErrorLogScreen } from '../error-log/error-log';
@@ -46,6 +48,8 @@ export class SettingsPanel {
   protected readonly speech = inject(Speech);
   protected readonly account = inject(Account);
   protected readonly sync = inject(Sync);
+  protected readonly pushNotifications = inject(PushNotifications);
+  protected readonly pushTexts = PUSH_TEXTS;
   protected readonly accountLabels = ACCOUNT_LABELS;
   protected readonly retentionNote = RETENTION_NOTE_FOR_MASTER;
   protected readonly retention = computed(() =>
@@ -113,6 +117,11 @@ export class SettingsPanel {
     if (!enabled) {
       this.speech.stopSpeaking();
     }
+  }
+
+  protected onPushChanged(event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    void (enabled ? this.pushNotifications.enable() : this.pushNotifications.disable());
   }
 
   protected onThemeChanged(id: ThemeId): void {

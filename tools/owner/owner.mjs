@@ -23,6 +23,8 @@ const HELP = `Управление «Помощником» из консоли 
                                                       залить до 3 референсов (фото или видео) к публикации календаря
   node tools/owner/owner.mjs review <id> [--json]      выполнение плана: проценты по неделям, форматам, рубрикам, просрочки, итоги недели
   node tools/owner/owner.mjs refs-clear <id>          удалить референсы мастера целиком (по всем публикациям)
+  node tools/owner/owner.mjs push <id> "Заголовок" ["Текст"] [--url "./?screen=today"]
+                                                      отправить мастеру уведомление на телефон (если он включил их в настройках)
 
 Настройка: OWNER_SERVER и OWNER_PASSWORD в окружении или в tools/owner/.env`;
 
@@ -114,6 +116,20 @@ function parseRefsArguments(args) {
   return { files, captions };
 }
 
+function parsePushArguments(args) {
+  const texts = [];
+  let url = '';
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === '--url') {
+      url = args[index + 1] ?? '';
+      index += 1;
+    } else {
+      texts.push(args[index]);
+    }
+  }
+  return { body: texts.join(' '), url };
+}
+
 function refsForm(files, captions) {
   const form = new FormData();
   files.forEach((file) => {
@@ -169,6 +185,18 @@ async function main([command, id, extra, ...rest]) {
       }
       const plan = JSON.parse(readFileSync(extra, 'utf8'));
       return console.log(await call('POST', `${MASTERS}/${id}/plan`, plan));
+    }
+    case 'push': {
+      if (!id || !extra) {
+        throw new Error('Нужно: push <id мастера> "Заголовок" ["Текст"] [--url "./..."]');
+      }
+      const { body, url } = parsePushArguments(rest);
+      const result = await call('POST', `${MASTERS}/${id}/push`, { title: extra, body, url });
+      return console.log(
+        result.sent > 0
+          ? `Отправлено на устройств: ${result.sent}`
+          : 'Не отправлено: у мастера нет устройств с включёнными уведомлениями',
+      );
     }
     case 'refs': {
       const { files, captions } = parseRefsArguments([extra, ...rest].filter((value) => value !== undefined));

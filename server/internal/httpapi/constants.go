@@ -218,6 +218,26 @@ type IntakeRequest struct {
 }
 
 const (
+	PushKeyRoute         = "GET /api/push/key"
+	PushSubscribeRoute   = "POST /api/push/subscribe"
+	PushUnsubscribeRoute = "POST /api/push/unsubscribe"
+	AdminPushRoute       = "POST /api/admin/masters/{id}/push"
+
+	MaxPushBodyBytes int64 = 8 << 10
+
+	MsgPushOff        = "Уведомления на сервере не включены"
+	MsgPushBadRequest = "Не удалось разобрать подписку на уведомления"
+	MsgPushBadMessage = "Нужен заголовок до 80 знаков, текст до 300 и ссылка вида ./…"
+	MsgPushFailed     = "Не удалось сохранить подписку на уведомления"
+
+	PushPlanTitle = "План готов"
+	PushPlanBody  = "Ваш контент-план составлен. Откройте приложение и посмотрите календарь публикаций."
+	PushPlanURL   = "./"
+
+	EventPushSent = "push.sent"
+)
+
+const (
 	RefsMadeRoute = "POST /api/refs/made"
 	MsgRefsBusy   = "Референсы сейчас делаются, подтвердите чуть позже"
 )

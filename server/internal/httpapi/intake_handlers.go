@@ -13,6 +13,7 @@ import (
 	"post-helper/server/internal/auth"
 	"post-helper/server/internal/intake"
 	"post-helper/server/internal/plan"
+	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
 )
 
@@ -21,6 +22,7 @@ type intakeHandler struct {
 	accounts accounts.Store
 	refs     refs.Store
 	notifier intake.Notifier
+	pushes   *pushHandler
 	logger   *slog.Logger
 }
 
@@ -142,6 +144,9 @@ func (h *intakeHandler) deliverPlan(w http.ResponseWriter, r *http.Request) {
 	payload, _ := json.Marshal(map[string]any{"version": saved.Version, "items": len(merged.Items)})
 	if err := h.accounts.RecordEvent(r.Context(), id, EventPlanDelivered, payload, time.Now()); err != nil {
 		h.logger.Error("record plan event failed", slog.Any("error", err))
+	}
+	if h.pushes != nil {
+		h.pushes.notify(r.Context(), id, push.Message{Title: PushPlanTitle, Body: PushPlanBody, URL: PushPlanURL})
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"version": saved.Version, "items": len(merged.Items)})
 }

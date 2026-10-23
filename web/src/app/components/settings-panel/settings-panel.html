@@ -150,6 +150,23 @@
             {{ speakRepliesLabel }}
           </label>
         }
+        @if (account.role() === 'master') {
+          <label class="panel__toggle">
+            <input
+              type="checkbox"
+              [checked]="pushNotifications.subscribed()"
+              [disabled]="!pushNotifications.supported || pushNotifications.busy()"
+              (change)="onPushChanged($event)"
+            />
+            {{ pushTexts.label }}
+          </label>
+          @if (!pushNotifications.supported) {
+            <p class="panel__hint">{{ pushTexts.unsupported }}</p>
+          }
+          @if (pushNotifications.notice()) {
+            <p class="panel__hint" role="status">{{ pushNotifications.notice() }}</p>
+          }
+        }
         <button type="button" class="panel__item" (click)="screen.set('errors')">
           {{ errorLogTitle }}
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">

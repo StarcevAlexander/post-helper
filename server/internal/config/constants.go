@@ -14,6 +14,10 @@ const (
 	EnvTelegramToken     = "TELEGRAM_BOT_TOKEN"
 	EnvTelegramChatID    = "TELEGRAM_CHAT_ID"
 	EnvHistoryKeep       = "STATE_HISTORY_KEEP"
+	EnvVapidPublicKey    = "VAPID_PUBLIC_KEY"
+	EnvVapidPrivateKey   = "VAPID_PRIVATE_KEY"
+	EnvVapidSubject      = "VAPID_SUBJECT"
+	DefaultVapidSubject  = "https://starcevalexander.github.io/post-helper/"
 	DefaultRetentionDays = 1095
 	DefaultHistoryKeep   = 200
 	DefaultDailyLimit    = 80

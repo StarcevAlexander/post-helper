@@ -6,6 +6,9 @@ import {
   API_CLIENT_ERROR_PATH,
   API_AUDIT_JOBS_PATH,
   API_INTAKE_PATH,
+  API_PUSH_KEY_PATH,
+  API_PUSH_SUBSCRIBE_PATH,
+  API_PUSH_UNSUBSCRIBE_PATH,
   API_REFS_FILES_PATH,
   API_REFS_MADE_PATH,
   API_REFS_ORDER_PATH,
@@ -42,6 +45,8 @@ import {
   KitRequest,
   MasterProfile,
   PublicationKit,
+  PushKeyResponse,
+  PushSubscriptionPayload,
   ReviewRequest,
   ReviewResult,
   ServerState,
@@ -146,6 +151,19 @@ export class ChatApi {
   async latestIntake(): Promise<IntakeRequest | undefined> {
     const request = await this.send<IntakeRequest | null>('GET', API_INTAKE_PATH);
     return request ?? undefined;
+  }
+
+  async pushPublicKey(): Promise<string> {
+    const response = await this.send<PushKeyResponse>('GET', API_PUSH_KEY_PATH);
+    return response.publicKey;
+  }
+
+  async subscribePush(subscription: PushSubscriptionPayload): Promise<void> {
+    await this.send<null>('POST', API_PUSH_SUBSCRIBE_PATH, subscription);
+  }
+
+  async unsubscribePush(endpoint: string): Promise<void> {
+    await this.send<null>('POST', API_PUSH_UNSUBSCRIBE_PATH, { endpoint });
   }
 
   orderRefs(items: RefOrderItem[]): Promise<{ added: number; removed: number }> {

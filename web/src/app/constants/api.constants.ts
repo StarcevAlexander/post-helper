@@ -34,3 +34,9 @@ export const API_MESSAGES = {
   offline: 'Нет связи с сервером. Проверьте интернет и повторите',
   failed: 'Помощник сейчас недоступен. Попробуйте ещё раз',
 } as const;
+
+export const API_PUSH_KEY_PATH = '/api/push/key';
+
+export const API_PUSH_SUBSCRIBE_PATH = '/api/push/subscribe';
+
+export const API_PUSH_UNSUBSCRIBE_PATH = '/api/push/unsubscribe';

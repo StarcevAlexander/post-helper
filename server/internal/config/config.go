@@ -23,6 +23,10 @@ func Load() (Config, error) {
 		HistoryKeep:    positive(os.Getenv(EnvHistoryKeep), DefaultHistoryKeep),
 		TelegramToken:  strings.TrimSpace(os.Getenv(EnvTelegramToken)),
 		TelegramChatID: strings.TrimSpace(os.Getenv(EnvTelegramChatID)),
+
+		VapidPublicKey:  strings.TrimSpace(os.Getenv(EnvVapidPublicKey)),
+		VapidPrivateKey: strings.TrimSpace(os.Getenv(EnvVapidPrivateKey)),
+		VapidSubject:    valueOr(strings.TrimSpace(os.Getenv(EnvVapidSubject)), DefaultVapidSubject),
 	}
 
 	var problems []error

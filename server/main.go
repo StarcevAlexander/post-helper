@@ -18,6 +18,7 @@ import (
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/intake"
 	"post-helper/server/internal/kit"
+	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/review"
 	"post-helper/server/internal/store"
@@ -59,6 +60,7 @@ func run() error {
 	var accountStore accounts.Store = memoryAccounts
 	var refsStore refs.Store = refs.NewMemory()
 	var intakeStore intake.Store = intake.NewMemory()
+	var pushStore push.Store = push.NewMemory()
 	if cfg.DatabaseURL != "" {
 		openCtx, cancel := context.WithTimeout(context.Background(), databaseOpenTimeout)
 		postgres, err := store.Open(openCtx, cfg.DatabaseURL, logger)
@@ -72,6 +74,7 @@ func run() error {
 		accountStore = postgresAccounts
 		refsStore = refs.NewPostgres(postgres.Pool())
 		intakeStore = intake.NewPostgres(postgres.Pool())
+		pushStore = push.NewPostgres(postgres.Pool())
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
 		slog.SetDefault(logger)
 	} else {
@@ -89,10 +92,18 @@ func run() error {
 	} else if cfg.TelegramToken != "" || cfg.TelegramChatID != "" {
 		slog.Warn("only one of TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID is set: owner notifications are off")
 	}
+	var pusher push.Sender
+	if service := push.New(pushStore, cfg.VapidPublicKey, cfg.VapidPrivateKey, cfg.VapidSubject); service != nil {
+		pusher = service
+	} else {
+		slog.Warn("VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not set: push notifications are off")
+	}
 	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{
 		Intake:         intakeStore,
 		Notifier:       notifier,
+		PushStore:      pushStore,
+		Pusher:         pusher,
 		Responder:      claude,
 		Strategist:     strategy.NewClaude(cfg.APIKey, cfg.Model),
 		KitMaker:       kit.NewClaude(cfg.APIKey, cfg.Model),

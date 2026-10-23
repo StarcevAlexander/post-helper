@@ -52,6 +52,7 @@ import { Settings } from './services/settings';
 import { Sync } from './services/sync';
 import { Speech } from './services/speech';
 import { Today } from './services/today';
+import { PushNotifications } from './services/push-notifications';
 import { TestNotification } from './services/test-notification';
 import { APP_VERSION } from './version';
 
@@ -93,6 +94,7 @@ export class App {
   private readonly auditJobs = inject(AuditJobs);
   protected readonly appUpdate = inject(AppUpdate);
   protected readonly testNotification = inject(TestNotification);
+  protected readonly pushNotifications = inject(PushNotifications);
   protected readonly notifyLabel = NOTIFY_BUTTON_LABEL;
   protected readonly notifyWaitingLabel = NOTIFY_WAITING_LABEL;
   protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;

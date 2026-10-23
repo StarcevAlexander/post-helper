@@ -11,6 +11,7 @@ import (
 	"post-helper/server/internal/chat"
 	"post-helper/server/internal/intake"
 	"post-helper/server/internal/kit"
+	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/review"
 	"post-helper/server/internal/store"
@@ -27,6 +28,8 @@ type Options struct {
 	RefPlanner     refs.Generator
 	Intake         intake.Store
 	Notifier       intake.Notifier
+	PushStore      push.Store
+	Pusher         push.Sender
 	AgentToken     string
 	Accounts       accounts.Store
 	DailyAILimit   int
@@ -162,4 +165,30 @@ type RefAgentItem struct {
 
 type RefsMadeRequest struct {
 	Key string `json:"key"`
+}
+
+type PushKeyResponse struct {
+	PublicKey string `json:"publicKey"`
+}
+
+type PushSubscribeRequest struct {
+	Endpoint string `json:"endpoint"`
+	Keys     struct {
+		P256dh string `json:"p256dh"`
+		Auth   string `json:"auth"`
+	} `json:"keys"`
+}
+
+type PushUnsubscribeRequest struct {
+	Endpoint string `json:"endpoint"`
+}
+
+type AdminPushRequest struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	URL   string `json:"url"`
+}
+
+type AdminPushResponse struct {
+	Sent int `json:"sent"`
 }

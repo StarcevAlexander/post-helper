@@ -7,6 +7,7 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
 	"post-helper/server/internal/intake"
+	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/store"
 )
@@ -84,7 +85,16 @@ func NewHandler(options Options) http.Handler {
 	if intakeStore == nil {
 		intakeStore = intake.NewMemory()
 	}
-	intakes := &intakeHandler{intake: intakeStore, accounts: accountStore, refs: refsStore, notifier: options.Notifier, logger: logger}
+	pushStore := options.PushStore
+	if pushStore == nil {
+		pushStore = push.NewMemory()
+	}
+	pushes := &pushHandler{store: pushStore, sender: options.Pusher, accounts: accountStore, logger: logger}
+	mux.Handle(PushKeyRoute, protected(requireMaster(http.HandlerFunc(pushes.key))))
+	mux.Handle(PushSubscribeRoute, protected(requireMaster(http.HandlerFunc(pushes.subscribe))))
+	mux.Handle(PushUnsubscribeRoute, protected(requireMaster(http.HandlerFunc(pushes.unsubscribe))))
+	mux.Handle(AdminPushRoute, protected(requireAdmin(http.HandlerFunc(pushes.adminSend))))
+	intakes := &intakeHandler{intake: intakeStore, accounts: accountStore, refs: refsStore, notifier: options.Notifier, pushes: pushes, logger: logger}
 	mux.Handle(IntakeSubmitRoute, protected(requireMaster(http.HandlerFunc(intakes.submit))))
 	mux.Handle(IntakeLatestRoute, protected(requireMaster(http.HandlerFunc(intakes.latest))))
 	mux.Handle(AdminIntakesRoute, protected(requireAdmin(http.HandlerFunc(intakes.list))))
