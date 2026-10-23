@@ -2,56 +2,56 @@
 
 Схема: Go-сервер и Postgres работают на вашем ПК круглые сутки, телефоны мастеров ходят к нему через Tailscale Funnel (публичный https-адрес `имя.ts.net`, порты на роутере открывать не нужно). Сайт остаётся на GitHub Pages. Воркер референсов и сервер живут на одной машине.
 
-Цена выбора: если ПК выключен или нет интернета, приложение не работает у всех мастеров, а данные лежат только на вашем диске. Поэтому копии базы обязательны (шаг 5).
+Цена выбора: если ПК выключен или нет интернета, приложение не работает у всех мастеров, а данные лежат только на вашем диске. Поэтому копии базы обязательны.
 
-## 1. Postgres как служба Windows
+## Что уже сделано
 
-1. Скачать установщик PostgreSQL для Windows (postgresql.org, EnterpriseDB), поставить самую свежую версию, порт 5432, запомнить пароль суперпользователя. Установщик ставит службу, она стартует при включении ПК до входа в систему.
-2. Создать базу и отдельного пользователя (в `C:\Program Files\PostgreSQL\<версия>\bin`):
-   `psql -U postgres -c "CREATE ROLE posthelper LOGIN PASSWORD 'длинный-пароль'"`
-   `psql -U postgres -c "CREATE DATABASE posthelper OWNER posthelper"`
+- Postgres 18 стоит в `C:\post-helper-db` (программа в `env`, данные в `data`, журналы в `data\log`). Установщик EnterpriseDB в РФ отдаёт 403, поэтому он взят из conda-forge через micromamba, без администратора и без Docker.
+- База `posthelper`, пользователь `posthelper`, слушает только `127.0.0.1:5432`. Адрес базы лежит в `C:\post-helper-db\database-url.txt` (доступ только вам). Пароль суперпользователя `postgres` в журнале сессии и нигде в проекте не хранится, при необходимости смените его командой `ALTER ROLE`.
+- Postgres запускает задача Планировщика `PostHelperPostgres` (сейчас при входе в систему, после шага 2 при включении ПК).
+- Серверные тесты с Postgres (`TEST_DATABASE_URL`) прогнаны на этой базе: миграции 001–008, заявки с референсами, очередь референсов проходят.
 
-## 2. Секреты сервера
+## 1. Секреты сервера
 
-`powershell -File tools/server/env.ps1` спрашивает значения со скрытым вводом и пишет `server/.env` (файл не попадает в git). Нужны `ANTHROPIC_API_KEY`, `ACCESS_PASSWORD` (пароль владельца), `DATABASE_URL`, `AGENT_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Прежние значения скопируйте из панели Render. Адрес базы: `postgres://posthelper:пароль@127.0.0.1:5432/posthelper?sslmode=disable`. Миграции сервер накатывает сам при старте.
+`powershell -File tools/server/env.ps1` (обычное окно PowerShell). Скрипт сам подставит адрес базы, сгенерирует пароль владельца и токен агента, если нажать Enter, и создаст `tools/owner/.env` для команд владельца. Нужно вручную только `ANTHROPIC_API_KEY` (возьмите в панели Render, Environment). Telegram-значения скрипт сохраняет, если они уже есть.
 
-## 3. Перенос данных из Neon (если там есть что сохранять)
+## 2. Всё, что требует прав администратора
+
+`powershell -Command "Start-Process powershell -Verb RunAs -ArgumentList '-NoExit','-File','C:\Users\master\WebstormProjects\post_helper\tools\server\setup-admin.ps1'"` (откроется окно подтверждения Windows). Скрипт за один проход:
+- переставляет запуск Postgres на «при включении ПК, без входа в систему»;
+- собирает `server\post-helper.exe` и ставит задачу автозапуска сервера с перезапуском при падении (`tools/server/autostart.ps1`);
+- ставит ежедневную копию базы в 04:00 в `C:\post-helper-backups`, хранятся 14 последних (`tools/server/backup.ps1`);
+- отключает сон и гибернацию;
+- ставит Tailscale (`winget`).
+
+Он остановится с понятной ошибкой, если в `server\.env` нет ключа Claude, пароля владельца или адреса базы. Состояние: `powershell -File tools/server/autostart.ps1 status`, копии: `powershell -File tools/server/backup.ps1 status`. После правок сервера повторите `autostart.ps1 install` от администратора.
+
+## 3. Tailscale Funnel
+
+1. Войдите в Tailscale своей учётной записью (`tailscale up`, откроется браузер).
+2. В консоли администратора Tailscale включите HTTPS-сертификаты (раздел DNS) и разрешите Funnel для этого ПК (правила доступа, атрибут `funnel`).
+3. `tailscale funnel --bg 8080` (синтаксис зависит от версии, сверьтесь с `tailscale funnel --help`). Адрес покажет `tailscale funnel status`: `https://имя-пк.имя-сети.ts.net`.
+4. Проверка с телефона через мобильный интернет: `https://имя-пк.имя-сети.ts.net/healthz` отвечает пустым 204.
+
+## 4. Переключить приложение
+
+1. В `web/src/app/constants/api.constants.ts` заменить `API_PRODUCTION_URL` на адрес из шага 3, закоммитить и запушить. Сайт обновится сам, мастерам ничего делать не нужно.
+2. В `tools/agent/.env` задать `AGENT_SERVER=http://127.0.0.1:8080` и `AGENT_TOKEN` из `server\.env`: воркер референсов и агент ходят на тот же ПК.
+3. Render после переезда не включайте параллельно: у него отдельная база Neon, данные мастеров разойдутся. Для отката верните прежний `API_PRODUCTION_URL`, но вы вернётесь к старым данным Neon.
+
+## 5. Перенос старых данных из Neon (если нужны)
 
 ```
-pg_dump --format=custom --file neon.dump "<строка подключения Neon>"
-pg_restore --no-owner --role posthelper --dbname "<адрес локальной базы>" neon.dump
+C:\post-helper-db\env\Library\bin\pg_dump --format=custom --file neon.dump "<строка подключения Neon>"
+C:\post-helper-db\env\Library\bin\pg_restore --no-owner --role posthelper --dbname "<адрес из database-url.txt>" neon.dump
 ```
 
-Версия `pg_dump` должна быть не старше версии базы на Neon.
+Делайте до первого запуска нового сервера, пока база пустая.
 
-## 4. Автозапуск сервера
+## 6. Вручную остаётся
 
-PowerShell от имени администратора: `powershell -File tools/server/autostart.ps1 install`. Скрипт собирает `server/post-helper.exe`, ставит задачу Планировщика, которая стартует при включении ПК (без входа в систему), перезапускает сервер при падении и пишет `server/server.log`. `status` показывает состояние и ответ `healthz`, `uninstall` убирает задачу. После правок кода запустите `install` ещё раз: он пересоберёт exe.
+- BIOS: включить «Восстановление после потери питания» (AC Power Recovery: Power On), чтобы ПК включался после отключения света.
+- Windows Update: «Часы активности» на ночь, чтобы перезагрузка не пришлась на день. После перезагрузки Postgres и сервер поднимаются сами.
+- Раз в неделю копируйте `C:\post-helper-backups` на другой диск или в облако: копия на том же диске не спасёт от его поломки.
 
-## 5. Копии базы
-
-`powershell -File tools/server/backup.ps1 install` ставит ежедневную копию в 04:00 в `C:\post-helper-backups` (хранятся 14 последних). Проверка: `powershell -File tools/server/backup.ps1 run`, потом `status`. Раз в неделю копируйте папку на другой диск или в облако: копия на том же диске не спасёт от поломки диска. Восстановление: `pg_restore --clean --if-exists --no-owner --dbname "<адрес>" файл.dump`.
-
-## 6. Чтобы ПК не засыпал
-
-PowerShell от имени администратора:
-- `powercfg /change standby-timeout-ac 0` и `powercfg /hibernate off` (не спать).
-- Обновления Windows: «Часы активности» на ночь, чтобы перезагрузка не пришлась на день. После перезагрузки сервер поднимается сам.
-- В BIOS включить «Восстановление после потери питания» (AC Power Recovery: Power On), чтобы ПК включался после отключения света.
-
-## 7. Tailscale Funnel
-
-1. Установить Tailscale (tailscale.com), войти своей учётной записью.
-2. В консоли администратора Tailscale (DNS) включить HTTPS-сертификаты, а в правилах доступа разрешить Funnel для этого ПК (атрибут `funnel`).
-3. `tailscale funnel --bg 8080` (синтаксис зависит от версии: сверьтесь с `tailscale funnel --help`). Адрес покажет `tailscale funnel status`, он вида `https://имя-пк.имя-сети.ts.net`.
-4. Проверка с телефона через мобильный интернет: `https://имя-пк.имя-сети.ts.net/healthz` должен вернуть пустой ответ 204.
-
-## 8. Переключить приложение
-
-1. В `web/src/app/constants/api.constants.ts` заменить `API_PRODUCTION_URL` на адрес из шага 7, закоммитить и запушить. Сайт обновится сам, мастерам ничего делать не нужно.
-2. В `tools/agent/.env` и для `owner.mjs` указать `AGENT_SERVER`/`OWNER_SERVER` как `http://127.0.0.1:8080`: воркер референсов и владельческие команды теперь ходят на тот же ПК.
-3. Render после переезда не включайте параллельно: у него отдельная база Neon, данные мастеров разойдутся. Для отката верните прежний `API_PRODUCTION_URL` и учтите, что вернётесь к старым данным Neon.
-
-## 9. Проверка
-
-`powershell -File tools/server/autostart.ps1 status` до и после перезагрузки ПК, затем создайте тестового мастера и отправьте заявку с телефона.
+Восстановление из копии: `pg_restore --clean --if-exists --no-owner --dbname "<адрес>" файл.dump`.

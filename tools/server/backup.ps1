@@ -23,6 +23,8 @@ function Get-DatabaseUrl {
 function Find-PgDump {
   $found = Get-Command pg_dump -ErrorAction SilentlyContinue
   if ($found) { return $found.Source }
+  $local = 'C:\post-helper-db\env\Library\bin\pg_dump.exe'
+  if (Test-Path $local) { return $local }
   $candidate = Get-ChildItem 'C:\Program Files\PostgreSQL\*\bin\pg_dump.exe' -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
   if ($candidate) { return $candidate.FullName }
   throw 'pg_dump not found: install PostgreSQL first'
