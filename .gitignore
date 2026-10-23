@@ -8,3 +8,5 @@ server/advisor.exe
 server/advisor
 .idea/
 tools/refs/worker.log
+
+tools/owner/reviews/

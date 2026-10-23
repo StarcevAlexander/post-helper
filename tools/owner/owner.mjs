@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildReviewStats, describeReviewStats } from './review-stats.mjs';
 
 const HELP = `Управление «Помощником» из консоли (интерфейса владельца в приложении нет).
 
@@ -20,7 +21,8 @@ const HELP = `Управление «Помощником» из консоли 
   node tools/owner/owner.mjs plan <id> <план.json>     залить мастеру стратегию, календарь и комплекты, закрыть заявку
   node tools/owner/owner.mjs refs <id> <ключ> <файл> [файл] [файл] [--captions "подпись 1|подпись 2|подпись 3"]
                                                       залить до 3 референсов (фото или видео) к публикации календаря
-  node tools/owner/owner.mjs refs-clear <id>           удалить референсы мастера целиком (по всем публикациям)
+  node tools/owner/owner.mjs review <id> [--json]      выполнение плана: проценты по неделям, форматам, рубрикам, просрочки, итоги недели
+  node tools/owner/owner.mjs refs-clear <id>          удалить референсы мастера целиком (по всем публикациям)
 
 Настройка: OWNER_SERVER и OWNER_PASSWORD в окружении или в tools/owner/.env`;
 
@@ -71,6 +73,12 @@ async function call(method, path, body) {
     throw new Error(`${response.status}: ${data?.error ?? text}`);
   }
   return data;
+}
+
+function toLocalDateKey(date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 function describeIntake(request) {
@@ -169,6 +177,13 @@ async function main([command, id, extra, ...rest]) {
         throw new Error('Нужно: refs <id мастера> <ключ публикации> <файл> [файл] [файл]');
       }
       return console.log(await call('POST', `${MASTERS}/${id}/refs/${encodeURIComponent(key)}`, refsForm(files, captions)));
+    }
+    case 'review': {
+      if (!id) {
+        throw new Error('Нужно: review <id мастера> [--json]');
+      }
+      const stats = buildReviewStats(await call('GET', `${MASTERS}/${id}/export`), toLocalDateKey(new Date()));
+      return console.log(extra === '--json' ? JSON.stringify(stats, null, 2) : describeReviewStats(stats));
     }
     case 'refs-clear': {
       if (!id) {
