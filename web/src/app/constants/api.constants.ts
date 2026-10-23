@@ -1,6 +1,6 @@
 export const API_DEV_URL = 'http://localhost:8080';
 
-export const API_PRODUCTION_URL = 'https://post-helper-server.onrender.com';
+export const API_PRODUCTION_URL = 'https://interceptor.tail969ed0.ts.net';
 
 export const API_CHAT_PATH = '/api/chat';
 

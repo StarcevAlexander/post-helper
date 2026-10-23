@@ -64,7 +64,7 @@
 
 1. Создать бесплатную базу на Neon и скопировать строку подключения (`postgres://…?sslmode=require`).
 2. На Render создать Blueprint из репозитория (`render.yaml`), задать секреты `ANTHROPIC_API_KEY`, `ACCESS_PASSWORD` (пароль владельца, длинный), `DATABASE_URL`; при желании `DAILY_AI_LIMIT`.
-3. Дождаться сборки, открыть `https://<имя-сервиса>.onrender.com/healthz` (ответ 204). Если Render выдал адрес не `post-helper-server`, поправить `API_PRODUCTION_URL` в `web/src/app/constants/api.constants.ts` и запушить.
+3. Дождаться сборки, открыть `https://<имя-сервиса>.onrender.com/healthz` (ответ 204). Если сервер переехал на свой ПК (`docs/owner/home-server.md`), адрес `https://interceptor.tail969ed0.ts.net` уже прописан; иначе поправить `API_PRODUCTION_URL` в `web/src/app/constants/api.constants.ts` и запушить.
 4. Создать мастера из консоли (`node tools/owner/owner.mjs create "Имя"`) и отдать ему код.
 
 Бесплатный сервис Render засыпает через 15 минут, первый запрос после паузы идёт около минуты.

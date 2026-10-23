@@ -20,18 +20,21 @@ $pgCtl = Join-Path $Bin 'pg_ctl.exe'
 if (Get-NetTCPConnection -LocalPort 5432 -State Listen -ErrorAction SilentlyContinue) {
   & $pgCtl -D "$DbRoot\data" -m fast -w stop | Out-Null
 }
-$action = New-ScheduledTaskAction -Execute (Join-Path $Bin 'postgres.exe') -Argument "-D `"$DbRoot\data`"" -WorkingDirectory $DbRoot
-$trigger = New-ScheduledTaskTrigger -AtStartup
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 99 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
-$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Limited
-Register-ScheduledTask -TaskName 'PostHelperPostgres' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
-Start-ScheduledTask -TaskName 'PostHelperPostgres'
+if (Get-ScheduledTask -TaskName 'PostHelperPostgres' -ErrorAction SilentlyContinue) {
+  Unregister-ScheduledTask -TaskName 'PostHelperPostgres' -Confirm:$false
+}
+if (-not (Get-Service -Name 'PostHelperPostgres' -ErrorAction SilentlyContinue)) {
+  & $pgCtl register -N PostHelperPostgres -D "$DbRoot\data" -S auto -w | Out-Null
+}
+& icacls "$DbRoot\data" /grant 'NT AUTHORITY\NetworkService:(OI)(CI)F' /T /C /Q | Out-Null
+& sc.exe failure PostHelperPostgres reset= 86400 actions= restart/60000/restart/60000/restart/60000 | Out-Null
+Start-Service -Name 'PostHelperPostgres'
 for ($i = 0; $i -lt 30; $i++) {
   if (Get-NetTCPConnection -LocalPort 5432 -State Listen -ErrorAction SilentlyContinue) { break }
   Start-Sleep 1
 }
 if (-not (Get-NetTCPConnection -LocalPort 5432 -State Listen -ErrorAction SilentlyContinue)) {
-  throw 'Database did not start in 30 seconds. See C:\post-helper-db\data\log'
+  throw 'Database did not start in 30 seconds. See C:\post-helper-db\data\log and Event Viewer (PostHelperPostgres)'
 }
 
 Write-Output 'Step 2/5: server starts at boot'
