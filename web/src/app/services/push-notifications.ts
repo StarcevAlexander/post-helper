@@ -92,8 +92,14 @@ export class PushNotifications {
     if (!payload) {
       throw new ChatApiError(PUSH_TEXTS.failed);
     }
-    await this.api.subscribePush(payload);
+    const previous = this.syncedEndpoint;
     this.syncedEndpoint = payload.endpoint;
+    try {
+      await this.api.subscribePush(payload);
+    } catch (error) {
+      this.syncedEndpoint = previous;
+      throw error;
+    }
   }
 
   private showNotice(text: string): void {

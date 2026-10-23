@@ -13,3 +13,7 @@ tools/owner/reviews/
 
 server/post-helper.exe
 server/server.log
+
+tools/intake-agent/state.json
+tools/intake-agent/reports/
+tools/intake-agent/agent.log
