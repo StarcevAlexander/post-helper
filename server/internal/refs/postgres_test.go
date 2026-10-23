@@ -179,3 +179,56 @@ func TestPostgresMasterDeletionTakesTheReferencesAway(t *testing.T) {
 		t.Errorf("statuses = %+v, %v", statuses, err)
 	}
 }
+
+func TestPostgresRemainingAndMasterOf(t *testing.T) {
+	db, people := openStores(t)
+	ctx := context.Background()
+	now := time.Now()
+	master, err := people.CreateMaster(ctx, "Тест очереди", "remaining-hash-"+now.Format("150405.000000000"))
+	if err != nil {
+		t.Fatalf("create master: %v", err)
+	}
+	t.Cleanup(func() { _ = people.DeleteMaster(ctx, master.ID) })
+	if _, _, err := db.Sync(ctx, master.ID, []refs.OrderItem{
+		{Key: "a", Format: refs.FormatPost, Pillar: "p", Idea: "i", Date: day(3)},
+		{Key: "b", Format: refs.FormatStories, Pillar: "p", Idea: "j", Date: day(4)},
+	}, now); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+
+	active, done, err := db.Remaining(ctx, master.ID)
+	if err != nil || active != 2 || done != 0 {
+		t.Fatalf("before = %d active, %d done, %v", active, done, err)
+	}
+	first, err := db.Claim(ctx, now, refs.Lease)
+	if err != nil {
+		t.Fatalf("claim: %v", err)
+	}
+	if active, done, _ = db.Remaining(ctx, master.ID); active != 2 || done != 0 {
+		t.Fatalf("a running item still counts as active: %d, %d", active, done)
+	}
+	if err := db.Complete(ctx, first.ID, []refs.File{{Index: 0, Kind: refs.KindPhoto, MediaType: "image/png", Data: []byte{1, 2, 3}}}, now); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	if active, done, _ = db.Remaining(ctx, master.ID); active != 1 || done != 1 {
+		t.Fatalf("after one done = %d active, %d done", active, done)
+	}
+	second, err := db.Claim(ctx, now, refs.Lease)
+	if err != nil {
+		t.Fatalf("claim second: %v", err)
+	}
+	if err := db.Fail(ctx, second.ID, "нет", true, now); err != nil {
+		t.Fatalf("fail: %v", err)
+	}
+	if active, done, _ = db.Remaining(ctx, master.ID); active != 0 || done != 1 {
+		t.Fatalf("after a final failure = %d active, %d done", active, done)
+	}
+
+	owner, err := db.MasterOf(ctx, first.ID)
+	if err != nil || owner != master.ID {
+		t.Fatalf("master of = %q, %v", owner, err)
+	}
+	if _, err := db.MasterOf(ctx, "no-such-item"); !errors.Is(err, refs.ErrNotFound) {
+		t.Fatalf("missing item must give ErrNotFound, got %v", err)
+	}
+}

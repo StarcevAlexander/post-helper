@@ -1,9 +1,12 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,6 +17,7 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
 	"post-helper/server/internal/push"
+	"post-helper/server/internal/refs"
 )
 
 type fakePusher struct {
@@ -206,4 +210,185 @@ func TestPlanDeliveryWorksWithoutPush(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Errorf("plan without push = %d %s", response.Code, response.Body)
 	}
+}
+
+const twoItemPlanJSON = `{
+	"note": "План готов, референсы делаются",
+	"strategy": {"summary":"Эксперт","positioning":"Спокойно","profileFixes":[],
+		"pillars":[{"title":"Процесс","description":"Работа","ideas":["Разбор"]}],
+		"cadence":{"reels":1,"posts":1,"stories":0,"note":""},"firstSteps":["Обновить шапку"]},
+	"calendar": {"startedOn":"2026-10-23","schedule":{"slots":[{"weekday":1,"time":"11:00"}],"publishTime":"19:00"},
+		"items":[
+			{"id":"w1-a","date":"2026-10-27","time":"19:00","format":"post","pillar":"Процесс","idea":"Разбор спины","done":false},
+			{"id":"w1-b","date":"2026-10-29","time":"19:00","format":"stories","pillar":"Процесс","idea":"Почему болит","done":false}
+		]}
+}`
+
+type refsPushFixture struct {
+	*pushFixture
+	pusher *fakePusher
+}
+
+func newRefsPushFixture(t *testing.T) *refsPushFixture {
+	t.Helper()
+	pusher := newFakePusher(1)
+	base := &pushFixture{accounts: accounts.NewMemory(), store: push.NewMemory()}
+	planner := &fakePlanner{plan: refs.Plan{Prompts: []refs.Prompt{
+		{Prompt: "back massage, hands, close up", Caption: "Руки"},
+		{Prompt: "spine model on a desk", Caption: "Модель позвоночника"},
+		{Prompt: "towel and oil", Caption: "Полотенце и масло"},
+	}}}
+	base.handler = NewHandler(Options{
+		Accounts:       base.accounts,
+		PushStore:      base.store,
+		Pusher:         pusher,
+		Refs:           refs.NewMemory(),
+		RefPlanner:     planner,
+		AgentToken:     agentToken,
+		Password:       testPassword,
+		AllowedOrigins: []string{testOrigin},
+		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	return &refsPushFixture{pushFixture: base, pusher: pusher}
+}
+
+func (f *refsPushFixture) claim(t *testing.T) RefAgentItem {
+	t.Helper()
+	recorder := f.call(http.MethodGet, "/api/agent/refs/next", agentToken, "")
+	var item RefAgentItem
+	if recorder.Code != http.StatusOK || json.Unmarshal(recorder.Body.Bytes(), &item) != nil {
+		t.Fatalf("claim = %d %s", recorder.Code, recorder.Body)
+	}
+	return item
+}
+
+func (f *refsPushFixture) upload(t *testing.T, id string) {
+	t.Helper()
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile(FieldFiles, "ref0")
+	_, _ = part.Write(pngBytes)
+	_ = writer.Close()
+	request := httptest.NewRequest(http.MethodPost, "/api/agent/refs/"+id+"/result", body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	request.Header.Set("Authorization", BearerPrefix+agentToken)
+	recorder := httptest.NewRecorder()
+	f.handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("upload = %d %s", recorder.Code, recorder.Body)
+	}
+}
+
+func (f *refsPushFixture) fail(t *testing.T, id string, final bool) {
+	t.Helper()
+	body := `{"reason":"не получилось","final":false}`
+	if final {
+		body = `{"reason":"не получилось","final":true}`
+	}
+	if recorder := f.call(http.MethodPost, "/api/agent/refs/"+id+"/fail", agentToken, body); recorder.Code != http.StatusOK {
+		t.Fatalf("fail = %d %s", recorder.Code, recorder.Body)
+	}
+}
+
+func (f *refsPushFixture) deliverPlan(t *testing.T, masterID string) {
+	t.Helper()
+	response := f.call(http.MethodPost, "/api/admin/masters/"+masterID+"/plan", testPassword, twoItemPlanJSON)
+	if response.Code != http.StatusOK {
+		t.Fatalf("plan = %d %s", response.Code, response.Body)
+	}
+}
+
+func (f *refsPushFixture) expectPush(t *testing.T) push.Message {
+	t.Helper()
+	select {
+	case <-f.pusher.sent:
+	case <-time.After(2 * time.Second):
+		t.Fatal("master was not notified")
+	}
+	f.pusher.mu.Lock()
+	defer f.pusher.mu.Unlock()
+	return f.pusher.messages[len(f.pusher.messages)-1]
+}
+
+func (f *refsPushFixture) expectSilence(t *testing.T) {
+	t.Helper()
+	select {
+	case <-f.pusher.sent:
+		t.Fatalf("unexpected push: %+v", f.pusher.messages)
+	case <-time.After(300 * time.Millisecond):
+	}
+}
+
+func TestPlanDeliveryOrdersReferencesAndStaysQuiet(t *testing.T) {
+	fixture := newRefsPushFixture(t)
+	code, master := fixture.master(t, "Анна")
+
+	fixture.deliverPlan(t, master.ID)
+	statuses := fixture.call(http.MethodGet, "/api/refs/status", code, "")
+
+	var parsed []refs.Status
+	if err := json.Unmarshal(statuses.Body.Bytes(), &parsed); err != nil || len(parsed) != 2 {
+		t.Fatalf("statuses = %s", statuses.Body)
+	}
+	for _, status := range parsed {
+		if status.Status != refs.StatusQueued {
+			t.Errorf("%s is %s, want queued", status.Key, status.Status)
+		}
+	}
+	fixture.expectSilence(t)
+}
+
+func TestMasterIsNotifiedWhenTheLastReferenceIsReady(t *testing.T) {
+	fixture := newRefsPushFixture(t)
+	_, master := fixture.master(t, "Анна")
+	fixture.deliverPlan(t, master.ID)
+
+	fixture.upload(t, fixture.claim(t).ID)
+	fixture.expectSilence(t)
+	fixture.upload(t, fixture.claim(t).ID)
+	message := fixture.expectPush(t)
+
+	if message.Title != PushRefsTitle || message.URL != PushRefsURL {
+		t.Errorf("message = %+v", message)
+	}
+	fixture.pusher.mu.Lock()
+	defer fixture.pusher.mu.Unlock()
+	if len(fixture.pusher.messages) != 1 || fixture.pusher.masters[0] != master.ID {
+		t.Errorf("pushed %+v to %v", fixture.pusher.messages, fixture.pusher.masters)
+	}
+}
+
+func TestMasterIsNotifiedWhenTheRestFailedButSomeAreReady(t *testing.T) {
+	fixture := newRefsPushFixture(t)
+	_, master := fixture.master(t, "Анна")
+	fixture.deliverPlan(t, master.ID)
+
+	fixture.upload(t, fixture.claim(t).ID)
+	fixture.fail(t, fixture.claim(t).ID, true)
+
+	if message := fixture.expectPush(t); message.Title != PushRefsTitle {
+		t.Errorf("message = %+v", message)
+	}
+}
+
+func TestMasterIsNotNotifiedWhenNothingIsReady(t *testing.T) {
+	fixture := newRefsPushFixture(t)
+	_, master := fixture.master(t, "Анна")
+	fixture.deliverPlan(t, master.ID)
+
+	fixture.fail(t, fixture.claim(t).ID, true)
+	fixture.fail(t, fixture.claim(t).ID, true)
+
+	fixture.expectSilence(t)
+}
+
+func TestMasterIsNotNotifiedWhileAFailedReferenceWillBeRetried(t *testing.T) {
+	fixture := newRefsPushFixture(t)
+	_, master := fixture.master(t, "Анна")
+	fixture.deliverPlan(t, master.ID)
+
+	fixture.upload(t, fixture.claim(t).ID)
+	fixture.fail(t, fixture.claim(t).ID, false)
+
+	fixture.expectSilence(t)
 }

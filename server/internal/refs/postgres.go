@@ -222,6 +222,24 @@ func (p *Postgres) missing(ctx context.Context, id string) error {
 	return ErrState
 }
 
+func (p *Postgres) Remaining(ctx context.Context, masterID string) (int, int, error) {
+	var active, done int
+	err := p.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FILTER (WHERE status IN ($2, $3)), COUNT(*) FILTER (WHERE status = $4)
+		FROM ref_items WHERE master_id = $1`,
+		masterID, StatusQueued, StatusRunning, StatusDone).Scan(&active, &done)
+	return active, done, err
+}
+
+func (p *Postgres) MasterOf(ctx context.Context, id string) (string, error) {
+	var masterID string
+	err := p.pool.QueryRow(ctx, `SELECT master_id FROM ref_items WHERE id = $1`, id).Scan(&masterID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return masterID, err
+}
+
 func (p *Postgres) DeleteMaster(ctx context.Context, masterID string) error {
 	_, err := p.pool.Exec(ctx, `DELETE FROM ref_items WHERE master_id = $1`, masterID)
 	return err

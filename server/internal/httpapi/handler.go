@@ -76,15 +76,6 @@ func NewHandler(options Options) http.Handler {
 	if refsStore == nil {
 		refsStore = refs.NewMemory()
 	}
-	refsMaster := &refsHandler{refs: refsStore, accounts: accountStore, planner: options.RefPlanner, logger: logger}
-	mux.Handle(RefsOrderRoute, protected(requireMaster(http.HandlerFunc(refsMaster.order))))
-	mux.Handle(RefsStatusRoute, protected(requireMaster(http.HandlerFunc(refsMaster.status))))
-	mux.Handle(RefsMadeRoute, protected(requireMaster(http.HandlerFunc(refsMaster.made))))
-	mux.Handle(RefsFileRoute, protected(requireMaster(http.HandlerFunc(refsMaster.file))))
-	intakeStore := options.Intake
-	if intakeStore == nil {
-		intakeStore = intake.NewMemory()
-	}
 	pushStore := options.PushStore
 	if pushStore == nil {
 		pushStore = push.NewMemory()
@@ -94,14 +85,24 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(PushSubscribeRoute, protected(requireMaster(http.HandlerFunc(pushes.subscribe))))
 	mux.Handle(PushUnsubscribeRoute, protected(requireMaster(http.HandlerFunc(pushes.unsubscribe))))
 	mux.Handle(AdminPushRoute, protected(requireAdmin(http.HandlerFunc(pushes.adminSend))))
-	intakes := &intakeHandler{intake: intakeStore, accounts: accountStore, refs: refsStore, notifier: options.Notifier, pushes: pushes, logger: logger}
+	refsOn := options.AgentToken != "" && options.RefPlanner != nil
+	refsMaster := &refsHandler{refs: refsStore, accounts: accountStore, planner: options.RefPlanner, pushes: pushes, logger: logger}
+	mux.Handle(RefsOrderRoute, protected(requireMaster(http.HandlerFunc(refsMaster.order))))
+	mux.Handle(RefsStatusRoute, protected(requireMaster(http.HandlerFunc(refsMaster.status))))
+	mux.Handle(RefsMadeRoute, protected(requireMaster(http.HandlerFunc(refsMaster.made))))
+	mux.Handle(RefsFileRoute, protected(requireMaster(http.HandlerFunc(refsMaster.file))))
+	intakeStore := options.Intake
+	if intakeStore == nil {
+		intakeStore = intake.NewMemory()
+	}
+	intakes := &intakeHandler{intake: intakeStore, accounts: accountStore, refs: refsStore, notifier: options.Notifier, pushes: pushes, refsOn: refsOn, logger: logger}
 	mux.Handle(IntakeSubmitRoute, protected(requireMaster(http.HandlerFunc(intakes.submit))))
 	mux.Handle(IntakeLatestRoute, protected(requireMaster(http.HandlerFunc(intakes.latest))))
 	mux.Handle(AdminIntakesRoute, protected(requireAdmin(http.HandlerFunc(intakes.list))))
 	mux.Handle(AdminPlanRoute, protected(requireAdmin(http.HandlerFunc(intakes.deliverPlan))))
 	mux.Handle(AdminRefsDeliverRoute, protected(requireAdmin(http.HandlerFunc(intakes.deliverRefs))))
 	mux.Handle(AdminRefsClearRoute, protected(requireAdmin(http.HandlerFunc(intakes.clearRefs))))
-	if options.AgentToken != "" && options.RefPlanner != nil {
+	if refsOn {
 		refsAgent := &refsAgentHandler{refsHandler: *refsMaster}
 		mux.Handle(AgentRefsNextRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.next)))
 		mux.Handle(AgentRefsResultRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.result)))

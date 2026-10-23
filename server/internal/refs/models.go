@@ -86,5 +86,7 @@ type Store interface {
 	Claim(ctx context.Context, now time.Time, lease time.Duration) (Item, error)
 	Complete(ctx context.Context, id string, files []File, now time.Time) error
 	Fail(ctx context.Context, id, reason string, final bool, now time.Time) error
+	Remaining(ctx context.Context, masterID string) (active, done int, err error)
+	MasterOf(ctx context.Context, id string) (string, error)
 	DeleteMaster(ctx context.Context, masterID string) error
 }

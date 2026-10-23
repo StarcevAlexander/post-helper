@@ -23,6 +23,7 @@ type intakeHandler struct {
 	refs     refs.Store
 	notifier intake.Notifier
 	pushes   *pushHandler
+	refsOn   bool
 	logger   *slog.Logger
 }
 
@@ -145,10 +146,27 @@ func (h *intakeHandler) deliverPlan(w http.ResponseWriter, r *http.Request) {
 	if err := h.accounts.RecordEvent(r.Context(), id, EventPlanDelivered, payload, time.Now()); err != nil {
 		h.logger.Error("record plan event failed", slog.Any("error", err))
 	}
-	if h.pushes != nil {
+	if h.refsOn {
+		h.orderRefs(r.Context(), id, merged.Items)
+	} else if h.pushes != nil {
 		h.pushes.notify(r.Context(), id, push.Message{Title: PushPlanTitle, Body: PushPlanBody, URL: PushPlanURL})
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"version": saved.Version, "items": len(merged.Items)})
+}
+
+func (h *intakeHandler) orderRefs(ctx context.Context, masterID string, items []plan.Item) {
+	order := make([]refs.OrderItem, 0, len(items))
+	for _, item := range items {
+		order = append(order, refs.OrderItem{Key: item.ID, Format: item.Format, Pillar: item.Pillar, Idea: item.Idea, Date: item.Date})
+	}
+	cleaned, message := cleanRefItems(order)
+	if message != "" {
+		h.logger.Error("plan items do not fit the references order", slog.String("reason", message))
+		return
+	}
+	if _, _, err := h.refs.Sync(ctx, masterID, cleaned, time.Now()); err != nil {
+		h.logger.Error("order references for the plan failed", slog.Any("error", err))
+	}
 }
 
 func (h *intakeHandler) deliverRefs(w http.ResponseWriter, r *http.Request) {

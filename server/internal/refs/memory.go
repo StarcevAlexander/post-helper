@@ -181,6 +181,34 @@ func (m *Memory) Fail(_ context.Context, id, reason string, final bool, now time
 	return nil
 }
 
+func (m *Memory) Remaining(_ context.Context, masterID string) (int, int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	active, done := 0, 0
+	for _, stored := range m.items {
+		if stored.MasterID != masterID {
+			continue
+		}
+		switch stored.Status {
+		case StatusQueued, StatusRunning:
+			active++
+		case StatusDone:
+			done++
+		}
+	}
+	return active, done, nil
+}
+
+func (m *Memory) MasterOf(_ context.Context, id string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	stored, ok := m.items[id]
+	if !ok {
+		return "", ErrNotFound
+	}
+	return stored.MasterID, nil
+}
+
 func (m *Memory) DeleteMaster(_ context.Context, masterID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

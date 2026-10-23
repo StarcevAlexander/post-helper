@@ -16,6 +16,7 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
 	"post-helper/server/internal/chat"
+	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/strategy"
 )
@@ -24,7 +25,23 @@ type refsHandler struct {
 	refs     refs.Store
 	accounts accounts.Store
 	planner  refs.Generator
+	pushes   *pushHandler
 	logger   *slog.Logger
+}
+
+func (h *refsHandler) notifyWhenReady(ctx context.Context, itemID string) {
+	if h.pushes == nil {
+		return
+	}
+	masterID, err := h.refs.MasterOf(ctx, itemID)
+	if err != nil {
+		return
+	}
+	active, done, err := h.refs.Remaining(ctx, masterID)
+	if err != nil || active > 0 || done == 0 {
+		return
+	}
+	h.pushes.notify(ctx, masterID, push.Message{Title: PushRefsTitle, Body: PushRefsBody, URL: PushRefsURL})
 }
 
 func (h *refsHandler) order(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +236,7 @@ func (h *refsAgentHandler) result(w http.ResponseWriter, r *http.Request) {
 		writeError(w, status, message)
 		return
 	}
+	h.notifyWhenReady(r.Context(), id)
 	writeJSON(w, http.StatusOK, map[string]int{"files": len(files)})
 }
 
@@ -262,10 +280,12 @@ func (h *refsAgentHandler) fail(w http.ResponseWriter, r *http.Request) {
 	if reason == "" {
 		reason = "агент не смог сделать референсы"
 	}
-	if status, message := h.finish(h.refs.Fail(r.Context(), r.PathValue("id"), reason, body.Final, time.Now())); message != "" {
+	id := r.PathValue("id")
+	if status, message := h.finish(h.refs.Fail(r.Context(), id, reason, body.Final, time.Now())); message != "" {
 		writeError(w, status, message)
 		return
 	}
+	h.notifyWhenReady(r.Context(), id)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
