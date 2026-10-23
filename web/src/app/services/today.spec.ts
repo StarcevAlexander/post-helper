@@ -93,13 +93,18 @@ describe('Today', () => {
     expect(today.nextItem()?.date).toBe(first);
   });
 
-  it('opens from the today link and cleans the address', () => {
+  it('opens from the today link and keeps it until the screen is closed', () => {
     startOn(new Date(2026, 9, 19, 10, 0));
     window.history.replaceState(null, '', '/?screen=today&a=1');
 
     today.openFromLink();
 
     expect(today.open()).toBe(true);
+    expect(window.location.search).toBe('?screen=today&a=1');
+
+    today.close();
+
+    expect(today.open()).toBe(false);
     expect(window.location.search).toBe('?a=1');
   });
 

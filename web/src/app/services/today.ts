@@ -43,13 +43,19 @@ export class Today {
     this.open.set(true);
   }
 
-  openFromLink(): void {
+  close(): void {
+    this.open.set(false);
     if (!isTodayLink(window.location.search)) {
       return;
     }
     const url = new URL(window.location.href);
     url.searchParams.delete(APP_LINK_PARAM);
     window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
-    this.show();
+  }
+
+  openFromLink(): void {
+    if (isTodayLink(window.location.search)) {
+      this.show();
+    }
   }
 }

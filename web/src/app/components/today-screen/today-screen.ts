@@ -83,23 +83,23 @@ export class TodayScreen {
   }
 
   protected onOpenCalendar(): void {
-    this.today.open.set(false);
+    this.today.close();
     this.calendarRequested.emit();
   }
 
   protected onClose(): void {
-    this.today.open.set(false);
+    this.today.close();
   }
 
   protected onDialogClosed(): void {
     if (!this.dialog().nativeElement.open) {
-      this.today.open.set(false);
+      this.today.close();
     }
   }
 
   protected onDialogClicked(event: MouseEvent): void {
     if (event.target === this.dialog().nativeElement) {
-      this.today.open.set(false);
+      this.today.close();
     }
   }
 
