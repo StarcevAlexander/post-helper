@@ -176,25 +176,46 @@
   </footer>
 </div>
 
-<app-settings-panel [(open)]="settingsOpen" />
+@defer (when settingsOpen()) {
+  <app-settings-panel [(open)]="settingsOpen" />
+}
 
-<app-strategy-screen
-  [(open)]="strategyOpen"
-  (profileRequested)="profileOpen.set(true)"
-  (calendarRequested)="calendarOpen.set(true)"
-/>
+@defer (when strategyOpen()) {
+  <app-strategy-screen
+    [(open)]="strategyOpen"
+    (profileRequested)="profileOpen.set(true)"
+    (calendarRequested)="calendarOpen.set(true)"
+  />
+}
 
-<app-calendar-screen [(open)]="calendarOpen" />
+@defer (when calendarOpen()) {
+  <app-calendar-screen [(open)]="calendarOpen" />
+}
 
-<app-today-screen (calendarRequested)="calendarOpen.set(true)" />
+@defer (when today.open()) {
+  <app-today-screen (calendarRequested)="calendarOpen.set(true)" />
+}
 
-<app-intake-screen (calendarRequested)="calendarOpen.set(true)" />
+@defer (when intake.open()) {
+  <app-intake-screen (calendarRequested)="calendarOpen.set(true)" />
+}
 
-<app-kit-screen />
-<app-refs-screen />
+@defer (when kits.viewing() !== undefined) {
+  <app-kit-screen />
+}
 
-<app-audit-screen />
+@defer (when refs.viewing() !== undefined) {
+  <app-refs-screen />
+}
 
-<app-review-screen />
+@defer (when audit.open()) {
+  <app-audit-screen />
+}
 
-<app-profile-screen [(open)]="profileOpen" />
+@defer (when reviews.viewing() !== undefined) {
+  <app-review-screen />
+}
+
+@defer (when profileOpen()) {
+  <app-profile-screen [(open)]="profileOpen" />
+}
