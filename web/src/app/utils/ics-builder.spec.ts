@@ -74,6 +74,13 @@ describe('buildIcs', () => {
     expect(text).toContain('\r\n ');
   });
 
+  it('writes the link of the event only when there is one', () => {
+    const link = 'https://example.github.io/post_helper/?screen=today';
+
+    expect(buildIcs([event({ url: link })], NOW)).toContain(`URL:${link}\r\n`);
+    expect(buildIcs([event()], NOW)).not.toContain('URL:');
+  });
+
   it('keeps several events in one calendar', () => {
     const text = buildIcs([event(), event({ uid: 'other@pomoshchnik' })], NOW);
 

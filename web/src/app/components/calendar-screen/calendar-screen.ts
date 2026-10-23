@@ -50,6 +50,7 @@ import { Kits } from '../../services/kits';
 import { Onboarding } from '../../services/onboarding';
 import { Reviews } from '../../services/reviews';
 import { Refs } from '../../services/refs';
+import { todayLink } from '../../utils/app-link';
 import { buildIcs } from '../../utils/ics-builder';
 import { fromDateKey, toDateKey } from '../../utils/date-utils';
 
@@ -217,7 +218,7 @@ export class CalendarScreen {
   }
 
   protected onExport(): void {
-    const text = buildIcs(this.plan.icsEvents());
+    const text = buildIcs(this.plan.icsEvents(new Date(), todayLink(document.baseURI)));
     const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;

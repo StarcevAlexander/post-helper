@@ -20,6 +20,7 @@ const HELP = `Управление «Помощником» из консоли 
   node tools/owner/owner.mjs plan <id> <план.json>     залить мастеру стратегию, календарь и комплекты, закрыть заявку
   node tools/owner/owner.mjs refs <id> <ключ> <файл> [файл] [файл] [--captions "подпись 1|подпись 2|подпись 3"]
                                                       залить до 3 референсов (фото или видео) к публикации календаря
+  node tools/owner/owner.mjs refs-clear <id>           удалить референсы мастера целиком (по всем публикациям)
 
 Настройка: OWNER_SERVER и OWNER_PASSWORD в окружении или в tools/owner/.env`;
 
@@ -168,6 +169,13 @@ async function main([command, id, extra, ...rest]) {
         throw new Error('Нужно: refs <id мастера> <ключ публикации> <файл> [файл] [файл]');
       }
       return console.log(await call('POST', `${MASTERS}/${id}/refs/${encodeURIComponent(key)}`, refsForm(files, captions)));
+    }
+    case 'refs-clear': {
+      if (!id) {
+        throw new Error('Нужно: refs-clear <id мастера>');
+      }
+      await call('DELETE', `${MASTERS}/${id}/refs`);
+      return console.log('Референсы мастера удалены');
     }
     default:
       return console.log(HELP);

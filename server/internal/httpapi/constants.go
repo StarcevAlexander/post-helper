@@ -192,6 +192,7 @@ const (
 	AdminIntakesRoute           = "GET /api/admin/intakes"
 	AdminPlanRoute              = "POST /api/admin/masters/{id}/plan"
 	AdminRefsDeliverRoute       = "POST /api/admin/masters/{id}/refs/{key}"
+	AdminRefsClearRoute         = "DELETE /api/admin/masters/{id}/refs"
 	QueryStatus                 = "status"
 	EventPlanDelivered          = "plan.delivered"
 	MaxIntakeBodyBytes    int64 = 96 << 10

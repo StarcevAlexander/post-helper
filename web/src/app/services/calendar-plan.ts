@@ -137,30 +137,33 @@ export class CalendarPlan {
     this.save();
   }
 
-  icsEvents(now = new Date()): IcsEvent[] {
+  icsEvents(now = new Date(), link?: string): IcsEvent[] {
     const schedule = this.schedule();
     if (!schedule) {
       return [];
     }
+    const withLink = (text: string): string => (link ? `${text}\n${link}` : text);
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const contentDays = schedule.slots.map((slot): IcsEvent => ({
       uid: `content-day-${slot.weekday}@pomoshchnik`,
       summary: `${CONTENT_DAY_EVENT_TITLE}, ${WEEKDAY_NAMES[slot.weekday].toLowerCase()}`,
-      description: CONTENT_DAY_EVENT_TEXT,
+      description: withLink(CONTENT_DAY_EVENT_TEXT),
       start: withTime(nextWeekday(today, slot.weekday), slot.time),
       durationMinutes: CONTENT_DAY_DURATION_MINUTES,
       alarmMinutes: CONTENT_DAY_ALARM_MINUTES,
       weeklyOn: slot.weekday,
+      url: link,
     }));
     const publications = this.items()
       .filter((item) => !item.done)
       .map((item): IcsEvent => ({
         uid: `item-${item.id}@pomoshchnik`,
         summary: `${FORMAT_LABELS[item.format]}: ${item.idea}`,
-        description: `Рубрика: ${item.pillar}\n${ITEM_EVENT_TEXT}`,
+        description: withLink(`Рубрика: ${item.pillar}\n${ITEM_EVENT_TEXT}`),
         start: withTime(fromDateKey(item.date), item.time),
         durationMinutes: ITEM_DURATION_MINUTES,
         alarmMinutes: ITEM_ALARM_MINUTES,
+        url: link,
       }))
       .filter((event) => event.start.getTime() > now.getTime());
     return [...contentDays, ...publications];

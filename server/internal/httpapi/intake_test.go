@@ -232,6 +232,29 @@ func TestOwnerDeliversReferencesForCalendarItem(t *testing.T) {
 	}
 }
 
+func TestOwnerClearsAllReferencesOfMaster(t *testing.T) {
+	fixture := newIntakeFixture(t)
+	code, master := fixture.master(t, "Анна")
+	fixture.call(http.MethodPost, "/api/admin/masters/"+master.ID+"/plan", testPassword, planJSON)
+	fixture.deliverRefs(master.ID, "w1-a", [][]byte{pngBytes})
+
+	denied := fixture.call(http.MethodDelete, "/api/admin/masters/"+master.ID+"/refs", code, "")
+	cleared := fixture.call(http.MethodDelete, "/api/admin/masters/"+master.ID+"/refs", testPassword, "")
+	statuses := fixture.call(http.MethodGet, "/api/refs/status", code, "")
+	var parsed []refs.Status
+	_ = json.Unmarshal(statuses.Body.Bytes(), &parsed)
+
+	if denied.Code == http.StatusNoContent {
+		t.Errorf("a master must not clear references: %d", denied.Code)
+	}
+	if cleared.Code != http.StatusNoContent || len(parsed) != 0 {
+		t.Errorf("cleared = %d, statuses = %s", cleared.Code, statuses.Body)
+	}
+	if again := fixture.deliverRefs(master.ID, "w1-a", [][]byte{pngBytes}); again.Code != http.StatusOK {
+		t.Errorf("deliver after clear = %d %s", again.Code, again.Body)
+	}
+}
+
 func TestDeliverRefsRejectsWrongFiles(t *testing.T) {
 	fixture := newIntakeFixture(t)
 	_, master := fixture.master(t, "Анна")

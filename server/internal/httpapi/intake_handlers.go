@@ -200,6 +200,15 @@ func (h *intakeHandler) deliverRefs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]int{"files": len(files)})
 }
 
+func (h *intakeHandler) clearRefs(w http.ResponseWriter, r *http.Request) {
+	if err := h.refs.DeleteMaster(r.Context(), r.PathValue("id")); err != nil {
+		h.logger.Error("clear refs failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgRefsFailed)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *intakeHandler) calendarItem(ctx context.Context, masterID, key string) (plan.Item, bool) {
 	state, err := h.accounts.LoadState(ctx, masterID)
 	if err != nil {

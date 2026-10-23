@@ -22,6 +22,7 @@ import { CalendarScreen } from './components/calendar-screen/calendar-screen';
 import { IntakeScreen } from './components/intake-screen/intake-screen';
 import { ProfileScreen } from './components/profile-screen/profile-screen';
 import { StrategyScreen } from './components/strategy-screen/strategy-screen';
+import { TodayScreen } from './components/today-screen/today-screen';
 import {
   CLEAR_CONFIRM_TIMEOUT_MS,
   HISTORY_CONTEXT_LABEL,
@@ -31,11 +32,13 @@ import {
   INTAKE_TEXTS,
   SETTINGS_OPEN_LABEL,
   STRATEGY_OPEN_LABEL,
+  TODAY_OPEN_LABEL,
   UPDATE_BUTTON_LABEL,
 } from './constants';
 import { ComposerPayload } from './models';
 import { Access } from './services/access';
 import { Account } from './services/account';
+import { CalendarPlan } from './services/calendar-plan';
 import { Intake } from './services/intake';
 import { AppUpdate } from './services/app-update';
 import { Chat } from './services/chat';
@@ -47,6 +50,7 @@ import { Onboarding } from './services/onboarding';
 import { Settings } from './services/settings';
 import { Sync } from './services/sync';
 import { Speech } from './services/speech';
+import { Today } from './services/today';
 import { TestNotification } from './services/test-notification';
 import { APP_VERSION } from './version';
 
@@ -64,6 +68,7 @@ import { APP_VERSION } from './version';
     ReviewScreen,
     SettingsPanel,
     StrategyScreen,
+    TodayScreen,
   ],
   selector: 'app-root',
   styleUrl: './app.scss',
@@ -78,6 +83,8 @@ export class App {
   protected readonly settings = inject(Settings);
   protected readonly onboarding = inject(Onboarding);
   protected readonly sync = inject(Sync);
+  protected readonly plan = inject(CalendarPlan);
+  protected readonly today = inject(Today);
   private readonly kits = inject(Kits);
   private readonly reviews = inject(Reviews);
   private readonly audit = inject(Audit);
@@ -89,6 +96,7 @@ export class App {
   protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;
   protected readonly strategyOpenLabel = STRATEGY_OPEN_LABEL;
   protected readonly calendarOpenLabel = CALENDAR_OPEN_LABEL;
+  protected readonly todayOpenLabel = TODAY_OPEN_LABEL;
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly intakeOpenLabel = INTAKE_TEXTS.open;
   protected readonly contextLabel = HISTORY_CONTEXT_LABEL;
@@ -145,6 +153,7 @@ export class App {
       if (this.access.granted()) {
         void this.auditJobs.refresh();
       }
+      this.today.openFromLink();
       this.appUpdate.setIdleCheck(() => this.isIdle());
       this.appUpdate.start();
 

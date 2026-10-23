@@ -90,6 +90,7 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(AdminIntakesRoute, protected(requireAdmin(http.HandlerFunc(intakes.list))))
 	mux.Handle(AdminPlanRoute, protected(requireAdmin(http.HandlerFunc(intakes.deliverPlan))))
 	mux.Handle(AdminRefsDeliverRoute, protected(requireAdmin(http.HandlerFunc(intakes.deliverRefs))))
+	mux.Handle(AdminRefsClearRoute, protected(requireAdmin(http.HandlerFunc(intakes.clearRefs))))
 	if options.AgentToken != "" && options.RefPlanner != nil {
 		refsAgent := &refsAgentHandler{refsHandler: *refsMaster}
 		mux.Handle(AgentRefsNextRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.next)))

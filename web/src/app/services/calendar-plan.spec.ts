@@ -100,6 +100,18 @@ describe('CalendarPlan', () => {
     expect(events.length).toBe(2 + 36);
   });
 
+  it('puts the app link into every exported event when asked', () => {
+    plan.build(draft, strategy, TODAY);
+    const link = 'https://example.github.io/post_helper/?screen=today';
+
+    const events = plan.icsEvents(TODAY, link);
+
+    expect(events.length).toBeGreaterThan(0);
+    expect(events.every((event) => event.url === link)).toBe(true);
+    expect(events.every((event) => event.description.endsWith(`\n${link}`))).toBe(true);
+    expect(plan.icsEvents(TODAY).every((event) => event.url === undefined)).toBe(true);
+  });
+
   it('leaves done and past publications out of the export', () => {
     plan.build(draft, strategy, TODAY);
     plan.toggleDone(plan.items()[0].id);

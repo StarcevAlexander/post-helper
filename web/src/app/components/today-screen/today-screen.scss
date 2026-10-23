@@ -1,0 +1,233 @@
+.screen {
+  width: min(32rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  border: 0.0625rem solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  color: var(--text);
+
+  &::backdrop {
+    background: rgb(0 0 0 / 60%);
+  }
+}
+
+.screen__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.screen__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.screen__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.screen__subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.screen__close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--chip);
+    color: var(--text);
+  }
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section__heading {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem;
+  border: 0.0625rem solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.entry__label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+
+  &:has(input:focus-visible) {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+    border-radius: 0.5rem;
+  }
+}
+
+.entry__check {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.125rem 0 0;
+  accent-color: var(--accent-strong);
+}
+
+.entry__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  line-height: 1.4;
+}
+
+.entry__when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.entry__format {
+  padding: 0 0.5rem;
+  border: 0.0625rem solid var(--accent);
+  border-radius: 1rem;
+  color: var(--accent-strong);
+  font-size: 0.75rem;
+}
+
+.entry__idea {
+  font-size: 0.9375rem;
+}
+
+.entry__pillar {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.entry--done {
+  .entry__idea,
+  .entry__pillar {
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
+}
+
+.entry__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.entry__copy {
+  padding: 0 1rem;
+}
+
+.entry__feedback {
+  min-height: 1.25rem;
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 0.875rem;
+}
+
+.entry__status {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.entry__error {
+  color: var(--danger, #b3261e);
+  font-size: 0.8125rem;
+}
+
+.entry__button {
+  min-height: 2.75rem;
+  padding: 0 0.875rem;
+  border: 0.0625rem solid var(--accent-strong);
+  border-radius: 1.375rem;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}
+
+.entry__button--warn {
+  border-color: var(--danger, #b3261e);
+  color: var(--danger, #b3261e);
+}
+
+.screen__primary,
+.screen__secondary {
+  min-height: 2.75rem;
+  border-radius: 1.375rem;
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}
+
+.screen__primary {
+  border: 0;
+  background: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+.screen__secondary {
+  border: 0.0625rem solid var(--accent-strong);
+  background: transparent;
+  color: var(--accent-strong);
+}

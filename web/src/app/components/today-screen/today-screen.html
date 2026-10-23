@@ -1,0 +1,116 @@
+<dialog
+  #dialog
+  class="screen"
+  aria-labelledby="today-title"
+  (click)="onDialogClicked($event)"
+  (close)="onDialogClosed()"
+>
+  <div class="screen__body">
+    <header class="screen__header">
+      <h2 id="today-title" class="screen__title">{{ texts.title }}</h2>
+      <button
+        type="button"
+        class="screen__close"
+        [attr.aria-label]="texts.close"
+        (click)="onClose()"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </header>
+
+    @if (!plan.hasPlan()) {
+      <p class="screen__subtitle">{{ texts.noPlan }}</p>
+      <button type="button" class="screen__secondary" (click)="onOpenCalendar()">
+        {{ texts.openCalendar }}
+      </button>
+    } @else {
+      @if (sections().length === 0) {
+        <p class="screen__subtitle">{{ texts.empty }}</p>
+      }
+      @for (section of sections(); track section.kind) {
+        <section class="section">
+          <h3 class="section__heading">{{ section.title }}</h3>
+          @for (entry of section.entries; track entry.item.id) {
+            <article class="entry" [class.entry--done]="entry.item.done">
+              <label class="entry__label">
+                <input
+                  type="checkbox"
+                  class="entry__check"
+                  [checked]="entry.item.done"
+                  [attr.aria-label]="texts.done + ': ' + entry.item.idea"
+                  (change)="plan.toggleDone(entry.item.id)"
+                />
+                <span class="entry__text">
+                  <span class="entry__when">
+                    {{ entry.whenLabel }}
+                    <span class="entry__format" [attr.data-format]="entry.item.format">
+                      {{ entry.formatLabel }}
+                    </span>
+                  </span>
+                  <span class="entry__idea">{{ entry.item.idea }}</span>
+                  <span class="entry__pillar">{{ entry.item.pillar }}</span>
+                </span>
+              </label>
+              <div class="entry__actions">
+                @switch (entry.status) {
+                  @case ('ready') {
+                    <button
+                      type="button"
+                      class="screen__primary entry__copy"
+                      (click)="onCopyCaption(entry)"
+                    >
+                      {{ texts.copyCaption }}
+                    </button>
+                    <button type="button" class="entry__button" (click)="kits.view(entry.item.id)">
+                      {{ texts.openKit }}
+                    </button>
+                  }
+                  @case ('loading') {
+                    <span class="entry__status" role="status">{{ texts.preparing }}</span>
+                  }
+                  @default {
+                    <button
+                      type="button"
+                      class="entry__button"
+                      [disabled]="kits.batch() !== undefined"
+                      (click)="kits.generate(entry.item)"
+                    >
+                      {{ entry.status === 'failed' ? texts.retryKit : texts.prepareKit }}
+                    </button>
+                    @if (entry.error) {
+                      <span class="entry__error" role="alert">{{ entry.error }}</span>
+                    }
+                  }
+                }
+                @if (entry.refLabel) {
+                  <button
+                    type="button"
+                    class="entry__button"
+                    [class.entry__button--warn]="entry.refStale"
+                    (click)="refs.view(entry.item.id)"
+                  >
+                    {{ entry.refLabel }}
+                  </button>
+                }
+              </div>
+              <p class="entry__feedback" role="status" aria-live="polite">
+                {{ feedbackText(entry.item.id) }}
+              </p>
+            </article>
+          }
+        </section>
+      }
+      <button type="button" class="screen__secondary" (click)="onOpenCalendar()">
+        {{ texts.openCalendar }}
+      </button>
+    }
+  </div>
+</dialog>

@@ -59,6 +59,11 @@ function eventLines(event: IcsEvent, stamp: string): string[] {
   lines.push(
     `SUMMARY:${escapeText(event.summary)}`,
     `DESCRIPTION:${escapeText(event.description)}`,
+  );
+  if (event.url !== undefined) {
+    lines.push(`URL:${event.url}`);
+  }
+  lines.push(
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
     `DESCRIPTION:${escapeText(event.summary)}`,

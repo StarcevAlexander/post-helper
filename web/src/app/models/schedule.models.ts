@@ -55,4 +55,5 @@ export interface IcsEvent {
   durationMinutes: number;
   alarmMinutes: number;
   weeklyOn?: number;
+  url?: string;
 }
