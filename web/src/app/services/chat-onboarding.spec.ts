@@ -533,15 +533,6 @@ describe('Chat onboarding', () => {
     expect(onboarding.reviewing()).toBe(true);
   });
 
-  it('asks the current question again after the conversation is cleared', () => {
-    chat.send({ text: 'Анна', attachments: [] });
-
-    chat.clear();
-
-    expect(chat.messages().length).toBe(2);
-    expect(chat.messages()[1].text).toContain(`2 из ${ONBOARDING_STEPS.length}`);
-  });
-
   it('forgets the profile and strategy on restart', async () => {
     answerAll();
     confirmReview();

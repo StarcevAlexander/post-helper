@@ -84,7 +84,7 @@ describe('Chat', () => {
     expect(history.map((turn) => turn.text)).not.toContain('Второй');
   });
 
-  it('keeps one conversation id between messages and starts a new one after clearing', async () => {
+  it('keeps one conversation id between messages', async () => {
     chat.send({ text: 'Первый', attachments: [] });
     const first = http.expectOne(chatUrl);
     const firstId = (first.request.body as FormData).get('conversation') as string;
@@ -97,15 +97,7 @@ describe('Chat', () => {
     second.flush({ reply: 'Ещё ответ' });
     await vi.waitFor(() => expect(chat.busy()).toBe(false));
 
-    chat.clear();
-    chat.send({ text: 'Новый', attachments: [] });
-    const third = http.expectOne(chatUrl);
-    const thirdId = (third.request.body as FormData).get('conversation') as string;
-    third.flush({ reply: 'Привет снова' });
-    await vi.waitFor(() => expect(chat.busy()).toBe(false));
-
     expect(firstId).not.toBe('');
-    expect(thirdId).not.toBe(firstId);
   });
 
   it('marks the reply as failed and clears the password on 401', async () => {
@@ -260,29 +252,6 @@ describe('Chat', () => {
     }[];
     expect(stored.map((message) => message.text)).toContain('Привет');
     expect(stored.map((message) => message.text)).not.toContain('Сбой');
-  });
-
-  it('clears the conversation back to the welcome message', async () => {
-    chat.send({ text: 'Привет', attachments: [] });
-    http.expectOne(chatUrl).flush({ reply: 'Ок' });
-    await vi.waitFor(() => expect(chat.busy()).toBe(false));
-
-    chat.clear();
-    TestBed.tick();
-
-    expect(chat.messages().length).toBe(1);
-    expect(chat.messages()[0].role).toBe('assistant');
-    const stored = JSON.parse(localStorage.getItem(CHAT_HISTORY_STORAGE_KEY) ?? '[]') as unknown[];
-    expect(stored.length).toBe(1);
-  });
-
-  it('does not clear while a reply is pending', () => {
-    chat.send({ text: 'Привет', attachments: [] });
-
-    chat.clear();
-
-    expect(chat.messages().length).toBe(3);
-    http.expectOne(chatUrl).flush({ reply: 'Ок' });
   });
 
   it('ignores empty messages without attachments', () => {

@@ -69,15 +69,6 @@ export class Chat {
     effect(() => this.history.save(this.messages()));
   }
 
-  clear(): void {
-    if (this.busy()) {
-      return;
-    }
-    this.messages().forEach((message) => this.revokePreviews(message));
-    this.messages.set(this.createWelcomeMessages());
-    this.conversation.reset();
-  }
-
   send(payload: ComposerPayload): void {
     const text = payload.text.trim();
     if (this.busy() || (!text && payload.attachments.length === 0)) {

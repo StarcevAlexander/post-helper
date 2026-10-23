@@ -311,7 +311,6 @@ describe('Sync', () => {
     vi.useFakeTimers();
 
     TestBed.inject(Onboarding).answer('Анна');
-    TestBed.inject(Chat).clear();
     TestBed.tick();
     await vi.advanceTimersByTimeAsync(SYNC_PUSH_DELAY_MS + 10);
 

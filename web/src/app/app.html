@@ -24,15 +24,6 @@
       <h1 class="shell__title">Помощник</h1>
     </div>
     <div class="shell__tools">
-      <button
-        type="button"
-        class="shell__clear"
-        [class.shell__clear--confirm]="confirmingClear()"
-        [disabled]="chat.busy() || chat.messages().length < 2"
-        (click)="onClearClicked()"
-      >
-        {{ confirmingClear() ? 'Точно очистить?' : 'Очистить' }}
-      </button>
       @if (appUpdate.ready()) {
         <button type="button" class="shell__update" (click)="appUpdate.apply()">
           {{ updateLabel }}

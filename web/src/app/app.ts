@@ -24,7 +24,6 @@ import { ProfileScreen } from './components/profile-screen/profile-screen';
 import { StrategyScreen } from './components/strategy-screen/strategy-screen';
 import { TodayScreen } from './components/today-screen/today-screen';
 import {
-  CLEAR_CONFIRM_TIMEOUT_MS,
   HISTORY_CONTEXT_LABEL,
   NOTIFY_BUTTON_LABEL,
   NOTIFY_WAITING_LABEL,
@@ -107,7 +106,6 @@ export class App {
   protected readonly version = APP_VERSION;
   protected readonly composing = signal(false);
   protected readonly draftActive = signal(false);
-  protected readonly confirmingClear = signal(false);
   protected readonly settingsOpen = signal(false);
   protected readonly strategyOpen = signal(false);
   protected readonly profileOpen = signal(false);
@@ -215,17 +213,6 @@ export class App {
     } else {
       this.profileOpen.set(true);
     }
-  }
-
-  protected onClearClicked(): void {
-    if (!this.confirmingClear()) {
-      this.confirmingClear.set(true);
-      setTimeout(() => this.confirmingClear.set(false), CLEAR_CONFIRM_TIMEOUT_MS);
-      return;
-    }
-    this.speech.stopSpeaking();
-    this.chat.clear();
-    this.confirmingClear.set(false);
   }
 
   protected onDeleteRequested(id: string): void {
