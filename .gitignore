@@ -10,3 +10,6 @@ server/advisor
 tools/refs/worker.log
 
 tools/owner/reviews/
+
+server/post-helper.exe
+server/server.log
