@@ -4,8 +4,8 @@ import { ChatApiError, PlanItem, RefFileMeta, RefOrderItem, RefStatus } from '..
 import { Access } from './access';
 import { Account } from './account';
 import { CalendarPlan } from './calendar-plan';
+import { APP_VERSION } from '../version';
 import { ChatApi } from './chat-api';
-import { ErrorLog } from './error-log';
 
 function toOrderItem(item: PlanItem): RefOrderItem {
   return {
@@ -29,7 +29,6 @@ export class Refs {
   private readonly access = inject(Access);
   private readonly account = inject(Account);
   private readonly plan = inject(CalendarPlan);
-  private readonly errorLog = inject(ErrorLog);
   private readonly urls = new Map<string, Promise<string>>();
   private pollTimer: ReturnType<typeof setTimeout> | undefined;
   private orderTimer: ReturnType<typeof setTimeout> | undefined;
@@ -141,7 +140,12 @@ export class Refs {
       this.access.clear();
     }
     const message = error instanceof ChatApiError ? error.message : String(error);
-    this.errorLog.record('send', message);
+    void this.api.reportClientError({
+      message,
+      where: 'refs',
+      stack: '',
+      version: APP_VERSION,
+    });
     this.error.set(message || REFS_TEXTS.failedAction);
   }
 }

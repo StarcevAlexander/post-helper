@@ -8,6 +8,7 @@ import (
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/audit"
+	"post-helper/server/internal/feedback"
 	"post-helper/server/internal/intake"
 	"post-helper/server/internal/places"
 	"post-helper/server/internal/push"
@@ -23,6 +24,7 @@ type Options struct {
 	Places         places.Resolver
 	Intake         intake.Store
 	Notifier       intake.Notifier
+	Feedback       feedback.Store
 	PushStore      push.Store
 	Pusher         push.Sender
 	Yandex         yandex.Exchanger

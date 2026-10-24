@@ -8,7 +8,7 @@ import {
   SHOOT_TEXTS,
   WEEK_LABEL,
 } from '../../constants';
-import { PlanItem, PublicationKit } from '../../models';
+import { PlanItem } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
 import { ShootProgress } from '../../services/shoot-progress';
@@ -23,12 +23,24 @@ const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
 
 const RANGE_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
 
+interface ShootLine {
+  label?: string;
+  text: string;
+}
+
+interface ShootUnit {
+  mark: string;
+  index: number;
+  title: string;
+  lines: ShootLine[];
+}
+
 interface ShootEntry {
   item: PlanItem;
   title: string;
   when: string;
-  frameLabel: string;
-  kit?: PublicationKit;
+  units: ShootUnit[];
+  readyMark: string;
   marks: string[];
 }
 
@@ -56,20 +68,7 @@ export class ShootScreen {
     }
     const entries = [...week.items]
       .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
-      .map((item): ShootEntry => {
-        const kit = this.kits.kitFor(item);
-        return {
-          item,
-          title: `${FORMAT_LABELS[item.format]}: ${item.idea}`,
-          when: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time} · ${item.pillar}`,
-          frameLabel: KIT_FRAME_LABELS[item.format],
-          kit,
-          marks: [
-            ...(kit?.shots ?? []).map((_, index) => this.shotMark(item.id, index)),
-            ...(kit?.frames ?? []).map((_, index) => this.frameMark(item.id, index)),
-          ],
-        };
-      });
+      .map((item): ShootEntry => this.entryFor(item));
     return {
       heading: `${WEEK_LABEL} ${week.index + 1}, ${RANGE_FORMAT.format(fromDateKey(week.from))} – ${RANGE_FORMAT.format(fromDateKey(week.to))}`,
       contentDays: week.contentDays.map(
@@ -80,19 +79,41 @@ export class ShootScreen {
     };
   });
 
-  protected shotMark(itemId: string, index: number): string {
-    return `${itemId}:shot:${index}`;
-  }
-
-  protected frameMark(itemId: string, index: number): string {
-    return `${itemId}:frame:${index}`;
+  protected toggleReady(entry: ShootEntry): void {
+    const ready = !this.progress.isDone(entry.readyMark);
+    this.progress.set([entry.readyMark, ...entry.marks], ready);
   }
 
   protected doneCount(entry: ShootEntry): number {
     return entry.marks.filter((mark) => this.progress.isDone(mark)).length;
   }
 
-  protected allDone(entry: ShootEntry): boolean {
-    return entry.marks.length > 0 && this.doneCount(entry) === entry.marks.length;
+  private entryFor(item: PlanItem): ShootEntry {
+    const kit = this.kits.kitFor(item);
+    const frameLabel = KIT_FRAME_LABELS[item.format];
+    const shots = (kit?.shots ?? []).map((text, index): ShootUnit => ({
+      mark: `${item.id}:shot:${index}`,
+      index,
+      title: `${this.texts.shotUnit} ${index + 1}`,
+      lines: [{ text }],
+    }));
+    const frames = (kit?.frames ?? []).map((frame, index): ShootUnit => ({
+      mark: `${item.id}:frame:${index}`,
+      index,
+      title: `${frameLabel} ${index + 1}`,
+      lines: [
+        ...(frame.visual ? [{ label: this.visualLabel, text: frame.visual }] : []),
+        ...(frame.overlay ? [{ label: this.overlayLabel, text: frame.overlay }] : []),
+      ],
+    }));
+    const units = frames.length > 0 ? frames : shots;
+    return {
+      item,
+      title: `${FORMAT_LABELS[item.format]}: ${item.idea}`,
+      when: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time} · ${item.pillar}`,
+      units,
+      readyMark: `${item.id}:ready`,
+      marks: units.map((unit) => unit.mark),
+    };
   }
 }

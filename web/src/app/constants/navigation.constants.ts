@@ -1,5 +1,6 @@
 import { ACCOUNT_TEXTS } from './account.constants';
-import { ERROR_LOG_TITLE } from './error-log.constants';
+import { FAQ_TEXTS } from './faq.constants';
+import { FEEDBACK_TEXTS } from './feedback.constants';
 import { INTAKE_TEXTS } from './intake.constants';
 import { KIT_TITLE } from './kit.constants';
 import { MONTH_REVIEW_TEXTS } from './month-review.constants';
@@ -10,6 +11,7 @@ import { SETTINGS_TITLE } from './shell.constants';
 import { SHOOT_TEXTS } from './shoot.constants';
 import { APPEARANCE_TITLE, SCALE_SECTION_TITLE, THEME_SECTION_TITLE } from './theme.constants';
 import { TODAY_TEXTS } from './today.constants';
+import { TUTORIAL_TEXTS } from './tutorial.constants';
 
 export const NAV_TEXTS = {
   primary: 'Основная навигация',
@@ -32,6 +34,9 @@ export const ROUTE_TITLES = {
   shoot: SHOOT_TEXTS.title,
   refs: REFS_TEXTS.title,
   settings: SETTINGS_TITLE,
+  tutorial: TUTORIAL_TEXTS.title,
+  faq: FAQ_TEXTS.title,
+  feedback: FEEDBACK_TEXTS.title,
 } as const;
 
 export const SETTINGS_SECTION_TITLES = {
@@ -39,7 +44,6 @@ export const SETTINGS_SECTION_TITLES = {
   theme: THEME_SECTION_TITLE,
   scale: SCALE_SECTION_TITLE,
   name: ACCOUNT_TEXTS.rename,
-  errors: ERROR_LOG_TITLE,
 } as const;
 
 export const NAV_TABS = [

@@ -9,8 +9,10 @@ import {
   YANDEX_TEXTS,
   RETENTION_NOTE_FOR_MASTER,
   SYNC_STATUS_TEXT,
+  FAQ_TEXTS,
+  FEEDBACK_TEXTS,
+  TUTORIAL_TEXTS,
   APPEARANCE_TITLE,
-  ERROR_LOG_TITLE,
   MAX_SCALE,
   MIN_SCALE,
   PUSH_TEXTS,
@@ -29,10 +31,9 @@ import { TestNotification } from '../../services/test-notification';
 import { YandexAuth } from '../../services/yandex-auth';
 import { formatRetention } from '../../utils/format-retention';
 import { Sync } from '../../services/sync';
-import { ErrorLogScreen } from '../error-log/error-log';
 
 @Component({
-  imports: [ErrorLogScreen, FormField, RouterLink],
+  imports: [FormField, RouterLink],
   selector: 'app-settings-panel',
   styleUrl: './settings-panel.scss',
   templateUrl: './settings-panel.html',
@@ -62,9 +63,11 @@ export class SettingsPanel {
   protected readonly syncText = computed(() => SYNC_STATUS_TEXT[this.sync.status()]);
 
   protected readonly appearanceTitle = APPEARANCE_TITLE;
+  protected readonly tutorialTitle = TUTORIAL_TEXTS.open;
+  protected readonly faqTitle = FAQ_TEXTS.open;
+  protected readonly feedbackTitle = FEEDBACK_TEXTS.open;
   protected readonly themeTitle = THEME_SECTION_TITLE;
   protected readonly scaleTitle = SCALE_SECTION_TITLE;
-  protected readonly errorLogTitle = ERROR_LOG_TITLE;
   protected readonly themes = THEMES;
   protected readonly minScale = MIN_SCALE;
   protected readonly maxScale = MAX_SCALE;

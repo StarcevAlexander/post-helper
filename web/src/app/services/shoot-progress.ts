@@ -10,9 +10,18 @@ export class ShootProgress {
   }
 
   toggle(mark: string): void {
-    this.marks.update((marks) =>
-      marks.includes(mark) ? marks.filter((value) => value !== mark) : [...marks, mark],
-    );
+    this.set([mark], !this.isDone(mark));
+  }
+
+  set(marks: string[], done: boolean): void {
+    this.marks.update((current) => {
+      const rest = current.filter((value) => !marks.includes(value));
+      return done ? [...rest, ...marks] : rest;
+    });
+    this.save();
+  }
+
+  private save(): void {
     try {
       localStorage.setItem(SHOOT_PROGRESS_STORAGE_KEY, JSON.stringify(this.marks()));
     } catch {

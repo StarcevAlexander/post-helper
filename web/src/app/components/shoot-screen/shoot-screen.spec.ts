@@ -97,13 +97,91 @@ describe('ShootScreen', () => {
     const { element } = await render();
 
     const entries = element.querySelectorAll('.entry');
-    expect(entries[0].textContent).toContain('Руки крупно на светлом фоне');
     expect(entries[0].textContent).toContain('Руки с гель-лаком');
     expect(entries[0].textContent).toContain('Смотрите');
     expect(entries[1].textContent).toContain('Подробный список кадров скоро появится');
   });
 
-  it('puts the references right under the description and ticks off what is shot', async () => {
+  it('groups the shoot by activity: the readiness mark first, then every frame with its reference under it', async () => {
+    const first = [...plan.weeks()[0].items].sort((a, b) =>
+      `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
+    )[0];
+    TestBed.inject(Kits).stored.set({
+      [first.id]: {
+        itemId: first.id,
+        format: first.format,
+        pillar: first.pillar,
+        idea: first.idea,
+        kit,
+      },
+    });
+    TestBed.inject(Refs).statuses.set([
+      status(first.id, {
+        status: 'done',
+        files: [
+          {
+            id: 'a',
+            index: 0,
+            kind: 'photo',
+            mediaType: 'image/jpeg',
+            caption: description,
+            size: 1,
+          },
+          { id: 'b', index: 1, kind: 'photo', mediaType: 'image/jpeg', caption: 'Лишний', size: 1 },
+        ],
+      }),
+    ]);
+    const { fixture, element } = await render();
+    http.match(() => true).forEach((request) => request.flush(new Blob([new Uint8Array([1])])));
+    fixture.detectChanges();
+    const entry = element.querySelector('.entry')!;
+
+    expect(entry.querySelector('.entry__header .entry__check')).not.toBeNull();
+    const unit = entry.querySelector('.unit')!;
+    expect(unit.textContent).toContain('Руки с гель-лаком');
+    expect(unit.querySelector('app-ref-gallery')).not.toBeNull();
+    expect(unit.textContent).toContain(description);
+    expect(unit.textContent).not.toContain('Лишний');
+    expect(entry.textContent).toContain('Лишний');
+    expect(entry.textContent).toContain('Снято 0 из 1');
+  });
+
+  it('says so under a frame that has no reference of its own', async () => {
+    const first = [...plan.weeks()[0].items].sort((a, b) =>
+      `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
+    )[0];
+    TestBed.inject(Kits).stored.set({
+      [first.id]: {
+        itemId: first.id,
+        format: first.format,
+        pillar: first.pillar,
+        idea: first.idea,
+        kit: { ...kit, frames: [kit.frames[0], { visual: 'Второй кадр', overlay: '' }] },
+      },
+    });
+    TestBed.inject(Refs).statuses.set([
+      status(first.id, {
+        status: 'done',
+        files: [
+          {
+            id: 'a',
+            index: 0,
+            kind: 'photo',
+            mediaType: 'image/jpeg',
+            caption: description,
+            size: 1,
+          },
+        ],
+      }),
+    ]);
+    const { element } = await render();
+
+    const units = element.querySelector('.entry')!.querySelectorAll('.unit');
+    expect(units[0].textContent).toContain(description);
+    expect(units[1].textContent).toContain('отдельного референса нет');
+  });
+
+  it('ticks the whole activity and strikes it out', async () => {
     const first = [...plan.weeks()[0].items].sort((a, b) =>
       `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
     )[0];
@@ -119,24 +197,16 @@ describe('ShootScreen', () => {
     const { fixture, element } = await render();
     const entry = element.querySelector('.entry')!;
 
-    const children = Array.from(entry.children).map((child) => child.tagName);
-    expect(children[0]).toBe('HEADER');
-    expect(entry.children[1].querySelector('app-ref-gallery')).not.toBeNull();
-    expect(entry.textContent).toContain('Снято 0 из 2');
-
-    const checks = entry.querySelectorAll<HTMLInputElement>('.task__check');
-    expect(checks.length).toBe(2);
-    checks[0].click();
+    entry.querySelector<HTMLInputElement>('.entry__check')!.click();
     fixture.detectChanges();
-
-    expect(entry.querySelectorAll('.task--done').length).toBe(1);
-    expect(entry.classList.contains('entry--done')).toBe(false);
-    checks[1].click();
-    fixture.detectChanges();
-
     expect(entry.classList.contains('entry--done')).toBe(true);
-    expect(entry.textContent).toContain('Снято 2 из 2');
-    expect(JSON.parse(localStorage.getItem('helper.shoot-progress')!)).toHaveLength(2);
+    expect(entry.querySelectorAll('.unit--done').length).toBe(1);
+    expect(entry.textContent).toContain('Снято 1 из 1');
+
+    entry.querySelector<HTMLInputElement>('.entry__check')!.click();
+    fixture.detectChanges();
+    expect(entry.classList.contains('entry--done')).toBe(false);
+    expect(entry.querySelectorAll('.unit--done').length).toBe(0);
   });
 
   it('shows the photo references with their detailed descriptions', async () => {

@@ -110,6 +110,7 @@ type Store interface {
 	RegisterIdentity(ctx context.Context, name, codeHash, provider, subject, email string) (Master, error)
 	LinkIdentity(ctx context.Context, masterID, provider, subject, email string) error
 	Providers(ctx context.Context, masterID string) ([]string, error)
+	Email(ctx context.Context, masterID string) (string, error)
 	AddToken(ctx context.Context, masterID, tokenHash string) error
 	Touch(ctx context.Context, id string, at time.Time) error
 	LoadState(ctx context.Context, id string) (State, error)

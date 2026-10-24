@@ -95,6 +95,17 @@ func (m *Memory) Providers(_ context.Context, masterID string) ([]string, error)
 	return providers, nil
 }
 
+func (m *Memory) Email(_ context.Context, masterID string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, identity := range m.identities {
+		if identity.masterID == masterID && identity.email != "" {
+			return identity.email, nil
+		}
+	}
+	return "", nil
+}
+
 func (m *Memory) AddToken(_ context.Context, masterID, tokenHash string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -207,6 +218,17 @@ func (p *Postgres) Providers(ctx context.Context, masterID string) ([]string, er
 		providers = append(providers, provider)
 	}
 	return providers, rows.Err()
+}
+
+func (p *Postgres) Email(ctx context.Context, masterID string) (string, error) {
+	var email string
+	err := p.pool.QueryRow(ctx,
+		`SELECT email FROM master_identities WHERE master_id = $1 AND email <> '' ORDER BY created_at LIMIT 1`,
+		masterID).Scan(&email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return email, err
 }
 
 func (p *Postgres) AddToken(ctx context.Context, masterID, tokenHash string) error {

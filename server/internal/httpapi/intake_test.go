@@ -250,7 +250,7 @@ func TestDeliverRefsRejectsWrongFiles(t *testing.T) {
 
 	none := fixture.deliverRefs(master.ID, "w1-a", nil)
 	text := fixture.deliverRefs(master.ID, "w1-a", [][]byte{[]byte("not an image")})
-	many := fixture.deliverRefs(master.ID, "w1-a", [][]byte{pngBytes, pngBytes, pngBytes, pngBytes})
+	many := fixture.deliverRefs(master.ID, "w1-a", [][]byte{pngBytes, pngBytes, pngBytes, pngBytes, pngBytes, pngBytes, pngBytes})
 
 	if none.Code != http.StatusBadRequest || text.Code != http.StatusUnsupportedMediaType || many.Code != http.StatusBadRequest {
 		t.Errorf("none %d, text %d, many %d", none.Code, text.Code, many.Code)

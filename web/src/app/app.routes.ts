@@ -69,6 +69,25 @@ export const routes: Routes = [
     loadComponent: () => import('./components/refs-screen/refs-screen').then((m) => m.RefsScreen),
   },
   {
+    path: 'tutorial',
+    title: ROUTE_TITLES.tutorial,
+    loadComponent: () =>
+      import('./components/tutorial-screen/tutorial-screen').then((m) => m.TutorialScreen),
+  },
+  {
+    path: 'faq',
+    title: ROUTE_TITLES.faq,
+    data: { back: true },
+    loadComponent: () => import('./components/faq-screen/faq-screen').then((m) => m.FaqScreen),
+  },
+  {
+    path: 'feedback',
+    title: ROUTE_TITLES.feedback,
+    data: { back: true },
+    loadComponent: () =>
+      import('./components/feedback-screen/feedback-screen').then((m) => m.FeedbackScreen),
+  },
+  {
     path: 'settings',
     title: ROUTE_TITLES.settings,
     data: { back: true },

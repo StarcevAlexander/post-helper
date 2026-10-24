@@ -57,9 +57,6 @@
         </button>
       </form>
     }
-    @case ('errors') {
-      <app-error-log />
-    }
     @case ('scale') {
       <div class="scale">
         <output class="scale__value" for="scale-range">{{ settings.scale() }}%</output>
@@ -167,8 +164,34 @@
           <p class="panel__hint" role="status">{{ testNotification.notice() }}</p>
         }
       }
-      <a class="panel__item" [routerLink]="['/settings', 'errors']">
-        {{ errorLogTitle }}
+      <a class="panel__item" routerLink="/faq">
+        {{ faqTitle }}
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+          <path
+            d="M9 5l7 7-7 7"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </a>
+      <a class="panel__item" routerLink="/feedback">
+        {{ feedbackTitle }}
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+          <path
+            d="M9 5l7 7-7 7"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </a>
+      <a class="panel__item" routerLink="/tutorial">
+        {{ tutorialTitle }}
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
           <path
             d="M9 5l7 7-7 7"

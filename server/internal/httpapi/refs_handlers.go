@@ -162,7 +162,7 @@ func (h *refsAgentHandler) next(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), RequestTimeout)
 	defer cancel()
-	plan, err := h.planner.Generate(ctx, refs.Request{About: aboutMaster(r.Context(), h.accounts, h.intakes, item.MasterID), Item: item})
+	plan, err := h.planner.Generate(ctx, refs.Request{About: aboutMaster(r.Context(), h.accounts, h.intakes, item.MasterID), Item: item, Frames: framesOf(r.Context(), h.accounts, item.MasterID, item.Key)})
 	if err != nil {
 		final := errors.Is(err, refs.ErrRefused)
 		h.logger.Error("plan refs failed", slog.Any("error", err))
@@ -196,7 +196,7 @@ func (h *refsAgentHandler) result(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	headers := r.MultipartForm.File[FieldFiles]
-	if len(headers) == 0 || len(headers) > refs.PerItem {
+	if len(headers) == 0 || len(headers) > refs.MaxPerItem {
 		writeError(w, http.StatusBadRequest, MsgRefsFiles)
 		return
 	}

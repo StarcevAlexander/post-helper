@@ -17,6 +17,7 @@ const HELP = `Управление «Помощником» из консоли 
   node tools/owner/owner.mjs jobs                      заказы разбора Instagram
 
 Заявки на контент-план:
+  node tools/owner/owner.mjs feedback                  последние сообщения мастеров из формы обратной связи
   node tools/owner/owner.mjs intakes [new|ready]       заявки мастеров: ссылки, цели, пожелания (по умолчанию новые)
   node tools/owner/owner.mjs plan <id> <план.json>     залить мастеру стратегию, календарь и комплекты, закрыть заявку
   node tools/owner/owner.mjs refs <id> <ключ> <файл> [файл] [файл] [--captions "подпись 1|подпись 2|подпись 3"]
@@ -177,6 +178,20 @@ async function main([command, id, extra, ...rest]) {
       return console.log(await call('DELETE', `${MASTERS}/${id}`));
     case 'jobs':
       return console.table((await call('GET', '/api/admin/audit-jobs?limit=50')) ?? []);
+    case 'feedback': {
+      const messages = (await call('GET', '/api/admin/feedback')) ?? [];
+      return console.log(
+        messages.length > 0
+          ? messages
+              .map((item) => {
+                const email = item.email ? ` · ${item.email}` : '';
+                const contact = item.contact ? ` · контакт: ${item.contact}` : '';
+                return `${item.createdAt} · ${item.masterName} (${item.masterId})${email}${contact}\n${item.text}`;
+              })
+              .join('\n\n')
+          : 'Сообщений нет',
+      );
+    }
     case 'intakes': {
       const status = id ?? 'new';
       const requests = (await call('GET', `/api/admin/intakes?status=${status}&limit=50`)) ?? [];

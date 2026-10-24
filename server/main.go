@@ -16,6 +16,7 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/audit"
 	"post-helper/server/internal/config"
+	"post-helper/server/internal/feedback"
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/intake"
 	"post-helper/server/internal/places"
@@ -64,6 +65,7 @@ func run() error {
 	var accountStore accounts.Store = memoryAccounts
 	var refsStore refs.Store = refs.NewMemory()
 	var intakeStore intake.Store = intake.NewMemory()
+	var feedbackStore feedback.Store = feedback.NewMemory()
 	var pushStore push.Store = push.NewMemory()
 	var reminderSent reminders.Sent = reminders.NewMemory()
 	if cfg.DatabaseURL != "" {
@@ -79,6 +81,7 @@ func run() error {
 		accountStore = postgresAccounts
 		refsStore = refs.NewPostgres(postgres.Pool())
 		intakeStore = intake.NewPostgres(postgres.Pool())
+		feedbackStore = feedback.NewPostgres(postgres.Pool())
 		pushStore = push.NewPostgres(postgres.Pool())
 		reminderSent = reminders.NewPostgres(postgres.Pool())
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
@@ -128,6 +131,7 @@ func run() error {
 		YandexClientID: yandexClientID,
 		Intake:         intakeStore,
 		Notifier:       notifier,
+		Feedback:       feedbackStore,
 		PushStore:      pushStore,
 		Pusher:         pusher,
 		Auditor:        audit.NewClaude(cfg.APIKey, cfg.Model),

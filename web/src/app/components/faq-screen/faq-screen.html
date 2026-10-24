@@ -1,0 +1,12 @@
+<div class="screen__body">
+  <p class="screen__hint">{{ texts.intro }}</p>
+  <div class="items">
+    @for (item of items; track item.id) {
+      <details class="item">
+        <summary class="item__question">{{ item.question }}</summary>
+        <p class="item__answer">{{ item.answer }}</p>
+      </details>
+    }
+  </div>
+  <a class="screen__primary" routerLink="/feedback">{{ texts.feedbackLink }}</a>
+</div>

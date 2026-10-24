@@ -67,8 +67,9 @@ type Plan struct {
 }
 
 type Request struct {
-	About string
-	Item  Item
+	About  string
+	Item   Item
+	Frames []string
 }
 
 type Generator interface {

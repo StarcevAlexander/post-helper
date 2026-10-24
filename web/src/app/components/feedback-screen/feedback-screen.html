@@ -1,0 +1,58 @@
+<div class="screen__body">
+  @if (feedback.sent()) {
+    <p class="headline" role="status">
+      <strong>{{ texts.sentTitle }}.</strong>
+      {{ texts.sentText }}
+    </p>
+    <button type="button" class="screen__secondary" (click)="feedback.startNew()">
+      {{ texts.again }}
+    </button>
+  } @else {
+    <p class="screen__hint">{{ texts.intro }}</p>
+
+    <section class="section">
+      <label class="section__heading" for="feedback-text">{{ texts.textLabel }}</label>
+      <textarea
+        id="feedback-text"
+        class="field field--note"
+        rows="6"
+        [attr.maxlength]="maxText"
+        [placeholder]="texts.textPlaceholder"
+        [value]="feedback.text()"
+        (input)="onTextInput($event)"
+      ></textarea>
+      <p class="screen__hint screen__hint--counter">
+        {{ feedback.text().length }} / {{ maxText }} {{ texts.counter }}
+      </p>
+    </section>
+
+    <section class="section">
+      <label class="section__heading" for="feedback-contact">{{ texts.contactLabel }}</label>
+      <p class="screen__hint" id="feedback-contact-hint">{{ texts.contactHint }}</p>
+      <input
+        id="feedback-contact"
+        class="field"
+        type="text"
+        autocomplete="off"
+        aria-describedby="feedback-contact-hint"
+        [attr.maxlength]="maxContact"
+        [placeholder]="texts.contactPlaceholder"
+        [value]="feedback.contact()"
+        (input)="onContactInput($event)"
+      />
+    </section>
+
+    @if (feedback.error(); as message) {
+      <p class="screen__error" role="alert">{{ message }}</p>
+    }
+
+    <button
+      type="button"
+      class="screen__primary"
+      [disabled]="!feedback.canSubmit()"
+      (click)="feedback.submit()"
+    >
+      {{ feedback.busy() ? texts.sending : texts.submit }}
+    </button>
+  }
+</div>

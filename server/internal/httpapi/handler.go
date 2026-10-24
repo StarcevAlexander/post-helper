@@ -7,6 +7,7 @@ import (
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
+	"post-helper/server/internal/feedback"
 	"post-helper/server/internal/intake"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
@@ -14,15 +15,16 @@ import (
 )
 
 type core struct {
-	options Options
-	logger  *slog.Logger
-	history store.Store
-	people  accounts.Store
-	refs    refs.Store
-	intake  intake.Store
-	pushes  *pushHandler
-	refsOn  bool
-	keeper  *placeKeeper
+	options  Options
+	logger   *slog.Logger
+	history  store.Store
+	people   accounts.Store
+	refs     refs.Store
+	intake   intake.Store
+	feedback feedback.Store
+	pushes   *pushHandler
+	refsOn   bool
+	keeper   *placeKeeper
 }
 
 func newCore(options Options) *core {
@@ -50,21 +52,30 @@ func newCore(options Options) *core {
 	if intakeStore == nil {
 		intakeStore = intake.NewMemory()
 	}
+	feedbackStore := options.Feedback
+	if feedbackStore == nil {
+		feedbackStore = feedback.NewMemory()
+	}
 	return &core{
-		options: options,
-		logger:  logger,
-		history: history,
-		people:  people,
-		refs:    refsStore,
-		intake:  intakeStore,
-		pushes:  &pushHandler{store: pushStore, sender: options.Pusher, accounts: people, logger: logger},
-		refsOn:  options.RefPlanner != nil,
-		keeper:  &placeKeeper{accounts: people, places: options.Places, logger: logger},
+		options:  options,
+		logger:   logger,
+		history:  history,
+		people:   people,
+		refs:     refsStore,
+		intake:   intakeStore,
+		feedback: feedbackStore,
+		pushes:   &pushHandler{store: pushStore, sender: options.Pusher, accounts: people, logger: logger},
+		refsOn:   options.RefPlanner != nil,
+		keeper:   &placeKeeper{accounts: people, places: options.Places, logger: logger},
 	}
 }
 
 func (c *core) refsHandler() *refsHandler {
 	return &refsHandler{refs: c.refs, accounts: c.people, intakes: c.intake, planner: c.options.RefPlanner, pushes: c.pushes, logger: c.logger}
+}
+
+func (c *core) feedbackHandler() *feedbackHandler {
+	return &feedbackHandler{feedback: c.feedback, accounts: c.people, notifier: c.options.Notifier, logger: c.logger}
 }
 
 func (c *core) intakeHandler() *intakeHandler {
@@ -112,6 +123,7 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(RefsFileRoute, protected(http.HandlerFunc(refsMaster.file)))
 	mux.Handle(IntakeSubmitRoute, protected(http.HandlerFunc(intakes.submit)))
 	mux.Handle(IntakeLatestRoute, protected(http.HandlerFunc(intakes.latest)))
+	mux.Handle(FeedbackSubmitRoute, protected(http.HandlerFunc(c.feedbackHandler().submit)))
 	return withCORS(options.AllowedOrigins, withLogging(c.logger, withRecover(c.logger, mux)))
 }
 
@@ -141,6 +153,7 @@ func NewAdminHandler(options Options) http.Handler {
 	mux.HandleFunc(AdminLocationRoute, (&placeHandler{keeper: c.keeper}).set)
 	mux.HandleFunc(AdminPushRoute, c.pushes.adminSend)
 	mux.HandleFunc(AdminIntakesRoute, intakes.list)
+	mux.HandleFunc(AdminFeedbackRoute, c.feedbackHandler().list)
 	mux.HandleFunc(AdminPlanRoute, intakes.deliverPlan)
 	mux.HandleFunc(AdminRefsDeliverRoute, intakes.deliverRefs)
 	mux.HandleFunc(AdminRefsClearRoute, intakes.clearRefs)

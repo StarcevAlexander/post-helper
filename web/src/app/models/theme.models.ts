@@ -22,9 +22,10 @@ export interface ThemeOption {
   themeColor: string;
 }
 
-export type SettingsScreen = 'main' | 'appearance' | 'theme' | 'scale' | 'errors' | 'name';
+export type SettingsScreen = 'main' | 'appearance' | 'theme' | 'scale' | 'name';
 
 export interface StoredSettings {
   theme: ThemeId;
   scale: number;
+  tutorialSeen?: boolean;
 }

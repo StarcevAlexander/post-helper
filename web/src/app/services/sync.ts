@@ -83,6 +83,7 @@ export class Sync {
       this.shootProgress.marks();
       this.settings.theme();
       this.settings.scale();
+      this.settings.tutorialSeen();
       if (!this.started) {
         this.started = true;
         return;

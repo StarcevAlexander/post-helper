@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -22,10 +23,11 @@ func NewClaude(apiKey, model string, options ...option.RequestOption) *Claude {
 }
 
 func (c *Claude) Generate(ctx context.Context, request Request) (Plan, error) {
+	want := WantedCount(request)
 	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:        c.model,
 		MaxTokens:    MaxOutputTokens,
-		System:       []anthropic.TextBlockParam{{Text: SystemPrompt}},
+		System:       []anthropic.TextBlockParam{{Text: systemPromptFor(want)}},
 		OutputConfig: anthropic.OutputConfigParam{Effort: anthropic.OutputConfigEffortLow},
 		Messages:     []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(describeRequest(request)))},
 	})
@@ -41,7 +43,18 @@ func (c *Claude) Generate(ctx context.Context, request Request) (Plan, error) {
 			text.WriteString(part.Text)
 		}
 	}
-	return ParsePlan(text.String())
+	return ParsePlanFor(text.String(), want)
+}
+
+func WantedCount(request Request) int {
+	if len(request.Frames) == 0 {
+		return PerItem
+	}
+	return min(len(request.Frames), MaxPerItem)
+}
+
+func systemPromptFor(count int) string {
+	return strings.ReplaceAll(SystemPrompt, "{N}", strconv.Itoa(count))
 }
 
 func describeRequest(request Request) string {
@@ -49,10 +62,20 @@ func describeRequest(request Request) string {
 	text.WriteString(request.About)
 	fmt.Fprintf(&text, "\nПункт плана:\nФормат публикации: %s\nРубрика: %s\nИдея: %s\nРеференсы нужны как: фото\n",
 		request.Item.Format, request.Item.Pillar, request.Item.Idea)
+	if len(request.Frames) > 0 {
+		text.WriteString("\nСписок кадров публикации по порядку:\n")
+		for index, frame := range request.Frames {
+			fmt.Fprintf(&text, "%d. %s\n", index+1, truncate(frame, MaxFieldRunes))
+		}
+	}
 	return text.String()
 }
 
 func ParsePlan(raw string) (Plan, error) {
+	return ParsePlanFor(raw, PerItem)
+}
+
+func ParsePlanFor(raw string, want int) (Plan, error) {
 	for offset := 0; offset < len(raw); {
 		start := strings.IndexByte(raw[offset:], '{')
 		if start < 0 {
@@ -62,15 +85,15 @@ func ParsePlan(raw string) (Plan, error) {
 		decoder := json.NewDecoder(strings.NewReader(raw[start:]))
 		var candidate Plan
 		if err := decoder.Decode(&candidate); err == nil && len(candidate.Prompts) > 0 {
-			return normalize(candidate)
+			return normalize(candidate, want)
 		}
 		offset = start + 1
 	}
 	return Plan{}, ErrBadPlan
 }
 
-func normalize(plan Plan) (Plan, error) {
-	cleaned := make([]Prompt, 0, PerItem)
+func normalize(plan Plan, want int) (Plan, error) {
+	cleaned := make([]Prompt, 0, want)
 	for _, prompt := range plan.Prompts {
 		prompt.Prompt = truncate(strings.TrimSpace(prompt.Prompt), MaxPromptRunes)
 		prompt.Caption = truncate(strings.TrimSpace(prompt.Caption), MaxCaptionRunes)
@@ -78,11 +101,11 @@ func normalize(plan Plan) (Plan, error) {
 			continue
 		}
 		cleaned = append(cleaned, prompt)
-		if len(cleaned) == PerItem {
+		if len(cleaned) == want {
 			break
 		}
 	}
-	if len(cleaned) < PerItem {
+	if len(cleaned) < want {
 		return Plan{}, ErrBadPlan
 	}
 	return Plan{Prompts: cleaned}, nil

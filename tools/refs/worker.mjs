@@ -6,7 +6,7 @@ import { AgentError, loadConfig, parseArgs } from '../agent/lib.mjs';
 import { COMFY_DEFAULTS, comfyAlive, ensureComfy, freeVramMb, makeReference, stopComfy } from './comfy.mjs';
 import { MIN_FREE_VRAM_MB, failRef, nextRef, submitRefs } from './lib.mjs';
 
-const HELP = `Воркер референсов «Помощника»: на вашем ПК делает по 3 фото к пунктам плана.
+const HELP = `Воркер референсов «Помощника»: на вашем ПК делает по одному фото на каждый кадр публикации (по умолчанию 3).
 
   node tools/refs/worker.mjs [--once] [--interval 120]
   node tools/refs/worker.mjs --sample "prompt" [--out папка]

@@ -1,0 +1,43 @@
+<div class="screen__body">
+  <p class="screen__step">
+    {{ texts.slideOf }} {{ index() + 1 }} {{ texts.of }} {{ slides.length }}
+  </p>
+
+  <section class="slide" aria-live="polite">
+    <h2 class="slide__title">{{ slide().title }}</h2>
+    <p class="slide__text">{{ slide().text }}</p>
+    <ul class="slide__points">
+      @for (point of slide().points; track point) {
+        <li>{{ point }}</li>
+      }
+    </ul>
+    @if (slide().note; as note) {
+      <p class="screen__hint">{{ note }}</p>
+    }
+  </section>
+
+  <nav class="dots" [attr.aria-label]="texts.dots">
+    @for (item of slides; track item.id; let position = $index) {
+      <button
+        type="button"
+        class="dot"
+        [class.dot--active]="position === index()"
+        [attr.aria-label]="texts.goTo + ' ' + (position + 1)"
+        [attr.aria-current]="position === index() ? 'step' : null"
+        (click)="goTo(position)"
+      ></button>
+    }
+  </nav>
+
+  <div class="actions">
+    <button type="button" class="screen__secondary" [disabled]="first()" (click)="previous()">
+      {{ texts.previous }}
+    </button>
+    <button type="button" class="screen__primary" (click)="next()">
+      {{ last() ? texts.start : texts.next }}
+    </button>
+  </div>
+  @if (!last()) {
+    <button type="button" class="skip" (click)="finish()">{{ texts.skip }}</button>
+  }
+</div>

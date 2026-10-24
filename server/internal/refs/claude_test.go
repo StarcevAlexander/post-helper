@@ -63,3 +63,37 @@ func TestReferencesAreAlwaysPhotos(t *testing.T) {
 		t.Errorf("request = %q", text)
 	}
 }
+
+func TestOneReferenceForEveryFrame(t *testing.T) {
+	frames := []string{"Руки крупно", "Флакон на столе", "Готовый результат", "Подпись мастера", "Отзыв"}
+	request := Request{Item: Item{Format: FormatStories, Pillar: "Процесс", Idea: "Гель-лак"}, Frames: frames}
+
+	if got := WantedCount(request); got != len(frames) {
+		t.Fatalf("WantedCount = %d, want %d", got, len(frames))
+	}
+	text := describeRequest(request)
+	for index, frame := range frames {
+		if !strings.Contains(text, fmt.Sprintf("%d. %s", index+1, frame)) {
+			t.Errorf("request lacks frame %d:\n%s", index+1, text)
+		}
+	}
+	if prompt := systemPromptFor(5); !strings.Contains(prompt, "ровно 5") || strings.Contains(prompt, "{N}") {
+		t.Errorf("prompt = %q", prompt)
+	}
+	if _, err := ParsePlanFor(planJSON("a", "b", "c", "d"), 5); err == nil {
+		t.Error("four prompts accepted for five frames")
+	}
+	plan, err := ParsePlanFor(planJSON("a", "b", "c", "d", "e"), 5)
+	if err != nil || len(plan.Prompts) != 5 {
+		t.Fatalf("five prompts = %+v, %v", plan, err)
+	}
+}
+
+func TestWantedCountIsThreeWithoutFramesAndCapped(t *testing.T) {
+	if got := WantedCount(Request{}); got != PerItem {
+		t.Errorf("without frames = %d", got)
+	}
+	if got := WantedCount(Request{Frames: make([]string, 12)}); got != MaxPerItem {
+		t.Errorf("many frames = %d", got)
+	}
+}

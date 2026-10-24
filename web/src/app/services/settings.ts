@@ -32,6 +32,7 @@ export class Settings {
 
   readonly theme = signal<ThemeId>(this.stored.theme ?? DEFAULT_THEME);
   readonly scale = signal(this.stored.scale ?? DEFAULT_SCALE);
+  readonly tutorialSeen = signal(this.stored.tutorialSeen ?? false);
 
   constructor() {
     effect(() => {
@@ -62,8 +63,17 @@ export class Settings {
     this.save();
   }
 
+  markTutorialSeen(): void {
+    this.tutorialSeen.set(true);
+    this.save();
+  }
+
   private save(): void {
-    const settings: StoredSettings = { theme: this.theme(), scale: this.scale() };
+    const settings: StoredSettings = {
+      theme: this.theme(),
+      scale: this.scale(),
+      ...(this.tutorialSeen() ? { tutorialSeen: true } : {}),
+    };
     try {
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch {
@@ -77,7 +87,11 @@ export class Settings {
       const parsed: unknown = raw ? JSON.parse(raw) : undefined;
       if (typeof parsed === 'object' && parsed !== null) {
         const candidate = parsed as Record<string, unknown>;
-        return { theme: themeOf(candidate['theme']), scale: scaleOf(candidate['scale']) };
+        return {
+          theme: themeOf(candidate['theme']),
+          scale: scaleOf(candidate['scale']),
+          tutorialSeen: candidate['tutorialSeen'] === true,
+        };
       }
       return {
         theme: themeOf(localStorage.getItem(THEME_STORAGE_KEY)),

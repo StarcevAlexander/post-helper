@@ -18,6 +18,8 @@ export const API_STATE_PATH = '/api/state';
 
 export const API_CLIENT_ERROR_PATH = '/api/client-error';
 
+export const API_FEEDBACK_PATH = '/api/feedback';
+
 export const HTTP_UNAUTHORIZED = 401;
 
 export const HTTP_OFFLINE = 0;

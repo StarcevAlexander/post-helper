@@ -3,6 +3,7 @@ import { Service, inject, isDevMode } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
   API_CLIENT_ERROR_PATH,
+  API_FEEDBACK_PATH,
   API_INTAKE_PATH,
   API_PUSH_KEY_PATH,
   API_PUSH_SUBSCRIBE_PATH,
@@ -35,6 +36,7 @@ import {
   ApiErrorBody,
   ChatApiError,
   ClientErrorReport,
+  FeedbackSubmission,
   IntakeSubmission,
   IntakeRequest,
   PushKeyResponse,
@@ -59,6 +61,10 @@ export class ChatApi {
     } catch {
       return;
     }
+  }
+
+  sendFeedback(submission: FeedbackSubmission): Promise<void> {
+    return this.send<void>('POST', API_FEEDBACK_PATH, submission);
   }
 
   submitIntake(draft: IntakeSubmission): Promise<IntakeRequest> {

@@ -18,7 +18,7 @@ export const NOTIFY_DENIED_TEXT =
 export const NOTIFY_FAILED_TEXT = 'Не удалось показать уведомление';
 
 export const PUSH_TEXTS = {
-  label: 'Уведомления',
+  label: 'Получать пуш-уведомления',
   hint: 'Сообщим, когда будут готовы план и референсы',
   testLabel: 'Проверить уведомление',
   unsupported:

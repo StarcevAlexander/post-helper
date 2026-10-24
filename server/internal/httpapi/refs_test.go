@@ -227,7 +227,7 @@ func TestUploadRejections(t *testing.T) {
 		want  int
 	}{
 		{"no files", agentToken, nil, http.StatusBadRequest},
-		{"four files", agentToken, [][]byte{pngBytes, pngBytes, pngBytes, pngBytes}, http.StatusBadRequest},
+		{"seven files", agentToken, [][]byte{pngBytes, pngBytes, pngBytes, pngBytes, pngBytes, pngBytes, pngBytes}, http.StatusBadRequest},
 		{"not a picture", agentToken, [][]byte{[]byte("hello, this is text")}, http.StatusUnsupportedMediaType},
 		{"unknown item", agentToken, [][]byte{pngBytes}, http.StatusNotFound},
 	}

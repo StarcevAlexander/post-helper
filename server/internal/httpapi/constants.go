@@ -203,7 +203,7 @@ const (
 	MsgRefsNotFound = "Референс не найден"
 	MsgRefsState    = "Референс уже в другом состоянии"
 	MsgRefsTooMany  = "Слишком много пунктов плана"
-	MsgRefsFiles    = "Нужно от 1 до 3 файлов"
+	MsgRefsFiles    = "Нужно от 1 до 6 файлов"
 )
 
 const (
@@ -274,3 +274,20 @@ const (
 	RefsMadeRoute = "POST /api/refs/made"
 	MsgRefsBusy   = "Референсы сейчас делаются, подтвердите чуть позже"
 )
+
+const (
+	FeedbackSubmitRoute          = "POST /api/feedback"
+	AdminFeedbackRoute           = "GET /api/admin/feedback"
+	MaxFeedbackBodyBytes   int64 = 16 << 10
+	MaxFeedbackList              = 200
+	MsgFeedbackFailed            = "Не удалось отправить сообщение, попробуйте ещё раз"
+	MsgFeedbackEmpty             = "Напишите, что случилось или что хотите предложить"
+	MsgFeedbackLongText          = "Сообщение слишком длинное, сократите до двух тысяч знаков"
+	MsgFeedbackLongContact       = "Контакт слишком длинный, достаточно ссылки или номера"
+	MsgFeedbackTooMany           = "Вы уже отправили несколько сообщений. Подождите час и напишите снова"
+)
+
+type FeedbackRequest struct {
+	Text    string `json:"text"`
+	Contact string `json:"contact"`
+}

@@ -16,6 +16,8 @@ interface TileView {
 })
 export class RefGallery {
   readonly itemId = input.required<string>();
+  readonly index = input<number>();
+  readonly fromIndex = input<number>();
 
   private readonly refs = inject(Refs);
   protected readonly texts = REFS_TEXTS;
@@ -24,12 +26,21 @@ export class RefGallery {
   protected readonly status = computed(() => this.refs.byKey().get(this.itemId()));
   protected readonly tiles = computed<TileView[]>(() => {
     const urls = this.urls();
-    return (this.status()?.files ?? []).map((file) => ({
-      file,
-      url: urls[file.id] ?? undefined,
-      failed: urls[file.id] === null,
-    }));
+    const index = this.index();
+    const fromIndex = this.fromIndex();
+    return (this.status()?.files ?? [])
+      .filter(
+        (file) =>
+          (index === undefined || file.index === index) &&
+          (fromIndex === undefined || file.index >= fromIndex),
+      )
+      .map((file) => ({
+        file,
+        url: urls[file.id] ?? undefined,
+        failed: urls[file.id] === null,
+      }));
   });
+  protected readonly showNotes = computed(() => this.fromIndex() === undefined);
 
   constructor() {
     effect(() => {

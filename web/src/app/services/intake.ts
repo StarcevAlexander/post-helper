@@ -12,8 +12,8 @@ import {
 import { ChatApiError, IntakeDraft, IntakeGoalId, IntakeRequest } from '../models';
 import { Access } from './access';
 import { Account } from './account';
+import { APP_VERSION } from '../version';
 import { ChatApi } from './chat-api';
-import { ErrorLog } from './error-log';
 import { Sync } from './sync';
 
 function referenceSlots(urls: readonly string[]): string[] {
@@ -48,7 +48,6 @@ export class Intake {
   private readonly access = inject(Access);
   private readonly account = inject(Account);
   private readonly sync = inject(Sync);
-  private readonly errorLog = inject(ErrorLog);
   private readonly router = inject(Router);
 
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -292,7 +291,12 @@ export class Intake {
       this.access.clear();
     }
     const message = error instanceof ChatApiError ? error.message : String(error);
-    this.errorLog.record('send', message);
+    void this.api.reportClientError({
+      message,
+      where: 'intake',
+      stack: '',
+      version: APP_VERSION,
+    });
     this.error.set(message || fallback);
   }
 }

@@ -273,7 +273,7 @@ func (h *intakeHandler) deliverRefs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	headers := r.MultipartForm.File[FieldFiles]
-	if len(headers) == 0 || len(headers) > refs.PerItem {
+	if len(headers) == 0 || len(headers) > refs.MaxPerItem {
 		writeError(w, http.StatusBadRequest, MsgRefsFiles)
 		return
 	}

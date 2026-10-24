@@ -1,6 +1,5 @@
 export * from './account.models';
 export * from './api.models';
-export * from './error-log.models';
 export * from './intake.models';
 export * from './kit.models';
 export * from './month-review.models';
@@ -8,6 +7,8 @@ export * from './recommendation.models';
 export * from './schedule.models';
 export * from './strategy.models';
 export * from './theme.models';
+export * from './feedback.models';
+export * from './tutorial.models';
 export * from './today.models';
 export * from './refs.models';
 export * from './push.models';
