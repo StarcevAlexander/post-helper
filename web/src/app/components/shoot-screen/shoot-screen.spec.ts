@@ -103,6 +103,42 @@ describe('ShootScreen', () => {
     expect(entries[1].textContent).toContain('Подробный список кадров скоро появится');
   });
 
+  it('puts the references right under the description and ticks off what is shot', async () => {
+    const first = [...plan.weeks()[0].items].sort((a, b) =>
+      `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
+    )[0];
+    TestBed.inject(Kits).stored.set({
+      [first.id]: {
+        itemId: first.id,
+        format: first.format,
+        pillar: first.pillar,
+        idea: first.idea,
+        kit,
+      },
+    });
+    const { fixture, element } = await render();
+    const entry = element.querySelector('.entry')!;
+
+    const children = Array.from(entry.children).map((child) => child.tagName);
+    expect(children[0]).toBe('HEADER');
+    expect(entry.children[1].querySelector('app-ref-gallery')).not.toBeNull();
+    expect(entry.textContent).toContain('Снято 0 из 2');
+
+    const checks = entry.querySelectorAll<HTMLInputElement>('.task__check');
+    expect(checks.length).toBe(2);
+    checks[0].click();
+    fixture.detectChanges();
+
+    expect(entry.querySelectorAll('.task--done').length).toBe(1);
+    expect(entry.classList.contains('entry--done')).toBe(false);
+    checks[1].click();
+    fixture.detectChanges();
+
+    expect(entry.classList.contains('entry--done')).toBe(true);
+    expect(entry.textContent).toContain('Снято 2 из 2');
+    expect(JSON.parse(localStorage.getItem('helper.shoot-progress')!)).toHaveLength(2);
+  });
+
   it('shows the photo references with their detailed descriptions', async () => {
     const first = plan.weeks()[0].items[0];
     TestBed.inject(Refs).statuses.set([

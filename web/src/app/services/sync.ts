@@ -5,6 +5,7 @@ import {
   MONTH_REVIEWS_STORAGE_KEY,
   RECOMMENDATIONS_STORAGE_KEY,
   SETTINGS_STORAGE_KEY,
+  SHOOT_PROGRESS_STORAGE_KEY,
   STRATEGY_STORAGE_KEY,
   SYNC_BACKUP_STORAGE_KEY,
   SYNC_META_STORAGE_KEY,
@@ -29,6 +30,7 @@ import { MonthReviews } from './month-reviews';
 import { PAGE_RELOAD } from './page-reload';
 import { Recommendations } from './recommendations';
 import { Settings } from './settings';
+import { ShootProgress } from './shoot-progress';
 
 const SYNC_KEYS: Record<SyncKey, string> = {
   strategy: STRATEGY_STORAGE_KEY,
@@ -36,6 +38,7 @@ const SYNC_KEYS: Record<SyncKey, string> = {
   kits: KITS_STORAGE_KEY,
   monthReviews: MONTH_REVIEWS_STORAGE_KEY,
   recommendations: RECOMMENDATIONS_STORAGE_KEY,
+  shootProgress: SHOOT_PROGRESS_STORAGE_KEY,
   settings: SETTINGS_STORAGE_KEY,
 };
 
@@ -51,6 +54,7 @@ export class Sync {
   private readonly monthReviews = inject(MonthReviews);
   private readonly recommendations = inject(Recommendations);
   private readonly settings = inject(Settings);
+  private readonly shootProgress = inject(ShootProgress);
   private readonly reload = inject(PAGE_RELOAD);
 
   readonly status = signal<SyncStatus>('off');
@@ -76,6 +80,7 @@ export class Sync {
       this.kits.stored();
       this.monthReviews.items();
       this.recommendations.items();
+      this.shootProgress.marks();
       this.settings.theme();
       this.settings.scale();
       if (!this.started) {

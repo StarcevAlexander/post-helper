@@ -9,39 +9,79 @@
     <p class="screen__hint">{{ texts.intro }}</p>
 
     @for (entry of shoot.entries; track entry.item.id) {
-      <article class="entry">
+      <article class="entry" [class.entry--done]="allDone(entry)">
         <header class="entry__header">
           <h3 class="entry__title">{{ entry.title }}</h3>
           <p class="entry__when">{{ texts.publication }}: {{ entry.when }}</p>
+          @if (entry.marks.length > 0) {
+            <p class="entry__progress">
+              {{ texts.progress }} {{ doneCount(entry) }} {{ texts.of }} {{ entry.marks.length }}
+            </p>
+          }
         </header>
+
+        <section class="section">
+          <h4 class="section__heading">{{ texts.references }}</h4>
+          <app-ref-gallery [itemId]="entry.item.id" />
+        </section>
 
         @if (entry.kit; as kit) {
           @if (kit.shots.length > 0) {
             <section class="section">
               <h4 class="section__heading">{{ texts.shots }}</h4>
-              <ul class="section__list">
-                @for (shot of kit.shots; track $index) {
-                  <li>{{ shot }}</li>
-                }
-              </ul>
+              @for (shot of kit.shots; track $index) {
+                <div
+                  class="task"
+                  [class.task--done]="progress.isDone(shotMark(entry.item.id, $index))"
+                >
+                  <label class="task__label">
+                    <input
+                      type="checkbox"
+                      class="task__check"
+                      [checked]="progress.isDone(shotMark(entry.item.id, $index))"
+                      [attr.aria-label]="texts.shotDone + ': ' + shot"
+                      (change)="progress.toggle(shotMark(entry.item.id, $index))"
+                    />
+                    <span class="task__text">{{ shot }}</span>
+                  </label>
+                </div>
+              }
             </section>
           }
           @if (kit.frames.length > 0) {
             <section class="section">
               <h4 class="section__heading">{{ texts.frames }}</h4>
               @for (frame of kit.frames; track $index) {
-                <div class="frame">
-                  <p class="frame__title">{{ entry.frameLabel }} {{ $index + 1 }}</p>
-                  @if (frame.visual) {
-                    <p class="frame__line">
-                      <span class="frame__label">{{ visualLabel }}:</span> {{ frame.visual }}
-                    </p>
-                  }
-                  @if (frame.overlay) {
-                    <p class="frame__line">
-                      <span class="frame__label">{{ overlayLabel }}:</span> {{ frame.overlay }}
-                    </p>
-                  }
+                <div
+                  class="task"
+                  [class.task--done]="progress.isDone(frameMark(entry.item.id, $index))"
+                >
+                  <label class="task__label">
+                    <input
+                      type="checkbox"
+                      class="task__check"
+                      [checked]="progress.isDone(frameMark(entry.item.id, $index))"
+                      [attr.aria-label]="
+                        texts.shotDone + ': ' + entry.frameLabel + ' ' + ($index + 1)
+                      "
+                      (change)="progress.toggle(frameMark(entry.item.id, $index))"
+                    />
+                    <span class="task__text">
+                      <span class="task__title">{{ entry.frameLabel }} {{ $index + 1 }}</span>
+                      @if (frame.visual) {
+                        <span class="task__line">
+                          <span class="task__label-text">{{ visualLabel }}:</span>
+                          {{ frame.visual }}
+                        </span>
+                      }
+                      @if (frame.overlay) {
+                        <span class="task__line">
+                          <span class="task__label-text">{{ overlayLabel }}:</span>
+                          {{ frame.overlay }}
+                        </span>
+                      }
+                    </span>
+                  </label>
                 </div>
               }
             </section>
@@ -49,11 +89,6 @@
         } @else {
           <p class="screen__hint">{{ texts.noKit }}</p>
         }
-
-        <section class="section">
-          <h4 class="section__heading">{{ texts.references }}</h4>
-          <app-ref-gallery [itemId]="entry.item.id" />
-        </section>
       </article>
     } @empty {
       <p class="screen__hint">{{ texts.empty }}</p>

@@ -8,7 +8,13 @@ export interface AccountInfo {
 }
 
 export type SyncKey =
-  'strategy' | 'calendar' | 'kits' | 'monthReviews' | 'recommendations' | 'settings';
+  | 'strategy'
+  | 'calendar'
+  | 'kits'
+  | 'monthReviews'
+  | 'recommendations'
+  | 'shootProgress'
+  | 'settings';
 
 export type SyncBundle = Partial<Record<SyncKey, JsonValue>>;
 

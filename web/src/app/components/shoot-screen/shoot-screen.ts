@@ -11,6 +11,7 @@ import {
 import { PlanItem, PublicationKit } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
+import { ShootProgress } from '../../services/shoot-progress';
 import { fromDateKey } from '../../utils/date-utils';
 import { RefGallery } from '../ref-gallery/ref-gallery';
 
@@ -28,6 +29,7 @@ interface ShootEntry {
   when: string;
   frameLabel: string;
   kit?: PublicationKit;
+  marks: string[];
 }
 
 @Component({
@@ -41,6 +43,7 @@ export class ShootScreen {
 
   private readonly plan = inject(CalendarPlan);
   private readonly kits = inject(Kits);
+  protected readonly progress = inject(ShootProgress);
 
   protected readonly texts = SHOOT_TEXTS;
   protected readonly visualLabel = KIT_VISUAL_LABEL;
@@ -53,13 +56,20 @@ export class ShootScreen {
     }
     const entries = [...week.items]
       .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))
-      .map((item): ShootEntry => ({
-        item,
-        title: `${FORMAT_LABELS[item.format]}: ${item.idea}`,
-        when: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time} · ${item.pillar}`,
-        frameLabel: KIT_FRAME_LABELS[item.format],
-        kit: this.kits.kitFor(item),
-      }));
+      .map((item): ShootEntry => {
+        const kit = this.kits.kitFor(item);
+        return {
+          item,
+          title: `${FORMAT_LABELS[item.format]}: ${item.idea}`,
+          when: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time} · ${item.pillar}`,
+          frameLabel: KIT_FRAME_LABELS[item.format],
+          kit,
+          marks: [
+            ...(kit?.shots ?? []).map((_, index) => this.shotMark(item.id, index)),
+            ...(kit?.frames ?? []).map((_, index) => this.frameMark(item.id, index)),
+          ],
+        };
+      });
     return {
       heading: `${WEEK_LABEL} ${week.index + 1}, ${RANGE_FORMAT.format(fromDateKey(week.from))} – ${RANGE_FORMAT.format(fromDateKey(week.to))}`,
       contentDays: week.contentDays.map(
@@ -69,4 +79,20 @@ export class ShootScreen {
       entries,
     };
   });
+
+  protected shotMark(itemId: string, index: number): string {
+    return `${itemId}:shot:${index}`;
+  }
+
+  protected frameMark(itemId: string, index: number): string {
+    return `${itemId}:frame:${index}`;
+  }
+
+  protected doneCount(entry: ShootEntry): number {
+    return entry.marks.filter((mark) => this.progress.isDone(mark)).length;
+  }
+
+  protected allDone(entry: ShootEntry): boolean {
+    return entry.marks.length > 0 && this.doneCount(entry) === entry.marks.length;
+  }
 }
