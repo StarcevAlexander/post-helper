@@ -1,3 +1,3 @@
 #!/bin/sh
 node web/scripts/bump-version.mjs
-git add web/package.json web/src/app/version.ts
+git add web/package.json web/src/app/version.ts web/public/version.json

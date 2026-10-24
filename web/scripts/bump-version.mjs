@@ -14,4 +14,8 @@ writeFileSync(
   join(root, 'src', 'app', 'version.ts'),
   `export const APP_VERSION = '${manifest.version}';\n`,
 );
+writeFileSync(
+  join(root, 'public', 'version.json'),
+  `${JSON.stringify({ version: manifest.version })}\n`,
+);
 console.log(`version bumped: ${manifest.version}`);

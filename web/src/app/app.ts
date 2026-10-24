@@ -1,7 +1,13 @@
 import { Component, DestroyRef, afterNextRender, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AccessGate } from './components/access-gate/access-gate';
-import { NAV_TABS, NAV_TEXTS, SETTINGS_OPEN_LABEL, UPDATE_BUTTON_LABEL } from './constants';
+import {
+  NAV_TABS,
+  NAV_TEXTS,
+  SETTINGS_OPEN_LABEL,
+  UPDATE_BUTTON_LABEL,
+  UPDATE_TEXTS,
+} from './constants';
 import { Access } from './services/access';
 import { AppUpdate } from './services/app-update';
 import { Intake } from './services/intake';
@@ -31,6 +37,7 @@ export class App {
   protected readonly tabs = NAV_TABS;
   protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
+  protected readonly updateTexts = UPDATE_TEXTS;
   protected readonly version = APP_VERSION;
 
   constructor() {
