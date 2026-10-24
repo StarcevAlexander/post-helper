@@ -23,7 +23,7 @@ export const KIT_OVERLAY_LABEL = 'Текст на экране';
 
 export const KIT_VISUAL_LABEL = 'В кадре';
 
-export const KIT_COPY_CAPTION_LABEL = 'Скопировать подпись и хэштеги';
+export const KIT_COPY_CAPTION_LABEL = 'Скопировать';
 
 export const KIT_COPIED_LABEL = 'Скопировано';
 

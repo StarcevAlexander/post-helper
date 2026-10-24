@@ -62,11 +62,10 @@ export class TodayScreen {
   }
 
   protected async onCopyCaption(entry: TodayEntry): Promise<void> {
-    const kit = this.kits.kitFor(entry.item);
-    if (!kit) {
+    if (!entry.captionText) {
       return;
     }
-    const ok = await copyText(captionWithHashtags(kit));
+    const ok = await copyText(entry.captionText);
     clearTimeout(this.feedbackTimer);
     this.feedback.set({ id: entry.item.id, ok });
     this.feedbackTimer = setTimeout(() => this.feedback.set(undefined), TODAY_COPY_FEEDBACK_MS);
@@ -78,11 +77,13 @@ export class TodayScreen {
 
   private entry(item: PlanItem): TodayEntry {
     const ref = this.refs.byKey().get(item.id);
+    const kit = this.kits.kitFor(item);
     return {
       item,
       whenLabel: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time}`,
       formatLabel: FORMAT_LABELS[item.format],
-      hasKit: this.kits.kitFor(item) !== undefined,
+      hasKit: kit !== undefined,
+      captionText: kit ? captionWithHashtags(kit) || undefined : undefined,
       refLabel:
         ref?.status === 'done'
           ? ref.stale

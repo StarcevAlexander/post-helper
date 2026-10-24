@@ -96,7 +96,7 @@ describe('KitScreen', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     const { fixture, element } = await prepare();
 
-    element.querySelector<HTMLButtonElement>('.screen__primary')?.click();
+    element.querySelector<HTMLButtonElement>('.section__copy')?.click();
     await fixture.whenStable();
 
     expect(writeText).toHaveBeenCalledWith('Показываю маникюр.\n\n#маникюр #иркутск');
@@ -108,7 +108,7 @@ describe('KitScreen', () => {
     document.execCommand = vi.fn(() => false);
     const { fixture, element } = await prepare();
 
-    element.querySelector<HTMLButtonElement>('.screen__primary')?.click();
+    element.querySelector<HTMLButtonElement>('.section__copy')?.click();
     await vi.waitFor(() =>
       expect(element.querySelector('.actions__feedback')?.textContent).toContain('Не удалось'),
     );

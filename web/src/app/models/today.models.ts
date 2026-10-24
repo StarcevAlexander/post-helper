@@ -5,6 +5,7 @@ export interface TodayEntry {
   whenLabel: string;
   formatLabel: string;
   hasKit: boolean;
+  captionText?: string;
   refLabel?: string;
   refStale: boolean;
 }

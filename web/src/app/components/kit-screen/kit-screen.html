@@ -30,15 +30,16 @@
 
     @if (kit.caption) {
       <section class="section">
-        <h3 class="section__heading">{{ sections.caption }}</h3>
+        <div class="section__row">
+          <h3 class="section__heading">{{ sections.caption }}</h3>
+          <button type="button" class="screen__secondary section__copy" (click)="onCopyCaption()">
+            {{ copyCaptionLabel }}
+          </button>
+        </div>
         <p class="caption">{{ kit.caption }}</p>
-      </section>
-    }
-
-    @if (kit.hashtags.length > 0) {
-      <section class="section">
-        <h3 class="section__heading">{{ sections.hashtags }}</h3>
-        <p class="caption">{{ kit.hashtags.join(' ') }}</p>
+        @if (kit.hashtags.length > 0) {
+          <p class="caption">{{ kit.hashtags.join(' ') }}</p>
+        }
       </section>
     }
 
@@ -49,14 +50,7 @@
       </section>
     }
 
-    <div class="actions">
-      @if (kit.caption) {
-        <button type="button" class="screen__primary" (click)="onCopyCaption()">
-          {{ copyCaptionLabel }}
-        </button>
-      }
-      <p class="actions__feedback" role="status" aria-live="polite">{{ copyFeedback() }}</p>
-    </div>
+    <p class="actions__feedback" role="status" aria-live="polite">{{ copyFeedback() }}</p>
   } @else {
     <p class="screen__subtitle">{{ missingText }}</p>
   }

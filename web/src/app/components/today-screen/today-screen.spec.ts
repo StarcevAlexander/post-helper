@@ -88,7 +88,7 @@ describe('TodayScreen', () => {
 
     expect(element.textContent).toContain(item.idea);
     expect(element.textContent).toContain('скоро появится');
-    expect(element.querySelector('.entry__copy')).toBeNull();
+    expect(element.querySelector('.caption__copy')).toBeNull();
   });
 
   it('copies the caption with hashtags once the kit is ready', async () => {
@@ -106,11 +106,11 @@ describe('TodayScreen', () => {
     });
     await fixture.whenStable();
 
-    element.querySelector<HTMLButtonElement>('.entry__copy')?.click();
+    element.querySelector<HTMLButtonElement>('.caption__copy')?.click();
     await fixture.whenStable();
 
     expect(writeText).toHaveBeenCalledWith('Показываю маникюр.\n\n#маникюр #иркутск');
-    expect(element.querySelector('.entry__feedback')?.textContent).toContain('скопировано');
+    expect(element.querySelector('.entry__feedback')?.textContent).toContain('скопирован');
   });
 
   it('marks the publication as done', async () => {

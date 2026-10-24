@@ -40,15 +40,23 @@
                 <span class="entry__pillar">{{ entry.item.pillar }}</span>
               </span>
             </label>
+            @if (entry.captionText; as captionText) {
+              <div class="caption">
+                <div class="caption__header">
+                  <h4 class="caption__title">{{ texts.captionTitle }}</h4>
+                  <button
+                    type="button"
+                    class="screen__secondary caption__copy"
+                    (click)="onCopyCaption(entry)"
+                  >
+                    {{ texts.copyCaption }}
+                  </button>
+                </div>
+                <p class="caption__text">{{ captionText }}</p>
+              </div>
+            }
             <div class="entry__actions">
               @if (entry.hasKit) {
-                <button
-                  type="button"
-                  class="screen__primary entry__copy"
-                  (click)="onCopyCaption(entry)"
-                >
-                  {{ texts.copyCaption }}
-                </button>
                 <a class="entry__button" [routerLink]="['/kit', entry.item.id]">
                   {{ texts.openKit }}
                 </a>
