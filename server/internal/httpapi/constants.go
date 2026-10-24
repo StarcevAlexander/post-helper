@@ -81,6 +81,8 @@ const (
 const (
 	MeRoute                       = "GET /api/me"
 	MeRenameRoute                 = "POST /api/me/name"
+	AdminShutdownRoute            = "POST /api/admin/shutdown"
+	ShutdownDelay                 = 300 * time.Millisecond
 	AuthConfigRoute               = "GET /api/auth/config"
 	AuthYandexRoute               = "POST /api/auth/yandex"
 	MeYandexRoute                 = "POST /api/me/yandex"

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
@@ -56,6 +57,13 @@ func NewHandler(options Options) http.Handler {
 		allowedOrigins: options.AllowedOrigins,
 		limiter:        &signInLimiter{max: SignInLimitPerWindow, window: SignInLimitWindow},
 		logger:         logger,
+	}
+	if options.Shutdown != nil {
+		mux.Handle(AdminShutdownRoute, protected(requireAdmin(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			logger.Warn("shutdown requested by the owner")
+			writeJSON(w, http.StatusOK, map[string]bool{"shuttingDown": true})
+			time.AfterFunc(ShutdownDelay, options.Shutdown)
+		}))))
 	}
 	mux.HandleFunc(AuthConfigRoute, signIn.config)
 	mux.HandleFunc(AuthYandexRoute, signIn.login)

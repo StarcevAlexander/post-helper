@@ -30,6 +30,8 @@ func Load() (Config, error) {
 
 		YandexClientID:     strings.TrimSpace(os.Getenv(EnvYandexClientID)),
 		YandexClientSecret: strings.TrimSpace(os.Getenv(EnvYandexSecret)),
+
+		AdminRestart: strings.TrimSpace(os.Getenv(EnvAdminRestart)) == "1",
 	}
 
 	var problems []error

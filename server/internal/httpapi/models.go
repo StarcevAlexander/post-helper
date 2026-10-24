@@ -34,6 +34,7 @@ type Options struct {
 	AgentToken     string
 	Yandex         yandex.Exchanger
 	YandexClientID string
+	Shutdown       func()
 	Accounts       accounts.Store
 	DailyAILimit   int
 	RetentionDays  int

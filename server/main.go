@@ -107,8 +107,16 @@ func run() error {
 	} else {
 		slog.Warn("YANDEX_CLIENT_ID and YANDEX_CLIENT_SECRET are not set: sign-in with Yandex is off")
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	var shutdown func()
+	if cfg.AdminRestart {
+		shutdown = stop
+	}
 	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{
+		Shutdown:       shutdown,
 		Yandex:         yandexLogin,
 		YandexClientID: yandexClientID,
 		Intake:         intakeStore,
@@ -139,9 +147,6 @@ func run() error {
 		WriteTimeout:      writeTimeout,
 		IdleTimeout:       idleTimeout,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	serverErr := make(chan error, 1)
 	go func() {

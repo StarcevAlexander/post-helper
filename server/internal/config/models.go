@@ -19,4 +19,6 @@ type Config struct {
 
 	YandexClientID     string
 	YandexClientSecret string
+
+	AdminRestart bool
 }
