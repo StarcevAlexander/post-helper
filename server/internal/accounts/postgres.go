@@ -37,7 +37,9 @@ func (p *Postgres) FindByCodeHash(ctx context.Context, codeHash string) (Master,
 	var master Master
 	var lastSeen *time.Time
 	err := p.pool.QueryRow(ctx,
-		`SELECT id, name, created_at, last_seen_at, disabled FROM masters WHERE code_hash = $1`,
+		`SELECT id, name, created_at, last_seen_at, disabled FROM masters
+		WHERE code_hash = $1 OR id IN (SELECT master_id FROM master_tokens WHERE token_hash = $1)
+		LIMIT 1`,
 		codeHash).Scan(&master.ID, &master.Name, &master.CreatedAt, &lastSeen, &master.Disabled)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Master{}, ErrNotFound

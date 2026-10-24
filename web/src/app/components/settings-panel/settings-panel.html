@@ -143,7 +143,23 @@
             @if (syncText()) {
               <p class="account__hint" role="status">{{ syncText() }}</p>
             }
+            @if (yandex.linked()) {
+              <p class="account__hint">{{ yandexTexts.linked }}</p>
+            }
           </section>
+          @if (info.role === 'master' && yandex.available() && !yandex.linked()) {
+            <button
+              type="button"
+              class="panel__item"
+              [disabled]="yandex.busy()"
+              (click)="yandex.begin('link')"
+            >
+              {{ yandexTexts.link }}
+            </button>
+          }
+          @if (yandex.notice()) {
+            <p class="panel__hint" role="status">{{ yandex.notice() }}</p>
+          }
           @if (info.role === 'master') {
             <button type="button" class="panel__item" (click)="onRenameOpened()">
               {{ accountTexts.rename }}
@@ -251,7 +267,7 @@
             {{ logoutLabel() }}
           </button>
           @if (account.role() === 'master') {
-            <p class="panel__hint">{{ accountTexts.logoutHint }}</p>
+            <p class="panel__hint">{{ logoutHint() }}</p>
           }
           @if (logoutError()) {
             <p class="panel__hint panel__hint--error" role="alert">{{ logoutError() }}</p>

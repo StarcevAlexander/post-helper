@@ -9,6 +9,7 @@ export interface AccountInfo {
   dailyLimit: number;
   usageToday: number;
   retentionDays: number;
+  providers?: string[];
 }
 
 export type SyncKey =

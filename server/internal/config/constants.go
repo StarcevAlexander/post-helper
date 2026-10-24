@@ -17,6 +17,8 @@ const (
 	EnvVapidPublicKey    = "VAPID_PUBLIC_KEY"
 	EnvVapidPrivateKey   = "VAPID_PRIVATE_KEY"
 	EnvVapidSubject      = "VAPID_SUBJECT"
+	EnvYandexClientID    = "YANDEX_CLIENT_ID"
+	EnvYandexSecret      = "YANDEX_CLIENT_SECRET"
 	DefaultVapidSubject  = "https://starcevalexander.github.io/post-helper/"
 	DefaultRetentionDays = 1095
 	DefaultHistoryKeep   = 200

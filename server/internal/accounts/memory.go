@@ -30,6 +30,8 @@ type Memory struct {
 	usage       []usageRecord
 	nextEventID int64
 	jobs        []*AuditJob
+	identities  []memoryIdentity
+	tokens      []memoryToken
 	HistoryKeep int
 }
 
@@ -73,6 +75,13 @@ func (m *Memory) FindByCodeHash(_ context.Context, codeHash string) (Master, err
 	for _, master := range m.masters {
 		if master.codeHash == codeHash {
 			return master.Master, nil
+		}
+	}
+	for _, token := range m.tokens {
+		if token.hash == codeHash {
+			if master, ok := m.masters[token.masterID]; ok {
+				return master.Master, nil
+			}
 		}
 	}
 	return Master{}, ErrNotFound
@@ -256,6 +265,8 @@ func (m *Memory) DeleteMaster(_ context.Context, id string) error {
 	m.jobs = slices.DeleteFunc(m.jobs, func(job *AuditJob) bool { return job.MasterID == id })
 	m.events = slices.DeleteFunc(m.events, func(event memoryEvent) bool { return event.masterID == id })
 	m.usage = slices.DeleteFunc(m.usage, func(record usageRecord) bool { return record.masterID == id })
+	m.identities = slices.DeleteFunc(m.identities, func(identity memoryIdentity) bool { return identity.masterID == id })
+	m.tokens = slices.DeleteFunc(m.tokens, func(token memoryToken) bool { return token.masterID == id })
 	return nil
 }
 

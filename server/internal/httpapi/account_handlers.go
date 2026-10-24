@@ -38,6 +38,11 @@ func (h *meHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("count usage failed", slog.Any("error", err))
 	}
 	response.UsageToday = used
+	providers, err := h.accounts.Providers(r.Context(), identity.MasterID)
+	if err != nil {
+		h.logger.Error("list providers failed", slog.Any("error", err))
+	}
+	response.Providers = providers
 	writeJSON(w, http.StatusOK, response)
 }
 

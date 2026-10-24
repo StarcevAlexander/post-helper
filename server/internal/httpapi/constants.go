@@ -81,6 +81,9 @@ const (
 const (
 	MeRoute                       = "GET /api/me"
 	MeRenameRoute                 = "POST /api/me/name"
+	AuthConfigRoute               = "GET /api/auth/config"
+	AuthYandexRoute               = "POST /api/auth/yandex"
+	MeYandexRoute                 = "POST /api/me/yandex"
 	StateGetRoute                 = "GET /api/state"
 	StatePutRoute                 = "PUT /api/state"
 	AdminMastersRoute             = "GET /api/admin/masters"
@@ -101,6 +104,16 @@ const (
 	MsgNoMasterName               = "Укажите имя мастера"
 	MsgMasterNameTooLong          = "Имя мастера слишком длинное"
 	MsgRenameFailed               = "Не удалось сменить имя"
+	MsgYandexRejected             = "Яндекс не подтвердил вход. Попробуйте ещё раз"
+	MsgYandexUnavailable          = "Яндекс сейчас недоступен. Попробуйте позже"
+	MsgYandexTaken                = "Этот Яндекс-аккаунт уже привязан к другому мастеру"
+	MsgAccessDisabled             = "Доступ для этого аккаунта отключён"
+	MsgTooManySignIns             = "Слишком много попыток входа. Подождите минуту"
+	MsgSignInFailed               = "Не удалось войти. Попробуйте ещё раз"
+	DefaultMasterName             = "Мастер"
+	MaxYandexCodeBytes            = 4096
+	SignInLimitPerWindow          = 30
+	SignInLimitWindow             = time.Minute
 	MsgMasterFailed               = "Не удалось выполнить действие с мастером"
 	MsgReviewFailed               = "Не удалось подвести итоги, попробуйте ещё раз"
 	MsgReviewRefused              = "Итоги по этим данным подвести не получилось"

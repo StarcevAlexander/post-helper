@@ -27,6 +27,9 @@ func Load() (Config, error) {
 		VapidPublicKey:  strings.TrimSpace(os.Getenv(EnvVapidPublicKey)),
 		VapidPrivateKey: strings.TrimSpace(os.Getenv(EnvVapidPrivateKey)),
 		VapidSubject:    valueOr(strings.TrimSpace(os.Getenv(EnvVapidSubject)), DefaultVapidSubject),
+
+		YandexClientID:     strings.TrimSpace(os.Getenv(EnvYandexClientID)),
+		YandexClientSecret: strings.TrimSpace(os.Getenv(EnvYandexSecret)),
 	}
 
 	var problems []error

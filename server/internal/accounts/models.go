@@ -8,8 +8,14 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("not found")
-	ErrConflict = errors.New("state version conflict")
+	ErrNotFound      = errors.New("not found")
+	ErrConflict      = errors.New("state version conflict")
+	ErrIdentityTaken = errors.New("identity is linked to another master")
+)
+
+const (
+	MaxTokensPerMaster = 20
+	ProviderYandex     = "yandex"
 )
 
 type Master struct {
@@ -96,6 +102,11 @@ type Store interface {
 	ListMasters(ctx context.Context, since time.Time) ([]MasterSummary, error)
 	SetDisabled(ctx context.Context, id string, disabled bool) error
 	RenameMaster(ctx context.Context, id, name string) error
+	FindByIdentity(ctx context.Context, provider, subject string) (Master, error)
+	RegisterIdentity(ctx context.Context, name, codeHash, provider, subject, email string) (Master, error)
+	LinkIdentity(ctx context.Context, masterID, provider, subject, email string) error
+	Providers(ctx context.Context, masterID string) ([]string, error)
+	AddToken(ctx context.Context, masterID, tokenHash string) error
 	Touch(ctx context.Context, id string, at time.Time) error
 	LoadState(ctx context.Context, id string) (State, error)
 	SaveState(ctx context.Context, id string, baseVersion int, data json.RawMessage, at time.Time) (State, error)

@@ -16,4 +16,18 @@
   @if (access.rejected()) {
     <p class="gate__error" role="alert">{{ rejectedText }}</p>
   }
+  @if (yandex.available()) {
+    <button
+      type="button"
+      class="gate__yandex"
+      [disabled]="yandex.busy()"
+      (click)="yandex.begin('login')"
+    >
+      {{ yandexTexts.signIn }}
+    </button>
+    <p class="gate__hint">{{ yandexTexts.signInHint }}</p>
+  }
+  @if (yandex.notice()) {
+    <p class="gate__hint" role="status">{{ yandex.notice() }}</p>
+  }
 </form>

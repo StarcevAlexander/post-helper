@@ -16,4 +16,7 @@ type Config struct {
 	VapidPublicKey  string
 	VapidPrivateKey string
 	VapidSubject    string
+
+	YandexClientID     string
+	YandexClientSecret string
 }

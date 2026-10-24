@@ -49,6 +49,17 @@ func NewHandler(options Options) http.Handler {
 
 	mux.Handle(MeRoute, protected(&meHandler{accounts: accountStore, dailyLimit: options.DailyAILimit, retentionDays: options.RetentionDays, logger: logger}))
 	mux.Handle(MeRenameRoute, protected(requireMaster(&renameHandler{accounts: accountStore, logger: logger})))
+	signIn := &authHandler{
+		accounts:       accountStore,
+		exchanger:      options.Yandex,
+		clientID:       options.YandexClientID,
+		allowedOrigins: options.AllowedOrigins,
+		limiter:        &signInLimiter{max: SignInLimitPerWindow, window: SignInLimitWindow},
+		logger:         logger,
+	}
+	mux.HandleFunc(AuthConfigRoute, signIn.config)
+	mux.HandleFunc(AuthYandexRoute, signIn.login)
+	mux.Handle(MeYandexRoute, protected(requireMaster(http.HandlerFunc(signIn.link))))
 	mux.Handle(StateGetRoute, protected(requireMaster(http.HandlerFunc(state.get))))
 	mux.Handle(StatePutRoute, protected(requireMaster(http.HandlerFunc(state.put))))
 	mux.Handle(AdminMastersRoute, protected(requireAdmin(http.HandlerFunc(admin.list))))

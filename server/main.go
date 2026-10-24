@@ -23,6 +23,7 @@ import (
 	"post-helper/server/internal/review"
 	"post-helper/server/internal/store"
 	"post-helper/server/internal/strategy"
+	"post-helper/server/internal/yandex"
 )
 
 const (
@@ -98,8 +99,18 @@ func run() error {
 	} else {
 		slog.Warn("VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not set: push notifications are off")
 	}
+	var yandexLogin yandex.Exchanger
+	yandexClientID := ""
+	if cfg.YandexClientID != "" && cfg.YandexClientSecret != "" {
+		yandexLogin = yandex.NewClient(cfg.YandexClientID, cfg.YandexClientSecret)
+		yandexClientID = cfg.YandexClientID
+	} else {
+		slog.Warn("YANDEX_CLIENT_ID and YANDEX_CLIENT_SECRET are not set: sign-in with Yandex is off")
+	}
 	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{
+		Yandex:         yandexLogin,
+		YandexClientID: yandexClientID,
 		Intake:         intakeStore,
 		Notifier:       notifier,
 		PushStore:      pushStore,

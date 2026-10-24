@@ -16,6 +16,7 @@ import (
 	"post-helper/server/internal/review"
 	"post-helper/server/internal/store"
 	"post-helper/server/internal/strategy"
+	"post-helper/server/internal/yandex"
 )
 
 type Options struct {
@@ -31,6 +32,8 @@ type Options struct {
 	PushStore      push.Store
 	Pusher         push.Sender
 	AgentToken     string
+	Yandex         yandex.Exchanger
+	YandexClientID string
 	Accounts       accounts.Store
 	DailyAILimit   int
 	RetentionDays  int
@@ -86,11 +89,30 @@ type KitRequest struct {
 }
 
 type MeResponse struct {
-	Role          string `json:"role"`
-	Name          string `json:"name"`
-	DailyLimit    int    `json:"dailyLimit"`
-	UsageToday    int    `json:"usageToday"`
-	RetentionDays int    `json:"retentionDays"`
+	Role          string   `json:"role"`
+	Name          string   `json:"name"`
+	DailyLimit    int      `json:"dailyLimit"`
+	UsageToday    int      `json:"usageToday"`
+	RetentionDays int      `json:"retentionDays"`
+	Providers     []string `json:"providers"`
+}
+
+type AuthConfigResponse struct {
+	YandexClientID string `json:"yandexClientId"`
+}
+
+type YandexCodeRequest struct {
+	Code        string `json:"code"`
+	RedirectURI string `json:"redirectUri"`
+}
+
+type SessionResponse struct {
+	Token string `json:"token"`
+	Name  string `json:"name"`
+}
+
+type ProvidersResponse struct {
+	Providers []string `json:"providers"`
 }
 
 type StateRequest struct {

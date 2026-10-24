@@ -13,3 +13,4 @@ export * from './strategy.constants';
 export * from './theme.constants';
 export * from './today.constants';
 export * from './refs.constants';
+export * from './yandex.constants';

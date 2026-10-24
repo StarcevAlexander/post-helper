@@ -369,3 +369,91 @@ func TestMemoryAuditJobCancelAndListing(t *testing.T) {
 		t.Errorf("jobs must go with the master, got %v", err)
 	}
 }
+
+func TestMemoryIdentitiesAndTokens(t *testing.T) {
+	store := NewMemory()
+	ctx := context.Background()
+
+	registered, err := store.RegisterIdentity(ctx, "Анна", "unused-hash", ProviderYandex, "42", "a@y.ru")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found, err := store.FindByIdentity(ctx, ProviderYandex, "42")
+	if err != nil || found.ID != registered.ID {
+		t.Fatalf("found = %+v, %v", found, err)
+	}
+	if _, err := store.FindByIdentity(ctx, ProviderYandex, "other"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+	if _, err := store.RegisterIdentity(ctx, "Копия", "h2", ProviderYandex, "42", ""); !errors.Is(err, ErrIdentityTaken) {
+		t.Errorf("duplicate identity: err = %v", err)
+	}
+
+	if err := store.AddToken(ctx, registered.ID, "token-hash"); err != nil {
+		t.Fatal(err)
+	}
+	byToken, err := store.FindByCodeHash(ctx, "token-hash")
+	if err != nil || byToken.ID != registered.ID {
+		t.Fatalf("by token = %+v, %v", byToken, err)
+	}
+	if err := store.AddToken(ctx, "missing", "x"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+
+	other, _ := store.CreateMaster(ctx, "Мария", "hash-m")
+	if err := store.LinkIdentity(ctx, other.ID, ProviderYandex, "42", ""); !errors.Is(err, ErrIdentityTaken) {
+		t.Errorf("identity of another master: err = %v", err)
+	}
+	if err := store.LinkIdentity(ctx, other.ID, ProviderYandex, "77", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.LinkIdentity(ctx, other.ID, ProviderYandex, "77", ""); err != nil {
+		t.Errorf("linking the same identity again must be harmless: %v", err)
+	}
+	if err := store.LinkIdentity(ctx, other.ID, ProviderYandex, "88", ""); !errors.Is(err, ErrIdentityTaken) {
+		t.Errorf("a second account of one provider: err = %v", err)
+	}
+	if err := store.LinkIdentity(ctx, "missing", ProviderYandex, "99", ""); !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+	providers, _ := store.Providers(ctx, other.ID)
+	if len(providers) != 1 || providers[0] != ProviderYandex {
+		t.Errorf("providers = %v", providers)
+	}
+}
+
+func TestMemoryKeepsOnlyTheNewestTokens(t *testing.T) {
+	store := NewMemory()
+	ctx := context.Background()
+	master, _ := store.CreateMaster(ctx, "Анна", "hash")
+
+	for i := range MaxTokensPerMaster + 3 {
+		_ = store.AddToken(ctx, master.ID, "token-"+string(rune('a'+i)))
+	}
+
+	if _, err := store.FindByCodeHash(ctx, "token-a"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("the oldest token must be gone: %v", err)
+	}
+	newest := "token-" + string(rune('a'+MaxTokensPerMaster+2))
+	if _, err := store.FindByCodeHash(ctx, newest); err != nil {
+		t.Errorf("the newest token must stay: %v", err)
+	}
+}
+
+func TestMemoryDeleteMasterDropsIdentitiesAndTokens(t *testing.T) {
+	store := NewMemory()
+	ctx := context.Background()
+	master, _ := store.RegisterIdentity(ctx, "Анна", "h", ProviderYandex, "42", "")
+	_ = store.AddToken(ctx, master.ID, "token-hash")
+
+	if err := store.DeleteMaster(ctx, master.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := store.FindByIdentity(ctx, ProviderYandex, "42"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("identity survived: %v", err)
+	}
+	if _, err := store.FindByCodeHash(ctx, "token-hash"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("token survived: %v", err)
+	}
+}

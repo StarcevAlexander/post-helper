@@ -50,6 +50,7 @@ import { Sync } from './services/sync';
 import { Speech } from './services/speech';
 import { Today } from './services/today';
 import { PushNotifications } from './services/push-notifications';
+import { YandexAuth } from './services/yandex-auth';
 import { APP_VERSION } from './version';
 
 @Component({
@@ -90,6 +91,7 @@ export class App {
   private readonly auditJobs = inject(AuditJobs);
   protected readonly appUpdate = inject(AppUpdate);
   protected readonly pushNotifications = inject(PushNotifications);
+  private readonly yandexAuth = inject(YandexAuth);
   protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;
   protected readonly strategyOpenLabel = STRATEGY_OPEN_LABEL;
   protected readonly calendarOpenLabel = CALENDAR_OPEN_LABEL;
@@ -149,6 +151,8 @@ export class App {
       if (this.access.granted()) {
         void this.auditJobs.refresh();
       }
+      void this.yandexAuth.loadConfig();
+      void this.yandexAuth.completeFromUrl();
       this.today.openFromLink();
       this.appUpdate.setIdleCheck(() => this.isIdle());
       this.appUpdate.start();

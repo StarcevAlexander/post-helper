@@ -227,3 +227,67 @@ func TestPostgresAuditJobs(t *testing.T) {
 		t.Errorf("jobs = %+v, %v", jobs, err)
 	}
 }
+
+func TestPostgresIdentitiesAndTokens(t *testing.T) {
+	db := openPostgres(t)
+	ctx := context.Background()
+	subject := "sub-" + time.Now().Format("150405.000000000")
+
+	registered, err := db.RegisterIdentity(ctx, "Анна", "unused-"+subject, accounts.ProviderYandex, subject, "a@y.ru")
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	found, err := db.FindByIdentity(ctx, accounts.ProviderYandex, subject)
+	if err != nil || found.ID != registered.ID {
+		t.Fatalf("found = %+v, %v", found, err)
+	}
+	if _, err := db.FindByIdentity(ctx, accounts.ProviderYandex, "missing-"+subject); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+	if _, err := db.RegisterIdentity(ctx, "Копия", "unused2-"+subject, accounts.ProviderYandex, subject, ""); !errors.Is(err, accounts.ErrIdentityTaken) {
+		t.Errorf("duplicate identity: err = %v", err)
+	}
+
+	tokenHash := "token-" + subject
+	if err := db.AddToken(ctx, registered.ID, tokenHash); err != nil {
+		t.Fatalf("add token: %v", err)
+	}
+	byToken, err := db.FindByCodeHash(ctx, tokenHash)
+	if err != nil || byToken.ID != registered.ID {
+		t.Fatalf("by token = %+v, %v", byToken, err)
+	}
+	if err := db.AddToken(ctx, "missing", "x-"+subject); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+
+	other, err := db.CreateMaster(ctx, "Мария", "hash-"+subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.LinkIdentity(ctx, other.ID, accounts.ProviderYandex, subject, ""); !errors.Is(err, accounts.ErrIdentityTaken) {
+		t.Errorf("identity of another master: err = %v", err)
+	}
+	if err := db.LinkIdentity(ctx, other.ID, accounts.ProviderYandex, "b-"+subject, ""); err != nil {
+		t.Fatalf("link: %v", err)
+	}
+	if err := db.LinkIdentity(ctx, other.ID, accounts.ProviderYandex, "b-"+subject, ""); err != nil {
+		t.Errorf("linking the same identity again must be harmless: %v", err)
+	}
+	if err := db.LinkIdentity(ctx, other.ID, accounts.ProviderYandex, "c-"+subject, ""); !errors.Is(err, accounts.ErrIdentityTaken) {
+		t.Errorf("a second account of one provider: err = %v", err)
+	}
+	if err := db.LinkIdentity(ctx, "missing", accounts.ProviderYandex, "d-"+subject, ""); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+	if providers, err := db.Providers(ctx, other.ID); err != nil || len(providers) != 1 || providers[0] != accounts.ProviderYandex {
+		t.Errorf("providers = %v, %v", providers, err)
+	}
+
+	if err := db.DeleteMaster(ctx, registered.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.FindByIdentity(ctx, accounts.ProviderYandex, subject); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("identity survived the master: %v", err)
+	}
+	_ = db.DeleteMaster(ctx, other.ID)
+}

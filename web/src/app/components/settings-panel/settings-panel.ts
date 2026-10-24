@@ -14,6 +14,7 @@ import {
   ACCOUNT_TEXTS,
   CLEAR_CONFIRM_TIMEOUT_MS,
   MAX_NAME_LENGTH,
+  YANDEX_TEXTS,
   RETENTION_NOTE_FOR_MASTER,
   SYNC_STATUS_TEXT,
   APPEARANCE_TITLE,
@@ -38,6 +39,7 @@ import { Account } from '../../services/account';
 import { PushNotifications } from '../../services/push-notifications';
 import { Session } from '../../services/session';
 import { TestNotification } from '../../services/test-notification';
+import { YandexAuth } from '../../services/yandex-auth';
 import { formatRetention } from '../../utils/format-retention';
 import { Sync } from '../../services/sync';
 import { ErrorLogScreen } from '../error-log/error-log';
@@ -57,6 +59,11 @@ export class SettingsPanel {
   protected readonly pushNotifications = inject(PushNotifications);
   protected readonly testNotification = inject(TestNotification);
   private readonly session = inject(Session);
+  protected readonly yandex = inject(YandexAuth);
+  protected readonly yandexTexts = YANDEX_TEXTS;
+  protected readonly logoutHint = computed(() =>
+    this.yandex.available() ? YANDEX_TEXTS.logoutHint : ACCOUNT_TEXTS.logoutHint,
+  );
   protected readonly pushTexts = PUSH_TEXTS;
   protected readonly accountLabels = ACCOUNT_LABELS;
   protected readonly accountTexts = ACCOUNT_TEXTS;

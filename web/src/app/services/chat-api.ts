@@ -16,8 +16,11 @@ import {
   API_AUDIT_PATH,
   API_DEV_URL,
   API_KIT_PATH,
+  API_AUTH_CONFIG_PATH,
+  API_AUTH_YANDEX_PATH,
   API_ME_NAME_PATH,
   API_ME_PATH,
+  API_ME_YANDEX_PATH,
   API_MESSAGES,
   API_PRODUCTION_URL,
   API_REVIEW_PATH,
@@ -31,7 +34,10 @@ import {
 } from '../constants';
 import {
   AccountInfo,
+  AuthConfig,
   AuditJob,
+  ProvidersResult,
+  SessionResult,
   RefOrderItem,
   RefStatus,
   AuditResult,
@@ -202,6 +208,18 @@ export class ChatApi {
 
   rename(name: string): Promise<{ name: string }> {
     return this.send<{ name: string }>('POST', API_ME_NAME_PATH, { name });
+  }
+
+  authConfig(): Promise<AuthConfig> {
+    return this.send<AuthConfig>('GET', API_AUTH_CONFIG_PATH);
+  }
+
+  signInWithYandex(code: string, redirectUri: string): Promise<SessionResult> {
+    return this.send<SessionResult>('POST', API_AUTH_YANDEX_PATH, { code, redirectUri });
+  }
+
+  linkYandex(code: string, redirectUri: string): Promise<ProvidersResult> {
+    return this.send<ProvidersResult>('POST', API_ME_YANDEX_PATH, { code, redirectUri });
   }
 
   loadState(): Promise<ServerState> {
