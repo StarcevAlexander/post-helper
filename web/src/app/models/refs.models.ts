@@ -1,6 +1,6 @@
 import { PostFormat } from './schedule.models';
 
-export type RefKind = 'photo' | 'video';
+export type RefKind = 'photo';
 
 export type RefState = 'queued' | 'running' | 'done' | 'failed' | 'made';
 

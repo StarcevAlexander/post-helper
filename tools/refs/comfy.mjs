@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AgentError } from '../agent/lib.mjs';
-import { ffmpegArgs, mediaTypeOf, outputName, parseFreeVram, workflowFor } from './lib.mjs';
+import { MEDIA_TYPE, OUTPUT_NAME, ffmpegArgs, parseFreeVram, workflowFor } from './lib.mjs';
 
 export const COMFY_DEFAULTS = {
   dir: 'C:/Users/master/WebstormProjects/test/ComfyUI',
@@ -92,7 +92,7 @@ export async function runWorkflow(url, workflow, timeoutMs) {
       throw new AgentError(`ComfyUI вернул ошибку: ${JSON.stringify(entry.status.messages?.at(-1) ?? entry.status)}`, 2);
     }
     for (const node of Object.values(entry.outputs ?? {})) {
-      const item = [...(node.images ?? []), ...(node.videos ?? [])][0];
+      const item = (node.images ?? [])[0];
       if (item) {
         const query = new URLSearchParams({ filename: item.filename, subfolder: item.subfolder ?? '', type: item.type ?? 'output' });
         const response = await fetch(`${url}/view?${query}`);
@@ -105,24 +105,23 @@ export async function runWorkflow(url, workflow, timeoutMs) {
   }
 }
 
-export function compress(kind, raw, name) {
+export function compress(raw, name) {
   const dir = mkdtempSync(join(tmpdir(), 'ph-ref-'));
   try {
     const input = join(dir, `in-${name}`);
-    const output = join(dir, outputName(kind));
+    const output = join(dir, OUTPUT_NAME);
     writeFileSync(input, raw);
-    const result = spawnSync('ffmpeg', ffmpegArgs(kind, input, output), { stdio: 'pipe' });
+    const result = spawnSync('ffmpeg', ffmpegArgs(input, output), { stdio: 'pipe' });
     if (result.status !== 0) {
       throw new AgentError(`ffmpeg не справился: ${String(result.stderr).slice(-300)}`, 2);
     }
-    return { data: readFileSync(output), mediaType: mediaTypeOf(kind), name: outputName(kind) };
+    return { data: readFileSync(output), mediaType: MEDIA_TYPE, name: OUTPUT_NAME };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-export async function makeReference(options, kind, prompt, seed) {
-  const timeout = kind === 'video' ? 20 * 60 * 1000 : 6 * 60 * 1000;
-  const raw = await runWorkflow(options.url, workflowFor(kind, prompt, seed, `ph_ref_${seed}`), timeout);
-  return compress(kind, raw.data, raw.name);
+export async function makeReference(options, prompt, seed) {
+  const raw = await runWorkflow(options.url, workflowFor('photo', prompt, seed, `ph_ref_${seed}`), 6 * 60 * 1000);
+  return compress(raw.data, raw.name);
 }

@@ -47,7 +47,7 @@ const calendar: StoredCalendar = {
 };
 
 function status(overrides: Partial<RefStatus> = {}): RefStatus {
-  return { key: 'w1-mon', status: 'queued', kind: 'video', stale: false, files: [], ...overrides };
+  return { key: 'w1-mon', status: 'queued', kind: 'photo', stale: false, files: [], ...overrides };
 }
 
 describe('Refs', () => {

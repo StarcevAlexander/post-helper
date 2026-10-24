@@ -49,12 +49,8 @@ func (c *Claude) Generate(ctx context.Context, request Request) (Plan, error) {
 func describeRequest(request Request) string {
 	var text strings.Builder
 	text.WriteString(strategy.DescribeProfile(request.Profile))
-	kind := "короткое видео без звука (3 секунды)"
-	if KindFor(request.Item.Format) == KindPhoto {
-		kind = "фото"
-	}
-	fmt.Fprintf(&text, "\nПункт плана:\nФормат публикации: %s\nРубрика: %s\nИдея: %s\nРеференс нужен как: %s\n",
-		request.Item.Format, request.Item.Pillar, request.Item.Idea, kind)
+	fmt.Fprintf(&text, "\nПункт плана:\nФормат публикации: %s\nРубрика: %s\nИдея: %s\nРеференсы нужны как: фото\n",
+		request.Item.Format, request.Item.Pillar, request.Item.Idea)
 	return text.String()
 }
 

@@ -1,13 +1,10 @@
 package httpapi
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"log/slog"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,37 +13,19 @@ import (
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
-	"post-helper/server/internal/review"
 )
 
-type fakeReviewer struct {
-	result   review.Review
-	err      error
-	requests []review.Request
-}
-
-func (f *fakeReviewer) Generate(_ context.Context, request review.Request) (review.Review, error) {
-	f.requests = append(f.requests, request)
-	return f.result, f.err
-}
-
 type accountFixture struct {
-	handler   http.Handler
-	store     *accounts.Memory
-	reviewer  *fakeReviewer
-	responder *fakeResponder
+	handler http.Handler
+	store   *accounts.Memory
 }
 
 func newAccountFixture(t *testing.T, dailyLimit int) *accountFixture {
 	t.Helper()
 	fixture := &accountFixture{
-		store:     accounts.NewMemory(),
-		reviewer:  &fakeReviewer{result: review.Review{Headline: "Итог", WhatToChange: []string{"x"}}},
-		responder: &fakeResponder{reply: "ответ"},
+		store: accounts.NewMemory(),
 	}
 	fixture.handler = NewHandler(Options{
-		Responder:      fixture.responder,
-		Reviewer:       fixture.reviewer,
 		Accounts:       fixture.store,
 		DailyAILimit:   dailyLimit,
 		RetentionDays:  1095,
@@ -78,10 +57,6 @@ func (f *accountFixture) call(method, path, token, body string) *httptest.Respon
 	recorder := httptest.NewRecorder()
 	f.handler.ServeHTTP(recorder, request)
 	return recorder
-}
-
-func (f *accountFixture) chat(token string) *httptest.ResponseRecorder {
-	return f.call(http.MethodPost, "/api/chat", token, "")
 }
 
 func TestMe(t *testing.T) {
@@ -172,50 +147,6 @@ func TestMasterDataEndpointsRefuseTheOwner(t *testing.T) {
 	for _, method := range []string{http.MethodGet, http.MethodPut} {
 		if got := fixture.call(method, "/api/state", testPassword, `{"baseVersion":0,"data":{}}`).Code; got != http.StatusForbidden {
 			t.Errorf("%s: status = %d", method, got)
-		}
-	}
-}
-
-func TestQuotaLimitsMastersButNotTheOwner(t *testing.T) {
-	fixture := newAccountFixture(t, 2)
-	code, master := fixture.master(t, "Анна")
-
-	statuses := []int{}
-	for i := 0; i < 3; i++ {
-		statuses = append(statuses, fixture.chat(code).Code)
-	}
-
-	if statuses[0] != http.StatusBadRequest || statuses[1] != http.StatusBadRequest || statuses[2] != http.StatusTooManyRequests {
-		t.Errorf("statuses = %v", statuses)
-	}
-	for i := 0; i < 5; i++ {
-		if got := fixture.chat(testPassword).Code; got == http.StatusTooManyRequests {
-			t.Fatal("the owner must not be limited")
-		}
-	}
-	used, _ := fixture.store.CountUsage(context.Background(), master.ID, dayStart(time.Now()))
-	if used != 2 {
-		t.Errorf("used = %d", used)
-	}
-}
-
-func TestQuotaIsPerMasterAndCanBeSwitchedOff(t *testing.T) {
-	limited := newAccountFixture(t, 1)
-	first, _ := limited.master(t, "Анна")
-	second, _ := limited.master(t, "Вера")
-	limited.chat(first)
-	if limited.chat(first).Code != http.StatusTooManyRequests {
-		t.Error("the first master must be limited")
-	}
-	if limited.chat(second).Code == http.StatusTooManyRequests {
-		t.Error("the second master has her own allowance")
-	}
-
-	unlimited := newAccountFixture(t, 0)
-	code, _ := unlimited.master(t, "Анна")
-	for i := 0; i < 4; i++ {
-		if unlimited.chat(code).Code == http.StatusTooManyRequests {
-			t.Fatal("a zero limit means no limit")
 		}
 	}
 }
@@ -328,132 +259,17 @@ func TestAdminMasterRejections(t *testing.T) {
 	}
 }
 
-const reviewBody = `{"profile":{"specialty":" маникюр "},"positioning":"Аккуратный","cadence":{"reels":1,"posts":1,"stories":3},"pillars":[{"title":"Окошки","ideas":["Свободно в пятницу"]}],"items":[{"format":"reels","pillar":"Окошки","idea":"Видео","done":true},{"format":"post","pillar":"Окошки","idea":"Пост","done":false}],"results":{"inquiries":4,"bestIdea":"Видео","hard":"нет времени"}}`
-
-func TestReview(t *testing.T) {
-	fixture := newAccountFixture(t, 5)
-	code, _ := fixture.master(t, "Анна")
-
-	recorder := fixture.call(http.MethodPost, "/api/review", code, reviewBody)
-
-	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"headline":"Итог"`) {
-		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
-	}
-	got := fixture.reviewer.requests[0]
-	if got.Profile.Specialty != "маникюр" || len(got.Items) != 2 || got.Results.Inquiries == nil || *got.Results.Inquiries != 4 {
-		t.Errorf("request = %+v", got)
-	}
-}
-
-func TestReviewIgnoresAbsurdInquiryCounts(t *testing.T) {
-	fixture := newAccountFixture(t, 5)
-	code, _ := fixture.master(t, "Анна")
-
-	fixture.call(http.MethodPost, "/api/review", code, strings.Replace(reviewBody, `"inquiries":4`, `"inquiries":99999999`, 1))
-
-	if fixture.reviewer.requests[0].Results.Inquiries != nil {
-		t.Error("an absurd number must be dropped")
-	}
-}
-
-func TestReviewRejections(t *testing.T) {
-	fixture := newAccountFixture(t, 50)
-	code, _ := fixture.master(t, "Анна")
-	items := strings.Repeat(`{"format":"post","pillar":"а","idea":"б","done":true},`, MaxReviewItems+1)
-	long := strings.Repeat("я", MaxReviewFieldRunes+1)
-	tests := []struct {
-		name string
-		body string
-		want int
-	}{
-		{"bad json", `nope`, http.StatusBadRequest},
-		{"no specialty", `{"profile":{"specialty":" "},"items":[{"format":"post","idea":"x"}]}`, http.StatusBadRequest},
-		{"no items", `{"profile":{"specialty":"x"},"items":[]}`, http.StatusBadRequest},
-		{"too many items", `{"profile":{"specialty":"x"},"items":[` + strings.TrimSuffix(items, ",") + `]}`, http.StatusBadRequest},
-		{"long field", `{"profile":{"specialty":"x"},"items":[{"format":"post","idea":"` + long + `"}]}`, http.StatusBadRequest},
-		{"long answer", `{"profile":{"specialty":"x"},"items":[{"format":"post","idea":"x"}],"results":{"hard":"` + long + `"}}`, http.StatusBadRequest},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := fixture.call(http.MethodPost, "/api/review", code, tt.body).Code; got != tt.want {
-				t.Errorf("status = %d, want %d", got, tt.want)
-			}
-		})
-	}
-
-	fixture.reviewer.err = review.ErrRefused
-	if got := fixture.call(http.MethodPost, "/api/review", code, reviewBody).Code; got != http.StatusUnprocessableEntity {
-		t.Errorf("refused: status = %d", got)
-	}
-	fixture.reviewer.err = errors.New("boom")
-	if got := fixture.call(http.MethodPost, "/api/review", code, reviewBody).Code; got != http.StatusBadGateway {
-		t.Errorf("fails: status = %d", got)
-	}
-}
-
-func TestReviewNeedsALogin(t *testing.T) {
-	fixture := newAccountFixture(t, 5)
-
-	if got := fixture.call(http.MethodPost, "/api/review", "", reviewBody).Code; got != http.StatusUnauthorized {
-		t.Errorf("status = %d", got)
-	}
-}
-
-func TestJournalRecordsWhatTheAIAnsweredForTheMaster(t *testing.T) {
-	fixture := newAccountFixture(t, 50)
-	code, master := fixture.master(t, "Анна")
-	fixture.responder.reply = "ответ помощника"
-
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	_ = writer.WriteField(FieldText, "как привлечь клиентов")
-	_ = writer.Close()
-	request := httptest.NewRequest(http.MethodPost, "/api/chat", body)
-	request.Header.Set("Content-Type", writer.FormDataContentType())
-	request.Header.Set("Authorization", BearerPrefix+code)
-	recorder := httptest.NewRecorder()
-	fixture.handler.ServeHTTP(recorder, request)
-	fixture.call(http.MethodPost, "/api/review", code, reviewBody)
-
-	events, _ := fixture.store.ListEvents(context.Background(), master.ID, 0)
-
-	if len(events) != 2 || events[0].Kind != "review" || events[1].Kind != "chat" {
-		t.Fatalf("events = %+v", events)
-	}
-	if !strings.Contains(string(events[1].Payload), "как привлечь клиентов") || !strings.Contains(string(events[1].Payload), "ответ помощника") {
-		t.Errorf("chat payload = %s", events[1].Payload)
-	}
-	if !strings.Contains(string(events[0].Payload), `"headline":"Итог"`) {
-		t.Errorf("review payload = %s", events[0].Payload)
-	}
-}
-
-func TestJournalSkipsTheOwnerAndFailedRequests(t *testing.T) {
-	fixture := newAccountFixture(t, 50)
-	_, master := fixture.master(t, "Анна")
-	fixture.reviewer.err = errors.New("boom")
-	code, _ := fixture.master(t, "Вера")
-
-	fixture.call(http.MethodPost, "/api/review", testPassword, reviewBody)
-	fixture.call(http.MethodPost, "/api/review", code, reviewBody)
-
-	events, _ := fixture.store.ListEvents(context.Background(), master.ID, 0)
-	if len(events) != 0 {
-		t.Errorf("events = %+v", events)
-	}
-}
-
 func TestAdminSeesTheJournalAndTheVersionsOfAMaster(t *testing.T) {
 	fixture := newAccountFixture(t, 50)
 	code, master := fixture.master(t, "Анна")
-	fixture.call(http.MethodPost, "/api/review", code, reviewBody)
+	_ = fixture.store.RecordEvent(context.Background(), master.ID, EventPlanDelivered, json.RawMessage(`{"items":4}`), time.Now())
 	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":0,"data":{"a":1}}`)
 	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":1,"data":{"a":2}}`)
 
 	events := fixture.call(http.MethodGet, "/api/admin/masters/"+master.ID+"/events?limit=10", testPassword, "")
 	versions := fixture.call(http.MethodGet, "/api/admin/masters/"+master.ID+"/versions", testPassword, "")
 
-	if events.Code != http.StatusOK || !strings.Contains(events.Body.String(), `"kind":"review"`) {
+	if events.Code != http.StatusOK || !strings.Contains(events.Body.String(), `"kind":"plan.delivered"`) {
 		t.Errorf("events = %d %s", events.Code, events.Body)
 	}
 	if versions.Code != http.StatusOK || !strings.Contains(versions.Body.String(), `"version":2`) || !strings.Contains(versions.Body.String(), `"version":1`) {
@@ -468,14 +284,14 @@ func TestAdminExportsEverythingAsAFile(t *testing.T) {
 	fixture := newAccountFixture(t, 50)
 	code, master := fixture.master(t, "Анна")
 	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":0,"data":{"a":1}}`)
-	fixture.call(http.MethodPost, "/api/review", code, reviewBody)
+	_ = fixture.store.RecordEvent(context.Background(), master.ID, EventPlanDelivered, json.RawMessage(`{"items":4}`), time.Now())
 
 	recorder := fixture.call(http.MethodGet, "/api/admin/masters/"+master.ID+"/export", testPassword, "")
 
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Header().Get("Content-Disposition"), "attachment") {
 		t.Fatalf("status = %d, headers = %v", recorder.Code, recorder.Header())
 	}
-	for _, want := range []string{`"name":"Анна"`, `"history"`, `"events"`, `"kind":"review"`, `"a":1`} {
+	for _, want := range []string{`"name":"Анна"`, `"history"`, `"events"`, `"kind":"plan.delivered"`, `"a":1`} {
 		if !strings.Contains(recorder.Body.String(), want) {
 			t.Errorf("export lacks %s", want)
 		}

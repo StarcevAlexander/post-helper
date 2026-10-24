@@ -1,0 +1,64 @@
+<div class="screen__body">
+  @if (view(); as shoot) {
+    <header class="screen__header">
+      <h2 class="screen__title">{{ shoot.heading }}</h2>
+      @for (day of shoot.contentDays; track $index) {
+        <p class="screen__chip">{{ day }}</p>
+      }
+    </header>
+    <p class="screen__hint">{{ texts.intro }}</p>
+
+    @for (entry of shoot.entries; track entry.item.id) {
+      <article class="entry">
+        <header class="entry__header">
+          <h3 class="entry__title">{{ entry.title }}</h3>
+          <p class="entry__when">{{ texts.publication }}: {{ entry.when }}</p>
+        </header>
+
+        @if (entry.kit; as kit) {
+          @if (kit.shots.length > 0) {
+            <section class="section">
+              <h4 class="section__heading">{{ texts.shots }}</h4>
+              <ul class="section__list">
+                @for (shot of kit.shots; track $index) {
+                  <li>{{ shot }}</li>
+                }
+              </ul>
+            </section>
+          }
+          @if (kit.frames.length > 0) {
+            <section class="section">
+              <h4 class="section__heading">{{ texts.frames }}</h4>
+              @for (frame of kit.frames; track $index) {
+                <div class="frame">
+                  <p class="frame__title">{{ entry.frameLabel }} {{ $index + 1 }}</p>
+                  @if (frame.visual) {
+                    <p class="frame__line">
+                      <span class="frame__label">{{ visualLabel }}:</span> {{ frame.visual }}
+                    </p>
+                  }
+                  @if (frame.overlay) {
+                    <p class="frame__line">
+                      <span class="frame__label">{{ overlayLabel }}:</span> {{ frame.overlay }}
+                    </p>
+                  }
+                </div>
+              }
+            </section>
+          }
+        } @else {
+          <p class="screen__hint">{{ texts.noKit }}</p>
+        }
+
+        <section class="section">
+          <h4 class="section__heading">{{ texts.references }}</h4>
+          <app-ref-gallery [itemId]="entry.item.id" />
+        </section>
+      </article>
+    } @empty {
+      <p class="screen__hint">{{ texts.empty }}</p>
+    }
+  } @else {
+    <p class="screen__hint">{{ texts.missing }}</p>
+  }
+</div>

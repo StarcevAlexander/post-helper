@@ -3,6 +3,7 @@ import {
   OAUTH_STATE_BYTES,
   OAUTH_STATE_STORAGE_KEY,
   YANDEX_AUTHORIZE_URL,
+  YANDEX_CLIENT_ID_STORAGE_KEY,
   YANDEX_PROVIDER,
   YANDEX_TEXTS,
 } from '../constants';
@@ -24,7 +25,7 @@ export class YandexAuth {
   private readonly account = inject(Account);
   private readonly navigate = inject(PAGE_NAVIGATE);
 
-  readonly clientId = signal('');
+  readonly clientId = signal(this.readCachedClientId());
   readonly available = computed(() => this.clientId() !== '');
   readonly linked = computed(() => this.account.info()?.providers?.includes(YANDEX_PROVIDER));
   readonly busy = signal(false);
@@ -32,9 +33,11 @@ export class YandexAuth {
 
   async loadConfig(): Promise<void> {
     try {
-      this.clientId.set((await this.api.authConfig()).yandexClientId);
+      const clientId = (await this.api.authConfig()).yandexClientId;
+      this.clientId.set(clientId);
+      this.cacheClientId(clientId);
     } catch {
-      this.clientId.set('');
+      return;
     }
   }
 
@@ -93,6 +96,26 @@ export class YandexAuth {
       this.notice.set(error instanceof ChatApiError ? error.message : YANDEX_TEXTS.failed);
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  private readCachedClientId(): string {
+    try {
+      return localStorage.getItem(YANDEX_CLIENT_ID_STORAGE_KEY) ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  private cacheClientId(clientId: string): void {
+    try {
+      if (clientId) {
+        localStorage.setItem(YANDEX_CLIENT_ID_STORAGE_KEY, clientId);
+      } else {
+        localStorage.removeItem(YANDEX_CLIENT_ID_STORAGE_KEY);
+      }
+    } catch {
+      return;
     }
   }
 

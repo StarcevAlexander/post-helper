@@ -43,6 +43,8 @@ export function buildReviewStats(exported, today) {
       nextFocus: review.result?.nextFocus,
       applied: Boolean(review.applied),
     })),
+    monthReviews: Array.isArray(data.monthReviews) ? data.monthReviews : [],
+    recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
     audits: audits.map((audit) => ({ createdAt: audit.createdAt, summary: audit.result?.summary })),
     strategy: data.strategy,
     profile: data.onboarding?.answers,
@@ -102,6 +104,9 @@ export function describeReviewStats(stats) {
     stats.weeklyReviews.length > 0
       ? `Итоги недели от мастера:\n${stats.weeklyReviews.map((review) => `  • с ${review.weekFrom}: обращений ${review.inquiries ?? '—'}; лучшая идея: ${review.bestIdea || '—'}; было трудно: ${review.hard || '—'}`).join('\n')}`
       : 'Итогов недели мастер не заполнял',
+    stats.recommendations.length > 0
+      ? `Рекомендации по профилю: сделано ${stats.recommendations.filter((item) => item.done).length} из ${stats.recommendations.length}\n${stats.recommendations.map((item) => `  • [${item.done ? 'x' : ' '}] ${item.importance}% ${item.text}`).join('\n')}`
+      : 'Рекомендаций по профилю пока нет',
     stats.audits.length > 0
       ? `Прежние разборы страницы: ${stats.audits.map((audit) => audit.createdAt).join(', ')}`
       : 'Прежних разборов страницы нет',

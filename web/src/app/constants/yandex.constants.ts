@@ -1,6 +1,7 @@
 export const YANDEX_AUTHORIZE_URL = 'https://oauth.yandex.ru/authorize';
 
 export const OAUTH_STATE_STORAGE_KEY = 'helper.oauth-state';
+export const YANDEX_CLIENT_ID_STORAGE_KEY = 'helper.yandex-client-id';
 
 export const OAUTH_STATE_BYTES = 16;
 
@@ -15,6 +16,5 @@ export const YANDEX_TEXTS = {
   denied: 'Вход через Яндекс отменён',
   failed: 'Не удалось войти через Яндекс. Попробуйте ещё раз',
   working: 'Входим через Яндекс…',
-  logoutHint:
-    'Ваши данные сохранены на сервере. Чтобы вернуться, понадобится ваш пароль или вход через Яндекс.',
+  logoutHint: 'Ваши данные сохранены на сервере. Чтобы вернуться, войдите через Яндекс.',
 } as const;

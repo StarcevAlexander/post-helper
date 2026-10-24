@@ -54,7 +54,6 @@ func (f *fakeStore) Messages(_ context.Context, filter store.MessageFilter) ([]s
 func callStore(t *testing.T, history store.Store, method, path, body, password string) *httptest.ResponseRecorder {
 	t.Helper()
 	handler := NewHandler(Options{
-		Responder:      &fakeResponder{},
 		Password:       testPassword,
 		AllowedOrigins: []string{testOrigin},
 		Store:          history,

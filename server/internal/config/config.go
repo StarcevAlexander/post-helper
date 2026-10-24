@@ -32,6 +32,8 @@ func Load() (Config, error) {
 		YandexClientSecret: strings.TrimSpace(os.Getenv(EnvYandexSecret)),
 
 		AdminRestart: strings.TrimSpace(os.Getenv(EnvAdminRestart)) == "1",
+
+		ReminderTimezone: strings.TrimSpace(os.Getenv(EnvReminderTimezone)),
 	}
 
 	var problems []error

@@ -1,21 +1,4 @@
-<form class="gate" (submit)="$event.preventDefault(); submit()">
-  <label class="gate__label" for="access-password">Пароль</label>
-  <div class="gate__row">
-    <input
-      id="access-password"
-      class="gate__input"
-      type="password"
-      autocomplete="current-password"
-      autocapitalize="off"
-      spellcheck="false"
-      enterkeyhint="go"
-      [formField]="gateForm.password"
-    />
-    <button type="submit" class="gate__button" [disabled]="!canSubmit()">Войти</button>
-  </div>
-  @if (access.rejected()) {
-    <p class="gate__error" role="alert">{{ rejectedText }}</p>
-  }
+<div class="gate">
   @if (yandex.available()) {
     <button
       type="button"
@@ -27,7 +10,10 @@
     </button>
     <p class="gate__hint">{{ yandexTexts.signInHint }}</p>
   }
+  @if (access.rejected()) {
+    <p class="gate__error" role="alert">{{ rejectedText }}</p>
+  }
   @if (yandex.notice()) {
     <p class="gate__hint" role="status">{{ yandex.notice() }}</p>
   }
-</form>
+</div>

@@ -10,6 +10,7 @@ import {
 } from '../../constants';
 import { RefFileMeta, RefStatus, StoredCalendar } from '../../models';
 import { Access } from '../../services/access';
+import { Navigation } from '../../services/navigation';
 import { Refs } from '../../services/refs';
 import { RefsScreen } from './refs-screen';
 
@@ -33,13 +34,13 @@ const calendar: StoredCalendar = {
   ],
 };
 
-function file(index: number, kind: 'photo' | 'video' = 'photo'): RefFileMeta {
+function file(index: number): RefFileMeta {
   return {
     id: `f${index}`,
     index,
-    kind,
-    mediaType: kind === 'photo' ? 'image/jpeg' : 'video/mp4',
-    caption: `Кадр ${index + 1}`,
+    kind: 'photo',
+    mediaType: 'image/jpeg',
+    caption: `Кадр ${index + 1}: снимайте сверху при мягком свете, руки в кадре, фон светлый.`,
     size: 10,
   };
 }
@@ -84,8 +85,8 @@ describe('RefsScreen', () => {
 
   async function open(current: RefStatus) {
     const fixture = TestBed.createComponent(RefsScreen);
+    fixture.componentRef.setInput('id', 'w1-mon');
     refs.statuses.set([current]);
-    refs.view('w1-mon');
     await fixture.whenStable();
     fixture.detectChanges();
     return { fixture, element: fixture.nativeElement as HTMLElement };
@@ -106,23 +107,10 @@ describe('RefsScreen', () => {
 
     const text = element.textContent ?? '';
     expect(text).toContain('Видео снятия гель-лака');
-    expect(text).toContain('Кадр 1');
-    expect(text).toContain('Кадр 3');
+    expect(text).toContain('Описание кадра 1');
+    expect(text).toContain('Кадр 1: снимайте сверху при мягком свете');
+    expect(text).toContain('Описание кадра 3');
     expect(element.querySelector('video')).toBeNull();
-  });
-
-  it('plays video references without sound', async () => {
-    const { fixture, element } = await open(status({ kind: 'video', files: [file(0, 'video')] }));
-    http.expectOne({ method: 'GET', url: fileUrl('f0') }).flush(new Blob([new Uint8Array([1])]));
-
-    await vi.waitFor(() => {
-      fixture.detectChanges();
-      expect(element.querySelector('video.tile__media')).toBeTruthy();
-    });
-
-    const video = element.querySelector('video') as HTMLVideoElement;
-    expect(video.hasAttribute('muted')).toBe(true);
-    expect(video.hasAttribute('controls')).toBe(true);
   });
 
   it('says that the references are still being made and lets confirm anyway', async () => {
@@ -153,7 +141,8 @@ describe('RefsScreen', () => {
     http.expectNone({ method: 'POST', url: madeUrl });
   });
 
-  it('deletes the references after OK and closes the window', async () => {
+  it('deletes the references after OK and goes back', async () => {
+    const back = vi.spyOn(TestBed.inject(Navigation), 'back').mockImplementation(() => undefined);
     const { fixture, element } = await open(status());
     button(element, 'Контент изготовлен')?.click();
     fixture.detectChanges();
@@ -165,7 +154,7 @@ describe('RefsScreen', () => {
     await vi.waitFor(() =>
       http.expectOne({ method: 'GET', url: statusUrl }).flush([status({ status: 'made' })]),
     );
-    await vi.waitFor(() => expect(refs.viewing()).toBeUndefined());
+    await vi.waitFor(() => expect(back).toHaveBeenCalledTimes(1));
   });
 
   it('shows the confirmed state without the button', async () => {

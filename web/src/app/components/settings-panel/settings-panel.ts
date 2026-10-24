@@ -1,13 +1,5 @@
-import {
-  Component,
-  ElementRef,
-  computed,
-  effect,
-  inject,
-  model,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { form, FormField, maxLength } from '@angular/forms/signals';
 import {
   ACCOUNT_LABELS,
@@ -18,23 +10,18 @@ import {
   RETENTION_NOTE_FOR_MASTER,
   SYNC_STATUS_TEXT,
   APPEARANCE_TITLE,
-  BACK_LABEL,
   ERROR_LOG_TITLE,
-  REQUEST_LOG_TITLE,
   MAX_SCALE,
   MIN_SCALE,
   PUSH_TEXTS,
   SCALE_SECTION_TITLE,
   SCALE_STEP,
-  SETTINGS_CLOSE_LABEL,
-  SETTINGS_TITLE,
-  SPEAK_REPLIES_LABEL,
   THEME_SECTION_TITLE,
   THEMES,
 } from '../../constants';
 import { ChatApiError, SettingsScreen, ThemeId } from '../../models';
+import { Navigation } from '../../services/navigation';
 import { Settings } from '../../services/settings';
-import { Speech } from '../../services/speech';
 import { Account } from '../../services/account';
 import { PushNotifications } from '../../services/push-notifications';
 import { Session } from '../../services/session';
@@ -43,17 +30,18 @@ import { YandexAuth } from '../../services/yandex-auth';
 import { formatRetention } from '../../utils/format-retention';
 import { Sync } from '../../services/sync';
 import { ErrorLogScreen } from '../error-log/error-log';
-import { RequestLogScreen } from '../request-log/request-log';
 
 @Component({
-  imports: [ErrorLogScreen, FormField, RequestLogScreen],
+  imports: [ErrorLogScreen, FormField, RouterLink],
   selector: 'app-settings-panel',
   styleUrl: './settings-panel.scss',
   templateUrl: './settings-panel.html',
 })
 export class SettingsPanel {
+  readonly section = input<SettingsScreen>();
+
+  private readonly navigation = inject(Navigation);
   protected readonly settings = inject(Settings);
-  protected readonly speech = inject(Speech);
   protected readonly account = inject(Account);
   protected readonly sync = inject(Sync);
   protected readonly pushNotifications = inject(PushNotifications);
@@ -72,21 +60,16 @@ export class SettingsPanel {
     formatRetention(this.account.info()?.retentionDays ?? 0),
   );
   protected readonly syncText = computed(() => SYNC_STATUS_TEXT[this.sync.status()]);
-  protected readonly title = SETTINGS_TITLE;
-  protected readonly closeLabel = SETTINGS_CLOSE_LABEL;
-  protected readonly speakRepliesLabel = SPEAK_REPLIES_LABEL;
 
   protected readonly appearanceTitle = APPEARANCE_TITLE;
   protected readonly themeTitle = THEME_SECTION_TITLE;
   protected readonly scaleTitle = SCALE_SECTION_TITLE;
-  protected readonly backLabel = BACK_LABEL;
   protected readonly errorLogTitle = ERROR_LOG_TITLE;
-  protected readonly requestLogTitle = REQUEST_LOG_TITLE;
   protected readonly themes = THEMES;
   protected readonly minScale = MIN_SCALE;
   protected readonly maxScale = MAX_SCALE;
   protected readonly scaleStep = SCALE_STEP;
-  protected readonly screen = signal<SettingsScreen>('main');
+  protected readonly screen = computed<SettingsScreen>(() => this.section() ?? 'main');
   protected readonly nameModel = signal({ name: '' });
   protected readonly nameForm = form(this.nameModel, (path) => {
     maxLength(path.name, MAX_NAME_LENGTH);
@@ -103,63 +86,25 @@ export class SettingsPanel {
   protected readonly currentThemeLabel = computed(
     () => this.themes.find((option) => option.id === this.settings.theme())?.label,
   );
-  protected readonly heading = computed(() => {
-    switch (this.screen()) {
-      case 'appearance':
-        return this.appearanceTitle;
-      case 'theme':
-        return this.themeTitle;
-      case 'scale':
-        return this.scaleTitle;
-      case 'errors':
-        return this.errorLogTitle;
-      case 'requests':
-        return this.requestLogTitle;
-      case 'name':
-        return ACCOUNT_TEXTS.rename;
-      default:
-        return this.title;
-    }
-  });
-
-  readonly open = model(false);
-
-  private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
 
   constructor() {
+    void this.account.refresh();
+
     effect(() => {
-      const element = this.dialog().nativeElement;
-      if (!this.open()) {
-        this.screen.set('main');
-        this.confirmingLogout.set(false);
-        this.logoutError.set('');
-      }
-      if (this.open() && !element.open) {
-        void this.account.refresh();
-        element.showModal();
-      } else if (!this.open() && element.open) {
-        element.close();
+      if (this.screen() === 'name') {
+        const name = this.account.info()?.name ?? '';
+        untracked(() => {
+          if (this.nameModel().name === '') {
+            this.nameModel.set({ name });
+          }
+        });
       }
     });
-  }
-
-  protected onSpeakRepliesChanged(event: Event): void {
-    const enabled = (event.target as HTMLInputElement).checked;
-    this.settings.setSpeakReplies(enabled);
-    if (!enabled) {
-      this.speech.stopSpeaking();
-    }
   }
 
   protected onPushChanged(event: Event): void {
     const enabled = (event.target as HTMLInputElement).checked;
     void (enabled ? this.pushNotifications.enable() : this.pushNotifications.disable());
-  }
-
-  protected onRenameOpened(): void {
-    this.nameModel.set({ name: this.account.info()?.name ?? '' });
-    this.nameError.set('');
-    this.screen.set('name');
   }
 
   protected async onRenameSubmitted(): Promise<void> {
@@ -179,7 +124,7 @@ export class SettingsPanel {
     this.nameError.set('');
     try {
       await this.account.rename(name);
-      this.screen.set('main');
+      this.navigation.back();
     } catch (error) {
       this.nameError.set(
         error instanceof ChatApiError ? error.message : ACCOUNT_TEXTS.renameFailed,
@@ -216,17 +161,5 @@ export class SettingsPanel {
 
   protected onScaleChanged(event: Event): void {
     this.settings.setScale(Number((event.target as HTMLInputElement).value));
-  }
-
-  protected onBackClicked(): void {
-    this.screen.update((screen) =>
-      screen === 'theme' || screen === 'scale' ? 'appearance' : 'main',
-    );
-  }
-
-  protected onDialogClicked(event: MouseEvent): void {
-    if (event.target === this.dialog().nativeElement) {
-      this.open.set(false);
-    }
   }
 }

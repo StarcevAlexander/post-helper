@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,9 +12,6 @@ import (
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
-	"post-helper/server/internal/chat"
-	"post-helper/server/internal/review"
-	"post-helper/server/internal/store"
 )
 
 type meHandler struct {
@@ -192,90 +188,6 @@ func (h *adminHandler) disable(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeJSON(w, http.StatusOK, DisabledRequest{Disabled: body.Disabled})
 	}
-}
-
-type reviewHandler struct {
-	journal   *journal
-	generator review.Generator
-	recorder  store.Recorder
-	logger    *slog.Logger
-}
-
-func (h *reviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, MaxStateBodyBytes)
-	var body ReviewRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, MsgBadRequest)
-		return
-	}
-	request, message := cleanReviewRequest(body)
-	if message != "" {
-		writeError(w, http.StatusBadRequest, message)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), chat.RequestTimeout)
-	defer cancel()
-
-	result, err := h.generator.Generate(ctx, request)
-	switch {
-	case errors.Is(err, review.ErrRefused):
-		writeError(w, http.StatusUnprocessableEntity, MsgReviewRefused)
-	case err != nil:
-		h.logger.Error("review failed", slog.Any("error", err))
-		writeError(w, http.StatusBadGateway, MsgReviewFailed)
-	default:
-		h.logger.Info("review generated", slog.Int("items", len(request.Items)))
-		h.recorder.SaveEvent(store.EventReview, "", map[string]any{"items": len(request.Items)})
-		h.journal.record(r, UsageReview, map[string]any{"request": request, "review": result})
-		writeJSON(w, http.StatusOK, result)
-	}
-}
-
-func cleanReviewRequest(body ReviewRequest) (review.Request, string) {
-	profile, _, message := cleanProfile(body.Profile)
-	if message != "" {
-		return review.Request{}, message
-	}
-	if len(body.Items) == 0 {
-		return review.Request{}, MsgNoReviewItems
-	}
-	if len(body.Items) > MaxReviewItems || len(body.Pillars) > MaxReviewPillars {
-		return review.Request{}, MsgReviewTooLarge
-	}
-
-	tooLong := func(values ...string) bool {
-		for _, value := range values {
-			if utf8.RuneCountInString(value) > MaxReviewFieldRunes {
-				return true
-			}
-		}
-		return false
-	}
-	if tooLong(body.Positioning, body.Results.BestIdea, body.Results.Hard) {
-		return review.Request{}, MsgKitFieldTooLong
-	}
-	for _, item := range body.Items {
-		if tooLong(item.Format, item.Pillar, item.Idea) {
-			return review.Request{}, MsgKitFieldTooLong
-		}
-	}
-	for _, pillar := range body.Pillars {
-		if tooLong(append([]string{pillar.Title}, pillar.Ideas...)...) {
-			return review.Request{}, MsgKitFieldTooLong
-		}
-	}
-	if inquiries := body.Results.Inquiries; inquiries != nil && (*inquiries < 0 || *inquiries > 100000) {
-		body.Results.Inquiries = nil
-	}
-	return review.Request{
-		Profile:     profile,
-		Positioning: strings.TrimSpace(body.Positioning),
-		Cadence:     body.Cadence,
-		Pillars:     body.Pillars,
-		Items:       body.Items,
-		Results:     body.Results,
-	}, ""
 }
 
 func (h *adminHandler) events(w http.ResponseWriter, r *http.Request) {

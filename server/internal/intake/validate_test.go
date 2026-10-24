@@ -92,6 +92,14 @@ func TestCleanErrors(t *testing.T) {
 	}
 }
 
+func TestAnnouncementTellsWhenTheMasterAsksForTheMonthReview(t *testing.T) {
+	text := Announcement(Request{MasterID: "m1", Goals: []string{"reach"}}, "Анна", true, true)
+
+	if !strings.Contains(text, "просит итоги месяца") || strings.Contains(text, "Заявка обновлена") {
+		t.Errorf("announcement = %s", text)
+	}
+}
+
 func TestAnnouncementCarriesWishes(t *testing.T) {
 	text := Announcement(Request{
 		MasterID:   "m1",
@@ -99,8 +107,8 @@ func TestAnnouncementCarriesWishes(t *testing.T) {
 		References: []Network{{Platform: PlatformInstagram, URL: "https://instagram.com/ref_master"}},
 		Goals:      []string{"reach", "check"},
 		Note:       "Без танцев, больше про окрашивание",
-	}, "Анна", false)
-	for _, want := range []string{"Референсы", "Instagram: https://instagram.com/ref_master", "Новая заявка", "Анна", "ВКонтакте: https://vk.com/anna", "Увеличить охваты", "Поднять средний чек", "Пожелания и рекомендации", "Без танцев", "m1"} {
+	}, "Анна", false, false)
+	for _, want := range []string{"Референсы", "Instagram*: https://instagram.com/ref_master", "Meta", "Новая заявка", "Анна", "ВКонтакте: https://vk.com/anna", "Увеличить охваты", "Поднять средний чек", "Пожелания и рекомендации", "Без танцев", "m1"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("announcement lacks %q:\n%s", want, text)
 		}

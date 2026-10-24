@@ -36,7 +36,6 @@ export class Refs {
   private lastSignature = '';
 
   readonly statuses = signal<RefStatus[]>([]);
-  readonly viewing = signal<string | undefined>(undefined);
   readonly error = signal<string | undefined>(undefined);
   readonly busy = signal(false);
   readonly byKey = computed(() => new Map(this.statuses().map((status) => [status.key, status])));
@@ -55,15 +54,6 @@ export class Refs {
         }
       });
     });
-  }
-
-  view(key: string): void {
-    this.error.set(undefined);
-    this.viewing.set(key);
-  }
-
-  hide(): void {
-    this.viewing.set(undefined);
   }
 
   async refresh(): Promise<void> {

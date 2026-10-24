@@ -6,10 +6,10 @@ import { AgentError, loadConfig, parseArgs } from '../agent/lib.mjs';
 import { COMFY_DEFAULTS, comfyAlive, ensureComfy, freeVramMb, makeReference, stopComfy } from './comfy.mjs';
 import { MIN_FREE_VRAM_MB, failRef, nextRef, submitRefs } from './lib.mjs';
 
-const HELP = `Воркер референсов «Помощника»: на вашем ПК делает по 3 фото или коротких видео к пунктам плана.
+const HELP = `Воркер референсов «Помощника»: на вашем ПК делает по 3 фото к пунктам плана.
 
   node tools/refs/worker.mjs [--once] [--interval 120]
-  node tools/refs/worker.mjs --sample "prompt" [--kind photo|video] [--out папка]
+  node tools/refs/worker.mjs --sample "prompt" [--out папка]
 
   --once     взять один пункт и выйти (код 3, если очередь пуста)
   --sample   проверка без сервера: сделать один референс по промпту и сохранить в папку
@@ -22,12 +22,12 @@ const log = (text) => console.log(`[${new Date().toLocaleTimeString('ru-RU')}] $
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
 async function processItem(config, comfy, item) {
-  log(`${item.key}: ${item.kind}, ${item.prompts.length} кадра`);
+  log(`${item.key}: ${item.prompts.length} кадра`);
   const files = [];
   for (const [index, prompt] of item.prompts.entries()) {
     const started = Date.now();
     const seed = Math.floor(Math.random() * 2 ** 31);
-    const made = await makeReference(comfy, item.kind, prompt.prompt, seed);
+    const made = await makeReference(comfy, prompt.prompt, seed);
     files.push({ ...made, caption: prompt.caption });
     log(`  ${index + 1}/${item.prompts.length} готов за ${Math.round((Date.now() - started) / 1000)} с, ${Math.round(made.data.length / 1024)} КБ`);
   }
@@ -57,13 +57,12 @@ async function main(argv) {
   const comfy = { dir: process.env.COMFY_DIR ?? COMFY_DEFAULTS.dir, url: process.env.COMFY_URL ?? COMFY_DEFAULTS.url };
 
   if (flags.sample) {
-    const kind = flags.kind === 'video' ? 'video' : 'photo';
     await ensureComfy(comfy, log);
     const started = Date.now();
-    const made = await makeReference(comfy, kind, String(flags.sample), Math.floor(Math.random() * 2 ** 31));
+    const made = await makeReference(comfy, String(flags.sample), Math.floor(Math.random() * 2 ** 31));
     const out = resolve(String(flags.out ?? '.'), made.name);
     writeFileSync(out, made.data);
-    log(`${kind}: ${Math.round((Date.now() - started) / 1000)} с, ${Math.round(made.data.length / 1024)} КБ -> ${out}`);
+    log(`фото: ${Math.round((Date.now() - started) / 1000)} с, ${Math.round(made.data.length / 1024)} КБ -> ${out}`);
     return 0;
   }
 

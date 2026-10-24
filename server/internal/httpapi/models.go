@@ -8,23 +8,15 @@ import (
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/audit"
-	"post-helper/server/internal/chat"
 	"post-helper/server/internal/intake"
-	"post-helper/server/internal/kit"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
-	"post-helper/server/internal/review"
 	"post-helper/server/internal/store"
-	"post-helper/server/internal/strategy"
 	"post-helper/server/internal/yandex"
 )
 
 type Options struct {
-	Responder      chat.Responder
-	Strategist     strategy.Generator
-	KitMaker       kit.Generator
 	Auditor        audit.Generator
-	Reviewer       review.Generator
 	Refs           refs.Store
 	RefPlanner     refs.Generator
 	Intake         intake.Store
@@ -81,14 +73,6 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-type KitRequest struct {
-	Profile     strategy.Profile `json:"profile"`
-	Positioning string           `json:"positioning"`
-	Format      string           `json:"format"`
-	Pillar      string           `json:"pillar"`
-	Idea        string           `json:"idea"`
-}
-
 type MeResponse struct {
 	Role          string   `json:"role"`
 	Name          string   `json:"name"`
@@ -141,15 +125,6 @@ type RenameRequest struct {
 
 type DisabledRequest struct {
 	Disabled bool `json:"disabled"`
-}
-
-type ReviewRequest struct {
-	Profile     strategy.Profile `json:"profile"`
-	Positioning string           `json:"positioning"`
-	Cadence     strategy.Cadence `json:"cadence"`
-	Pillars     []review.Pillar  `json:"pillars"`
-	Items       []review.Item    `json:"items"`
-	Results     review.Results   `json:"results"`
 }
 
 type RestoreRequest struct {

@@ -1,14 +1,12 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
-  Component,
-  ElementRef,
-  computed,
-  effect,
-  inject,
-  output,
-  signal,
-  viewChild,
-} from '@angular/core';
-import { FORMAT_LABELS, REFS_TEXTS, TODAY_COPY_FEEDBACK_MS, TODAY_TEXTS } from '../../constants';
+  FORMAT_LABELS,
+  REFS_TEXTS,
+  SHOOT_TEXTS,
+  TODAY_COPY_FEEDBACK_MS,
+  TODAY_TEXTS,
+} from '../../constants';
 import { PlanItem, TodayCopyFeedback, TodayEntry, TodaySection } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
@@ -25,18 +23,18 @@ const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
 });
 
 @Component({
+  imports: [RouterLink],
   selector: 'app-today-screen',
   styleUrl: './today-screen.scss',
   templateUrl: './today-screen.html',
 })
 export class TodayScreen {
-  readonly calendarRequested = output();
-
   protected readonly today = inject(Today);
   protected readonly plan = inject(CalendarPlan);
   protected readonly kits = inject(Kits);
   protected readonly refs = inject(Refs);
   protected readonly texts = TODAY_TEXTS;
+  protected readonly shootTexts = SHOOT_TEXTS;
   protected readonly feedback = signal<TodayCopyFeedback | undefined>(undefined);
 
   protected readonly sections = computed<TodaySection[]>(() => {
@@ -49,18 +47,10 @@ export class TodayScreen {
     return sections.filter((section) => section.entries.length > 0);
   });
 
-  private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
   private feedbackTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
-    effect(() => {
-      const element = this.dialog().nativeElement;
-      if (this.today.open() && !element.open) {
-        element.showModal();
-      } else if (!this.today.open() && element.open) {
-        element.close();
-      }
-    });
+    this.today.refresh();
   }
 
   protected feedbackText(id: string): string {
@@ -82,27 +72,6 @@ export class TodayScreen {
     this.feedbackTimer = setTimeout(() => this.feedback.set(undefined), TODAY_COPY_FEEDBACK_MS);
   }
 
-  protected onOpenCalendar(): void {
-    this.today.close();
-    this.calendarRequested.emit();
-  }
-
-  protected onClose(): void {
-    this.today.close();
-  }
-
-  protected onDialogClosed(): void {
-    if (!this.dialog().nativeElement.open) {
-      this.today.close();
-    }
-  }
-
-  protected onDialogClicked(event: MouseEvent): void {
-    if (event.target === this.dialog().nativeElement) {
-      this.today.close();
-    }
-  }
-
   private section(kind: TodaySection['kind'], title: string, items: PlanItem[]): TodaySection {
     return { kind, title, entries: items.map((item) => this.entry(item)) };
   }
@@ -113,8 +82,7 @@ export class TodayScreen {
       item,
       whenLabel: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time}`,
       formatLabel: FORMAT_LABELS[item.format],
-      status: this.kits.statusOf(item),
-      error: this.kits.errorOf(item),
+      hasKit: this.kits.kitFor(item) !== undefined,
       refLabel:
         ref?.status === 'done'
           ? ref.stale

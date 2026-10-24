@@ -1,0 +1,36 @@
+@switch (status()?.status) {
+  @case ('done') {
+    <ul class="tiles">
+      @for (tile of tiles(); track tile.file.id) {
+        <li class="tile">
+          @if (tile.url) {
+            <img
+              class="tile__media"
+              [src]="tile.url"
+              [alt]="texts.photo + ' ' + (tile.file.index + 1)"
+            />
+          } @else if (tile.failed) {
+            <p class="tile__placeholder" role="alert">{{ texts.loadFailed }}</p>
+          } @else {
+            <p class="tile__placeholder" role="status">{{ texts.loading }}</p>
+          }
+          @if (tile.file.caption) {
+            <div class="tile__description">
+              <h4 class="tile__title">{{ texts.descriptionTitle }} {{ tile.file.index + 1 }}</h4>
+              <p class="tile__text">{{ tile.file.caption }}</p>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+  @case ('failed') {
+    <p class="note note--error" role="alert">{{ texts.failed }}</p>
+  }
+  @case ('made') {
+    <p class="note">{{ texts.made }}</p>
+  }
+  @default {
+    <p class="note" role="status">{{ texts.pending }}</p>
+  }
+}

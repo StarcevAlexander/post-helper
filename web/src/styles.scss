@@ -408,3 +408,12 @@ body {
   font-size: 1rem;
   -webkit-font-smoothing: antialiased;
 }
+
+a[class$='__button'],
+a.screen__primary,
+a.screen__secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}

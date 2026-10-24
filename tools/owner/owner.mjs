@@ -20,7 +20,7 @@ const HELP = `Управление «Помощником» из консоли 
   node tools/owner/owner.mjs intakes [new|ready]       заявки мастеров: ссылки, цели, пожелания (по умолчанию новые)
   node tools/owner/owner.mjs plan <id> <план.json>     залить мастеру стратегию, календарь и комплекты, закрыть заявку
   node tools/owner/owner.mjs refs <id> <ключ> <файл> [файл] [файл] [--captions "подпись 1|подпись 2|подпись 3"]
-                                                      залить до 3 референсов (фото или видео) к публикации календаря
+                                                      залить до 3 фото-референсов к публикации календаря (подпись = подробное описание кадра)
   node tools/owner/owner.mjs review <id> [--json]      выполнение плана: проценты по неделям, форматам, рубрикам, просрочки, итоги недели
   node tools/owner/owner.mjs refs-clear <id>          удалить референсы мастера целиком (по всем публикациям)
   node tools/owner/owner.mjs push <id> "Заголовок" ["Текст"] [--url "./?screen=today"]
@@ -85,7 +85,7 @@ function toLocalDateKey(date) {
 
 function describeIntake(request) {
   const lines = [
-    `Заявка ${request.id} · ${request.status === 'ready' ? 'готова' : 'новая'} · ${request.createdAt}`,
+    `${request.review ? 'ПРОСЬБА ОБ ИТОГАХ МЕСЯЦА (/content-review)' : 'Заявка'} ${request.id} · ${request.status === 'ready' ? 'готова' : 'новая'} · ${request.createdAt}`,
     `Мастер: ${request.masterName || '?'} (id ${request.masterId})`,
     'Соцсети:',
     ...request.networks.map((network) => `  • ${network.platform}: ${network.url}`),

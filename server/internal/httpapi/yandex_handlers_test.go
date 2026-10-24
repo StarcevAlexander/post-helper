@@ -45,7 +45,6 @@ func newYandexFixture(t *testing.T) *yandexFixture {
 		exchange: &fakeExchanger{profile: yandex.Profile{ID: "42", Login: "anna", RealName: "Анна Иванова"}},
 	}
 	fixture.handler = NewHandler(Options{
-		Responder:      &fakeResponder{reply: "ответ"},
 		Accounts:       fixture.store,
 		DailyAILimit:   5,
 		Password:       testPassword,

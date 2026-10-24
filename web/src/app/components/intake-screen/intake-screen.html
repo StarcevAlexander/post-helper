@@ -1,231 +1,207 @@
-<dialog
-  #dialog
-  class="screen"
-  aria-labelledby="intake-title"
-  (click)="onDialogClicked($event)"
-  (close)="onDialogClosed()"
->
-  <div class="screen__body">
-    <header class="screen__header">
-      <h2 id="intake-title" class="screen__title">{{ texts.title }}</h2>
-      <button
-        type="button"
-        class="screen__close"
-        [attr.aria-label]="texts.closeLabel"
-        (click)="onClose()"
-      >
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-          <path
-            d="M6 6l12 12M18 6L6 18"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
-      </button>
-    </header>
+<div class="screen__body">
+  @if (intake.showForm()) {
+    <p class="screen__text">{{ intake.reviewing() ? reviewTexts.intro : texts.intro }}</p>
 
-    @if (intake.showForm()) {
-      <p class="screen__text">{{ texts.intro }}</p>
-
-      <section class="section">
-        <h3 class="section__heading">{{ texts.linksTitle }}</h3>
-        <p class="screen__hint">{{ texts.linksHint }}</p>
-        @for (row of rows(); track row.index) {
-          <div class="link">
-            <div class="link__row">
-              <label class="link__label" [for]="'intake-link-' + row.index">
-                {{ texts.linkLabel }} {{ row.index + 1 }}
-              </label>
-              <input
-                [id]="'intake-link-' + row.index"
-                class="field"
-                type="text"
-                inputmode="url"
-                autocomplete="off"
-                autocapitalize="off"
-                [placeholder]="texts.linkPlaceholder"
-                [value]="row.url"
-                (input)="onLinkInput(row.index, $event)"
-              />
-              @if (rows().length > 1) {
-                <button
-                  type="button"
-                  class="link__remove"
-                  [attr.aria-label]="texts.removeLink + ' ' + (row.index + 1)"
-                  (click)="intake.removeLink(row.index)"
-                >
-                  ×
-                </button>
-              }
-            </div>
-            @if (row.platformLabel; as platform) {
-              <p class="link__platform">{{ platform }}</p>
-            }
-          </div>
-        }
-        @if (rows().length < maxLinks) {
-          <button type="button" class="screen__secondary" (click)="intake.addLink()">
-            {{ texts.addLink }}
-          </button>
-        }
-      </section>
-
-      <section class="section">
-        <h3 class="section__heading">{{ texts.referencesTitle }}</h3>
-        <p class="screen__hint">{{ texts.referencesHint }}</p>
-        @for (row of referenceRows().rows; track row.index) {
-          <div class="link">
-            <div class="link__row">
-              <label class="link__label" [for]="'intake-reference-' + row.index">
-                {{ texts.referenceLabel }} {{ row.index + 1 }}
-              </label>
-              <input
-                [id]="'intake-reference-' + row.index"
-                class="field"
-                type="text"
-                inputmode="url"
-                autocomplete="off"
-                autocapitalize="off"
-                [placeholder]="texts.referencePlaceholder"
-                [value]="row.url"
-                (input)="onReferenceInput(row.index, $event)"
-              />
+    <section class="section">
+      <h3 class="section__heading">{{ texts.linksTitle }}</h3>
+      <p class="screen__hint">{{ texts.linksHint }}</p>
+      <p class="screen__hint">{{ texts.metaNote }}</p>
+      @for (row of rows(); track row.index) {
+        <div class="link">
+          <div class="link__row">
+            <label class="link__label" [for]="'intake-link-' + row.index">
+              {{ texts.linkLabel }} {{ row.index + 1 }}
+            </label>
+            <input
+              [id]="'intake-link-' + row.index"
+              class="field"
+              type="text"
+              inputmode="url"
+              autocomplete="off"
+              autocapitalize="off"
+              [placeholder]="texts.linkPlaceholder"
+              [value]="row.url"
+              (input)="onLinkInput(row.index, $event)"
+            />
+            @if (rows().length > 1) {
               <button
                 type="button"
                 class="link__remove"
-                [attr.aria-label]="texts.removeReference + ' ' + (row.index + 1)"
-                (click)="intake.removeReference(row.index)"
+                [attr.aria-label]="texts.removeLink + ' ' + (row.index + 1)"
+                (click)="intake.removeLink(row.index)"
               >
                 ×
               </button>
-            </div>
-            @if (row.platformLabel; as platform) {
-              <p class="link__platform">{{ platform }}</p>
             }
           </div>
-        }
-        <p class="screen__hint">{{ texts.referencesCounter }}: {{ referenceRows().filled }}</p>
-        @if (referenceRows().rows.length < maxReferences) {
-          <button type="button" class="screen__secondary" (click)="intake.addReference()">
-            {{ texts.addReference }}
-          </button>
-        }
-      </section>
+          @if (row.platformLabel; as platform) {
+            <p class="link__platform">{{ platform }}</p>
+          }
+        </div>
+      }
+      @if (rows().length < maxLinks) {
+        <button type="button" class="screen__secondary" (click)="intake.addLink()">
+          {{ texts.addLink }}
+        </button>
+      }
+    </section>
 
-      <fieldset class="section goals">
-        <legend class="section__heading">{{ texts.goalsTitle }}</legend>
-        <p class="screen__hint">{{ texts.goalsHint }}</p>
-        @for (goal of goals; track goal.id) {
-          <label class="goal">
+    <section class="section">
+      <h3 class="section__heading">{{ texts.referencesTitle }}</h3>
+      <p class="screen__hint">{{ texts.referencesHint }}</p>
+      <p class="screen__hint">{{ texts.metaNote }}</p>
+      @for (row of referenceRows().rows; track row.index) {
+        <div class="link">
+          <div class="link__row">
+            <label class="link__label" [for]="'intake-reference-' + row.index">
+              {{ texts.referenceLabel }} {{ row.index + 1 }}
+            </label>
             <input
-              type="checkbox"
-              [checked]="isChosen(goal.id)"
-              (change)="intake.toggleGoal(goal.id)"
+              [id]="'intake-reference-' + row.index"
+              class="field"
+              type="text"
+              inputmode="url"
+              autocomplete="off"
+              autocapitalize="off"
+              [placeholder]="texts.referencePlaceholder"
+              [value]="row.url"
+              (input)="onReferenceInput(row.index, $event)"
             />
-            <span>{{ goal.label }}</span>
-          </label>
-        }
-      </fieldset>
-
-      <section class="section">
-        <label class="section__heading" for="intake-note">{{ texts.noteTitle }}</label>
-        <p class="screen__hint" id="intake-note-hint">{{ texts.noteHint }}</p>
-        <textarea
-          id="intake-note"
-          class="field field--note"
-          rows="6"
-          aria-describedby="intake-note-hint"
-          [attr.maxlength]="maxNote"
-          [placeholder]="texts.notePlaceholder"
-          [value]="intake.draft().note"
-          (input)="onNoteInput($event)"
-        ></textarea>
-        <p class="screen__hint screen__hint--counter">
-          {{ intake.draft().note.length }} / {{ maxNote }} {{ texts.noteCounter }}
-        </p>
-      </section>
-
-      @if (intake.error(); as message) {
-        <p class="screen__error" role="alert">{{ message }}</p>
+            <button
+              type="button"
+              class="link__remove"
+              [attr.aria-label]="texts.removeReference + ' ' + (row.index + 1)"
+              (click)="intake.removeReference(row.index)"
+            >
+              ×
+            </button>
+          </div>
+          @if (row.platformLabel; as platform) {
+            <p class="link__platform">{{ platform }}</p>
+          }
+        </div>
       }
-
-      <button
-        type="button"
-        class="screen__primary"
-        [disabled]="!intake.canSubmit()"
-        (click)="onSubmit()"
-      >
-        {{
-          intake.busy()
-            ? texts.sending
-            : intake.request() && intake.pending()
-              ? texts.resubmit
-              : texts.submit
-        }}
-      </button>
-      @if (intake.request()) {
-        <button type="button" class="screen__secondary" (click)="intake.cancelEdit()">
-          {{ texts.cancel }}
+      <p class="screen__hint">{{ texts.referencesCounter }}: {{ referenceRows().filled }}</p>
+      @if (referenceRows().rows.length < maxReferences) {
+        <button type="button" class="screen__secondary" (click)="intake.addReference()">
+          {{ texts.addReference }}
         </button>
       }
-    } @else if (intake.ready()) {
-      <p class="headline" role="status">{{ texts.readyText }}</p>
-      @if (intake.request()?.replyNote; as reply) {
-        <section class="section">
-          <h3 class="section__heading">{{ texts.readyNote }}</h3>
-          <p class="suggestion">{{ reply }}</p>
-        </section>
+    </section>
+
+    <fieldset class="section goals">
+      <legend class="section__heading">{{ texts.goalsTitle }}</legend>
+      <p class="screen__hint">{{ texts.goalsHint }}</p>
+      @for (goal of goals; track goal.id) {
+        <label class="goal">
+          <input
+            type="checkbox"
+            [checked]="isChosen(goal.id)"
+            (change)="intake.toggleGoal(goal.id)"
+          />
+          <span>{{ goal.label }}</span>
+        </label>
       }
-      @if (hasPlan()) {
-        <button type="button" class="screen__primary" (click)="onOpenCalendar()">
-          {{ texts.openCalendar }}
-        </button>
-      }
-      <button type="button" class="screen__secondary" (click)="intake.startNew()">
-        {{ texts.again }}
-      </button>
-    } @else {
-      <p class="headline" role="status">
-        <strong>{{ texts.sentTitle }}.</strong> {{ texts.sentText }}
+    </fieldset>
+
+    <section class="section">
+      <label class="section__heading" for="intake-note">{{ texts.noteTitle }}</label>
+      <p class="screen__hint" id="intake-note-hint">{{ texts.noteHint }}</p>
+      <textarea
+        id="intake-note"
+        class="field field--note"
+        rows="6"
+        aria-describedby="intake-note-hint"
+        [attr.maxlength]="maxNote"
+        [placeholder]="texts.notePlaceholder"
+        [value]="intake.draft().note"
+        (input)="onNoteInput($event)"
+      ></textarea>
+      <p class="screen__hint screen__hint--counter">
+        {{ intake.draft().note.length }} / {{ maxNote }} {{ texts.noteCounter }}
       </p>
+    </section>
 
-      <section class="section">
-        <h3 class="section__heading">{{ texts.links }}</h3>
-        <ul class="section__list">
-          @for (network of summary().networks; track network.url) {
-            <li>{{ network.label }}: {{ network.url }}</li>
-          }
-        </ul>
-      </section>
-      @if (summary().references.length > 0) {
-        <section class="section">
-          <h3 class="section__heading">{{ texts.referencesSummary }}</h3>
-          <ul class="section__list">
-            @for (reference of summary().references; track reference.url) {
-              <li>{{ reference.label }}: {{ reference.url }}</li>
-            }
-          </ul>
-        </section>
-      }
-      <section class="section">
-        <h3 class="section__heading">{{ texts.goals }}</h3>
-        <ul class="section__list">
-          @for (goal of summary().goals; track goal) {
-            <li>{{ goal }}</li>
-          }
-        </ul>
-      </section>
-      @if (intake.request()?.note; as note) {
-        <section class="section">
-          <h3 class="section__heading">{{ texts.sentWishes }}</h3>
-          <p class="suggestion suggestion--wish">{{ note }}</p>
-        </section>
-      }
-      <button type="button" class="screen__secondary" (click)="intake.edit()">
-        {{ texts.edit }}
+    @if (intake.error(); as message) {
+      <p class="screen__error" role="alert">{{ message }}</p>
+    }
+
+    <button
+      type="button"
+      class="screen__primary"
+      [disabled]="!intake.canSubmit()"
+      (click)="onSubmit()"
+    >
+      {{
+        intake.busy()
+          ? texts.sending
+          : intake.request() && intake.pending()
+            ? texts.resubmit
+            : intake.reviewing()
+              ? reviewTexts.submit
+              : texts.submit
+      }}
+    </button>
+    @if (intake.request()) {
+      <button type="button" class="screen__secondary" (click)="intake.cancelEdit()">
+        {{ texts.cancel }}
       </button>
     }
-  </div>
-</dialog>
+  } @else if (intake.ready()) {
+    <p class="headline" role="status">{{ texts.readyText }}</p>
+    @if (intake.request()?.replyNote; as reply) {
+      <section class="section">
+        <h3 class="section__heading">{{ texts.readyNote }}</h3>
+        <p class="suggestion">{{ reply }}</p>
+      </section>
+    }
+    @if (hasPlan()) {
+      <a class="screen__primary" routerLink="/calendar">{{ texts.openCalendar }}</a>
+    }
+    <button type="button" class="screen__secondary" (click)="intake.startNew()">
+      {{ texts.again }}
+    </button>
+  } @else {
+    <p class="headline" role="status">
+      <strong>{{ intake.reviewing() ? reviewTexts.sentTitle : texts.sentTitle }}.</strong>
+      {{ intake.reviewing() ? reviewTexts.sentText : texts.sentText }}
+    </p>
+
+    <section class="section">
+      <h3 class="section__heading">{{ texts.links }}</h3>
+      <ul class="section__list">
+        @for (network of summary().networks; track network.url) {
+          <li>{{ network.label }}: {{ network.url }}</li>
+        }
+      </ul>
+      <p class="screen__hint">{{ texts.metaNote }}</p>
+    </section>
+    @if (summary().references.length > 0) {
+      <section class="section">
+        <h3 class="section__heading">{{ texts.referencesSummary }}</h3>
+        <ul class="section__list">
+          @for (reference of summary().references; track reference.url) {
+            <li>{{ reference.label }}: {{ reference.url }}</li>
+          }
+        </ul>
+      </section>
+    }
+    <section class="section">
+      <h3 class="section__heading">{{ texts.goals }}</h3>
+      <ul class="section__list">
+        @for (goal of summary().goals; track goal) {
+          <li>{{ goal }}</li>
+        }
+      </ul>
+    </section>
+    @if (intake.request()?.note; as note) {
+      <section class="section">
+        <h3 class="section__heading">{{ texts.sentWishes }}</h3>
+        <p class="suggestion suggestion--wish">{{ note }}</p>
+      </section>
+    }
+    <button type="button" class="screen__secondary" (click)="intake.edit()">
+      {{ texts.edit }}
+    </button>
+  }
+</div>

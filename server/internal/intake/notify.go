@@ -48,9 +48,11 @@ func (t *Telegram) Notify(ctx context.Context, text string) error {
 	return nil
 }
 
-func Announcement(request Request, masterName string, updated bool) string {
+func Announcement(request Request, masterName string, updated, review bool) string {
 	var text strings.Builder
-	if updated {
+	if review {
+		text.WriteString("Мастер просит итоги месяца (/content-review)\n")
+	} else if updated {
 		text.WriteString("Заявка обновлена\n")
 	} else {
 		text.WriteString("Новая заявка на контент-план\n")
@@ -72,6 +74,9 @@ func Announcement(request Request, masterName string, updated bool) string {
 	if request.Note != "" {
 		fmt.Fprintf(&text, "\nПожелания и рекомендации:\n%s\n", request.Note)
 	}
+	if mentionsInstagram(request) {
+		text.WriteString("\n* " + MetaNote + "\n")
+	}
 	fmt.Fprintf(&text, "\nid мастера: %s", request.MasterID)
 	return text.String()
 }
@@ -82,4 +87,13 @@ func clip(text string) string {
 		return text
 	}
 	return string(runes[:TelegramMaxRunes-1]) + "…"
+}
+
+func mentionsInstagram(request Request) bool {
+	for _, network := range append(append([]Network{}, request.Networks...), request.References...) {
+		if network.Platform == PlatformInstagram {
+			return true
+		}
+	}
+	return false
 }

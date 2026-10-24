@@ -105,6 +105,40 @@ describe('validatePlan', () => {
     assert.match(validatePlan(plan, NOW).join('\n'), /комплект ghost без публикации/);
   });
 
+  it('accepts recommendations with an importance in percent', () => {
+    const plan = goodPlan();
+    plan.recommendations = [
+      { id: 'r1', text: 'Добавить запись в шапку', importance: 90 },
+      { id: 'r2', text: 'Обновить аватар', importance: 40 },
+    ];
+
+    assert.deepEqual(validatePlan(plan, NOW), []);
+  });
+
+  it('accepts a plan made of recommendations only', () => {
+    const plan = { note: 'Записка мастеру, достаточно длинная.', recommendations: [] };
+
+    assert.deepEqual(validatePlan(plan, NOW), []);
+  });
+
+  it('rejects broken recommendations', () => {
+    const plan = goodPlan();
+    plan.recommendations = [
+      { id: 'r1', text: 'Добавить запись в шапку', importance: 140 },
+      { id: 'r1', text: 'Дубль', importance: 10 },
+      { id: 'r3', text: ' ', importance: 10 },
+      { id: 'r4', text: 'Дробная важность', importance: 12.5 },
+    ];
+
+    const text = validatePlan(plan, NOW).join('\n');
+
+    assert.match(text, /importance должна быть целым процентом/);
+    assert.match(text, /повторяется/);
+    assert.match(text, /нужны id и text/);
+    plan.recommendations = 'нет';
+    assert.match(validatePlan(plan, NOW).join('\n'), /recommendations должен быть списком/);
+  });
+
   it('rejects things that are not a plan', () => {
     assert.deepEqual(validatePlan([], NOW), ['plan.json должен быть объектом']);
     assert.deepEqual(validatePlan(null, NOW), ['plan.json должен быть объектом']);
@@ -146,6 +180,12 @@ describe('pickIntake and state', () => {
 
     assert.equal(pickIntake([third], state, NOW.getTime() + 1000, limits), undefined);
     assert.equal(pickIntake([third], state, NOW.getTime() + DAY_MS + 1000, limits)?.id, 'i1');
+  });
+
+  it('leaves the month review requests to the owner', () => {
+    const state = emptyState();
+
+    assert.equal(pickIntake([{ ...intake, review: true }], state, NOW.getTime()), undefined);
   });
 
   it('does not loop on a failed intake', () => {

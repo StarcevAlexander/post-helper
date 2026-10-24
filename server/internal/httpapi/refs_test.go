@@ -19,7 +19,6 @@ import (
 
 var (
 	pngBytes = []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 'I', 'H', 'D', 'R'}
-	mp4Bytes = []byte{0, 0, 0, 0x18, 'f', 't', 'y', 'p', 'm', 'p', '4', '2', 0, 0, 0, 0, 'm', 'p', '4', '2', 'i', 's', 'o', 'm'}
 )
 
 type fakePlanner struct {
@@ -47,8 +46,6 @@ func newRefsFixture(t *testing.T) *refsFixture {
 		{Prompt: "client choosing a colour", Caption: "Клиентка выбирает цвет"},
 	}}}
 	base.handler = NewHandler(Options{
-		Responder:      base.responder,
-		Reviewer:       base.reviewer,
 		Accounts:       base.store,
 		Refs:           refs.NewMemory(),
 		RefPlanner:     planner,
@@ -118,7 +115,7 @@ func TestMasterOrdersReferencesForThePlan(t *testing.T) {
 	if order.Code != http.StatusOK || !strings.Contains(order.Body.String(), `"added":2`) {
 		t.Fatalf("order = %d %s", order.Code, order.Body)
 	}
-	if len(statuses) != 2 || statuses[0].Key != "w1-mon" || statuses[0].Status != refs.StatusQueued || statuses[0].Kind != refs.KindVideo || statuses[1].Kind != refs.KindPhoto {
+	if len(statuses) != 2 || statuses[0].Key != "w1-mon" || statuses[0].Status != refs.StatusQueued || statuses[0].Kind != refs.KindPhoto || statuses[1].Kind != refs.KindPhoto {
 		t.Errorf("statuses = %+v", statuses)
 	}
 }
@@ -183,10 +180,10 @@ func TestAgentGetsPromptsMadeFromTheMastersProfileAndDeliversFiles(t *testing.T)
 	fixture.call(http.MethodPost, "/api/refs/order", code, planBody)
 
 	item := fixture.claim(t)
-	upload := fixture.upload(item.ID, agentToken, [][]byte{mp4Bytes, mp4Bytes, mp4Bytes}, `["Руки крупно","Флаконы","Выбор цвета"]`)
+	upload := fixture.upload(item.ID, agentToken, [][]byte{pngBytes, pngBytes, pngBytes}, `["Руки крупно","Флаконы","Выбор цвета"]`)
 	statuses := fixture.statuses(t, code)
 
-	if item.Key != "w1-mon" || item.Kind != refs.KindVideo || len(item.Prompts) != 3 {
+	if item.Key != "w1-mon" || item.Kind != refs.KindPhoto || len(item.Prompts) != 3 {
 		t.Fatalf("item = %+v", item)
 	}
 	if fixture.planner.request.Profile.Specialty != "маникюр" || fixture.planner.request.Item.Idea != "Видео снятия гель-лака" {
@@ -196,12 +193,12 @@ func TestAgentGetsPromptsMadeFromTheMastersProfileAndDeliversFiles(t *testing.T)
 		t.Fatalf("upload = %d %s", upload.Code, upload.Body)
 	}
 	done := statuses[0]
-	if done.Status != refs.StatusDone || len(done.Files) != 3 || done.Files[0].MediaType != "video/mp4" || done.Files[1].Caption != "Флаконы" {
+	if done.Status != refs.StatusDone || len(done.Files) != 3 || done.Files[0].MediaType != "image/png" || done.Files[1].Caption != "Флаконы" {
 		t.Errorf("status = %+v", done)
 	}
 
 	file := fixture.call(http.MethodGet, "/api/refs/files/"+done.Files[0].ID, code, "")
-	if file.Code != http.StatusOK || file.Header().Get("Content-Type") != "video/mp4" || !bytes.Equal(file.Body.Bytes(), mp4Bytes) {
+	if file.Code != http.StatusOK || file.Header().Get("Content-Type") != "image/png" || !bytes.Equal(file.Body.Bytes(), pngBytes) {
 		t.Errorf("file = %d %s", file.Code, file.Header().Get("Content-Type"))
 	}
 }

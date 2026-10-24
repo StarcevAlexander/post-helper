@@ -29,11 +29,7 @@ func NewHandler(options Options) http.Handler {
 	}
 	authenticator := auth.New(options.Password, accountStore)
 	protected := func(next http.Handler) http.Handler { return withAuth(authenticator, next) }
-	quota := func(kind string, next http.Handler) http.Handler {
-		return protected(withQuota(accountStore, options.DailyAILimit, kind, logger, next))
-	}
 
-	events := &journal{accounts: accountStore, logger: logger}
 	state := &stateHandler{accounts: accountStore, logger: logger}
 	admin := &adminHandler{accounts: accountStore, logger: logger}
 
@@ -79,8 +75,6 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(AdminRestoreRoute, protected(requireAdmin(http.HandlerFunc(admin.restore))))
 	mux.Handle(AdminDisableMasterRoute, protected(requireAdmin(http.HandlerFunc(admin.disable))))
 
-	mux.Handle(KitRoute, quota(UsageKit, &kitHandler{journal: events, generator: options.KitMaker, recorder: history, logger: logger}))
-	mux.Handle(StrategyRoute, quota(UsageStrategy, &strategyHandler{journal: events, generator: options.Strategist, recorder: history, logger: logger}))
 	jobs := &auditJobsHandler{accounts: accountStore, logger: logger}
 	mux.Handle(AuditJobCreateRoute, protected(requireMaster(http.HandlerFunc(jobs.create))))
 	mux.Handle(AuditJobLatestRoute, protected(requireMaster(http.HandlerFunc(jobs.latest))))
@@ -128,8 +122,5 @@ func NewHandler(options Options) http.Handler {
 		mux.Handle(AgentRefsResultRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.result)))
 		mux.Handle(AgentRefsFailRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.fail)))
 	}
-	mux.Handle(AuditRoute, quota(UsageAudit, &auditHandler{journal: events, generator: options.Auditor, recorder: history, logger: logger}))
-	mux.Handle(ReviewRoute, quota(UsageReview, &reviewHandler{journal: events, generator: options.Reviewer, recorder: history, logger: logger}))
-	mux.Handle(ChatRoute, quota(UsageChat, &chatHandler{journal: events, responder: options.Responder, recorder: history, logger: logger}))
 	return withCORS(options.AllowedOrigins, withLogging(logger, withRecover(logger, mux)))
 }

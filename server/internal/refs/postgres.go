@@ -87,7 +87,7 @@ func (p *Postgres) Statuses(ctx context.Context, masterID string, now time.Time)
 			rows.Close()
 			return nil, err
 		}
-		status.Kind = KindFor(format)
+		status.Kind = KindPhoto
 		status.Files = []FileMeta{}
 		ids[id] = len(statuses)
 		statuses = append(statuses, status)

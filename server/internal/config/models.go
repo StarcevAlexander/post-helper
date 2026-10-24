@@ -21,4 +21,6 @@ type Config struct {
 	YandexClientSecret string
 
 	AdminRestart bool
+
+	ReminderTimezone string
 }

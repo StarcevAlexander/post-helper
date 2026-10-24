@@ -110,7 +110,7 @@ export function runTimes(state) {
 export function pickIntake(intakes, state, nowMs, limits = AGENT_DEFAULTS) {
   const dayAgo = nowMs - DAY_MS;
   return intakes.find((intake) => {
-    if (state.handled[intakeKey(intake)]) {
+    if (intake.review || state.handled[intakeKey(intake)]) {
       return false;
     }
     const today = state.runs.filter((run) => run.masterId === intake.masterId && run.at > dayAgo);
@@ -142,8 +142,29 @@ export function validatePlan(plan, now = new Date()) {
   } else if ([...plan.note.trim()].length > MAX_NOTE_LENGTH) {
     problems.push(`записка note длиннее ${MAX_NOTE_LENGTH} знаков, сократите`);
   }
-  if (!plan.strategy && !plan.calendar && !plan.kits) {
-    problems.push('нужен хотя бы один из блоков strategy, calendar, kits');
+  if (!plan.strategy && !plan.calendar && !plan.kits && plan.recommendations === undefined) {
+    problems.push('нужен хотя бы один из блоков strategy, calendar, kits, recommendations');
+  }
+  if (plan.recommendations !== undefined) {
+    if (!Array.isArray(plan.recommendations)) {
+      problems.push('recommendations должен быть списком');
+    } else {
+      const recommendationIds = new Set();
+      plan.recommendations.forEach((item, index) => {
+        const label = `рекомендация ${index + 1}`;
+        if (!isObject(item) || typeof item.id !== 'string' || !item.id.trim() || typeof item.text !== 'string' || !item.text.trim()) {
+          problems.push(`${label}: нужны id и text`);
+          return;
+        }
+        if (recommendationIds.has(item.id)) {
+          problems.push(`${label}: id ${item.id} повторяется`);
+        }
+        recommendationIds.add(item.id);
+        if (!Number.isInteger(item.importance) || item.importance < 0 || item.importance > 100) {
+          problems.push(`${label}: importance должна быть целым процентом от 0 до 100`);
+        }
+      });
+    }
   }
 
   const ids = new Set();
@@ -259,7 +280,7 @@ export function buildPrompt(intake, { guide, tomorrow }) {
     `2. Реши, что взять у референсов, а что переработать под голос и нишу мастера. Не копируй дословно.`,
     `3. Построчно сверь план с блоком «note» заявки (пожелания и рекомендации): каждое «не хочу», «люблю», «не получается», «свободна по» должно быть отражено в рубриках, форматах, идеях или расписании. Невыполнимое объясни мастеру в note плана.`,
     `4. Цели из заявки определяют рубрики и частоту.`,
-    `5. Запиши план в файл ${PLAN_FILE} в рабочей папке, по формату ниже. Даты публикаций не раньше ${tomorrow}, у каждой публикации свой id, календарь на 4 недели, к каждой публикации комплект в kits.`,
+    `5. Запиши план в файл ${PLAN_FILE} в рабочей папке, по формату ниже. Даты публикаций не раньше ${tomorrow}, у каждой публикации свой id, календарь на 4 недели, к каждой публикации комплект в kits: в shots и frames конкретно, что снять (мастер снимает всё на неделю в один день контента). Добавь блок recommendations: рекомендации по оформлению профиля, у каждой id (r1, r2) и importance в процентах от 0 до 100.`,
     `6. В note плана напиши мастеру короткую записку, не длиннее ${MAX_NOTE_LENGTH} знаков: что учтено из его пожеланий и что взято у референсов. Пиши на «вы», простым русским языком, без англицизмов и без шуток. Любое другое текстовое поле плана не длиннее 2000 знаков.`,
     `7. Запиши report.md: какие пожелания учтены и как; что взято у референсов; какие страницы не открылись; допущения. Токены и пароли нигде не пиши.`,
     `8. В конце ответь одной строкой: «готово».`,

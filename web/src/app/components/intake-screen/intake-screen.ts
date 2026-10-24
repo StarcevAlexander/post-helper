@@ -1,4 +1,5 @@
-import { Component, ElementRef, computed, effect, inject, output, viewChild } from '@angular/core';
+import { Component, DestroyRef, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
   INTAKE_GOALS,
   INTAKE_MAX_LINKS,
@@ -6,6 +7,7 @@ import {
   INTAKE_MAX_REFERENCES,
   INTAKE_PLATFORM_LABELS,
   INTAKE_TEXTS,
+  MONTH_REVIEW_INTAKE_TEXTS,
 } from '../../constants';
 import { IntakeGoalId } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
@@ -13,6 +15,7 @@ import { Intake } from '../../services/intake';
 import { detectPlatform } from '../../utils/intake-links';
 
 @Component({
+  imports: [RouterLink],
   selector: 'app-intake-screen',
   styleUrl: './intake-screen.scss',
   templateUrl: './intake-screen.html',
@@ -21,9 +24,8 @@ export class IntakeScreen {
   protected readonly intake = inject(Intake);
   private readonly plan = inject(CalendarPlan);
 
-  readonly calendarRequested = output<void>();
-
   protected readonly texts = INTAKE_TEXTS;
+  protected readonly reviewTexts = MONTH_REVIEW_INTAKE_TEXTS;
   protected readonly goals = INTAKE_GOALS;
   protected readonly maxLinks = INTAKE_MAX_LINKS;
   protected readonly maxReferences = INTAKE_MAX_REFERENCES;
@@ -66,17 +68,8 @@ export class IntakeScreen {
     };
   });
 
-  private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
-
   constructor() {
-    effect(() => {
-      const element = this.dialog().nativeElement;
-      if (this.intake.open() && !element.open) {
-        element.showModal();
-      } else if (!this.intake.open() && element.open) {
-        element.close();
-      }
-    });
+    inject(DestroyRef).onDestroy(() => this.intake.markSeen());
   }
 
   protected onLinkInput(index: number, event: Event): void {
@@ -97,26 +90,5 @@ export class IntakeScreen {
 
   protected async onSubmit(): Promise<void> {
     await this.intake.submit();
-  }
-
-  protected onOpenCalendar(): void {
-    this.intake.hide();
-    this.calendarRequested.emit();
-  }
-
-  protected onClose(): void {
-    this.intake.hide();
-  }
-
-  protected onDialogClosed(): void {
-    if (!this.dialog().nativeElement.open) {
-      this.intake.hide();
-    }
-  }
-
-  protected onDialogClicked(event: MouseEvent): void {
-    if (event.target === this.dialog().nativeElement) {
-      this.intake.hide();
-    }
   }
 }

@@ -2,10 +2,6 @@ export const API_DEV_URL = 'http://localhost:8080';
 
 export const API_PRODUCTION_URL = 'https://interceptor.tail969ed0.ts.net';
 
-export const API_CHAT_PATH = '/api/chat';
-
-export const API_STRATEGY_PATH = '/api/strategy';
-
 export const API_KIT_PATH = '/api/kit';
 
 export const API_ME_PATH = '/api/me';
@@ -20,11 +16,7 @@ export const API_AUTH_YANDEX_PATH = '/api/auth/yandex';
 
 export const API_STATE_PATH = '/api/state';
 
-export const API_REVIEW_PATH = '/api/review';
-
 export const API_CLIENT_ERROR_PATH = '/api/client-error';
-
-export const CONVERSATION_STORAGE_KEY = 'helper.conversation-id';
 
 export const HTTP_UNAUTHORIZED = 401;
 

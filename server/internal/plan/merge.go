@@ -9,8 +9,8 @@ import (
 )
 
 func Merge(existing json.RawMessage, submission Submission) (Merged, error) {
-	if submission.Strategy == nil && submission.Calendar == nil && len(submission.Kits) == 0 {
-		return Merged{}, fmt.Errorf("в плане нет ни стратегии, ни календаря, ни комплектов")
+	if submission.Strategy == nil && submission.Calendar == nil && len(submission.Kits) == 0 && submission.Review == nil && submission.Recommendations == nil {
+		return Merged{}, fmt.Errorf("в плане нет ни стратегии, ни календаря, ни комплектов, ни итогов, ни рекомендаций")
 	}
 	if utf8.RuneCountInString(strings.TrimSpace(submission.Note)) > MaxNoteRunes {
 		return Merged{}, fmt.Errorf("note: слишком длинная записка")
@@ -47,6 +47,29 @@ func Merge(existing json.RawMessage, submission Submission) (Merged, error) {
 			return Merged{}, err
 		}
 		if err := put(data, StateKits, kits); err != nil {
+			return Merged{}, err
+		}
+	}
+
+	if submission.Recommendations != nil {
+		recommendations, err := mergeRecommendations(data, submission.Recommendations)
+		if err != nil {
+			return Merged{}, err
+		}
+		if err := put(data, StateRecommendations, recommendations); err != nil {
+			return Merged{}, err
+		}
+	}
+
+	if submission.Review != nil {
+		if err := submission.Review.Validate(); err != nil {
+			return Merged{}, err
+		}
+		reviews, err := mergeReview(data, *submission.Review)
+		if err != nil {
+			return Merged{}, err
+		}
+		if err := put(data, StateReviews, reviews); err != nil {
 			return Merged{}, err
 		}
 	}

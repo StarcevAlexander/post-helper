@@ -1,4 +1,5 @@
 import { Service, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Router } from '@angular/router';
 import {
   INTAKE_MAX_LINKS,
   INTAKE_MAX_NOTE_LENGTH,
@@ -13,7 +14,6 @@ import { Access } from './access';
 import { Account } from './account';
 import { ChatApi } from './chat-api';
 import { ErrorLog } from './error-log';
-import { Onboarding } from './onboarding';
 import { Sync } from './sync';
 
 function referenceSlots(urls: readonly string[]): string[] {
@@ -39,23 +39,26 @@ export class Intake {
   private readonly access = inject(Access);
   private readonly account = inject(Account);
   private readonly sync = inject(Sync);
-  private readonly onboarding = inject(Onboarding);
   private readonly errorLog = inject(ErrorLog);
+  private readonly router = inject(Router);
 
   private timer: ReturnType<typeof setTimeout> | undefined;
-  private prompted = false;
 
   readonly request = signal<IntakeRequest | undefined>(undefined);
   readonly loaded = signal(false);
   readonly busy = signal(false);
   readonly error = signal<string | undefined>(undefined);
-  readonly open = signal(false);
   readonly editing = signal(false);
+  readonly reviewMode = signal(false);
   readonly draft = signal<IntakeDraft>(emptyDraft());
 
   readonly pending = computed(() => this.request()?.status === 'new');
   readonly ready = computed(() => this.request()?.status === 'ready');
+  readonly reviewWaiting = computed(() => this.request()?.review === true && this.pending());
   readonly showForm = computed(() => this.request() === undefined || this.editing());
+  readonly reviewing = computed(() =>
+    this.showForm() ? this.reviewMode() : this.request()?.review === true,
+  );
   readonly canSubmit = computed(() => {
     const draft = this.draft();
     return (
@@ -103,9 +106,11 @@ export class Intake {
           references: draft.references.map((link) => link.trim()).filter(Boolean),
           goals: draft.goals,
           note: draft.note.trim(),
+          ...(this.reviewMode() ? { review: true } : {}),
         }),
       );
       this.editing.set(false);
+      this.reviewMode.set(false);
       this.schedule();
       return true;
     } catch (error) {
@@ -116,33 +121,33 @@ export class Intake {
     }
   }
 
-  show(): void {
-    this.open.set(true);
-  }
-
-  hide(): void {
-    this.open.set(false);
-    this.markSeen();
-  }
-
   edit(): void {
     const request = this.request();
     if (request) {
       this.draft.set(draftOf(request, true));
     }
     this.error.set(undefined);
+    this.reviewMode.set(request?.review === true);
     this.editing.set(true);
+  }
+
+  askForReview(): void {
+    this.startNew();
+    this.reviewMode.set(true);
+    void this.router.navigateByUrl('/intake');
   }
 
   startNew(): void {
     const request = this.request();
     this.draft.set(request ? draftOf(request, false) : emptyDraft());
     this.error.set(undefined);
+    this.reviewMode.set(false);
     this.editing.set(true);
   }
 
   cancelEdit(): void {
     this.editing.set(false);
+    this.reviewMode.set(false);
     this.error.set(undefined);
   }
 
@@ -223,23 +228,20 @@ export class Intake {
     this.request.set(undefined);
     this.loaded.set(false);
     this.editing.set(false);
+    this.reviewMode.set(false);
     this.draft.set(emptyDraft());
     this.error.set(undefined);
   }
 
   private adopt(latest: IntakeRequest | undefined): void {
     if (!latest) {
-      if (!this.prompted && !this.onboarding.strategy()) {
-        this.prompted = true;
-        this.open.set(true);
-      }
       return;
     }
     if (latest.status === 'new' && !this.editing() && this.draftIsPristine()) {
       this.draft.set(draftOf(latest, true));
     }
     if (latest.status === 'ready' && latest.readyAt && latest.readyAt !== this.seenReadyAt()) {
-      this.open.set(true);
+      void this.router.navigateByUrl('/intake');
       void this.sync.pull();
     }
   }

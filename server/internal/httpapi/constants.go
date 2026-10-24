@@ -167,7 +167,7 @@ const (
 	JobLease             = 20 * time.Minute
 	MaxJobReasonRunes    = 300
 	MsgConsentRequired   = "Нужно согласие на разбор вашего открытого аккаунта"
-	MsgBadHandle         = "Не удалось понять ссылку или ник. Пример: anna_nails или instagram.com/anna_nails"
+	MsgBadHandle         = "Не удалось понять ссылку или ник. Пример: anna_nails или instagram.com/anna_nails* (* Instagram принадлежит Meta, запрещённой в РФ)"
 	MsgJobActive         = "Разбор уже заказан и ещё не закончен"
 	MsgJobFailed         = "Не удалось выполнить действие с заказом на разбор"
 	MsgJobNotFound       = "Заказ на разбор не найден"
@@ -218,7 +218,7 @@ const (
 	MsgIntakeNoLinks            = "Добавьте хотя бы одну ссылку на свою соцсеть"
 	MsgIntakeTooManyLinks       = "Слишком много ссылок"
 	MsgIntakeTooManyRefs        = "Слишком много референсов, оставьте самые важные"
-	MsgIntakeBadLink            = "Не удалось понять ссылку. Пример: instagram.com/anna_nails или t.me/anna_nails"
+	MsgIntakeBadLink            = "Не удалось понять ссылку. Пример: instagram.com/anna_nails* или t.me/anna_nails (* Instagram принадлежит Meta, запрещённой в РФ)"
 	MsgIntakeBadGoal            = "Неизвестная цель в списке"
 	MsgIntakeNoGoals            = "Отметьте хотя бы одну цель"
 	MsgIntakeLongNote           = "Пожелания слишком длинные, сократите до двух тысяч знаков"
@@ -232,6 +232,7 @@ type IntakeRequest struct {
 	References []string `json:"references"`
 	Goals      []string `json:"goals"`
 	Note       string   `json:"note"`
+	Review     bool     `json:"review"`
 }
 
 const (

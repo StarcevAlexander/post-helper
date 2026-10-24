@@ -2,6 +2,7 @@ package plan
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -136,6 +137,188 @@ func TestMergeRejectsBadPlans(t *testing.T) {
 	}
 	for name, submission := range cases {
 		if _, err := Merge(nil, submission); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+func sampleReview(id string) *Review {
+	return &Review{
+		ID: id, From: "2026-10-20", To: "2026-11-16", Planned: 16, Done: 12,
+		Headline:    "Выполнено 12 из 16",
+		Facts:       []string{"Подписчиков 340, было 310"},
+		Conclusions: []string{"Сторис про спину дали больше всего ответов"},
+		Changes:     []string{"Добавляем рубрику про осанку"},
+		Note:        "Отличный месяц",
+	}
+}
+
+func TestMergeStoresReviewWithoutTouchingTheRest(t *testing.T) {
+	existing := json.RawMessage(`{"calendar":{"startedOn":"2026-10-20"},"kits":{}}`)
+
+	merged, err := Merge(existing, Submission{Review: sampleReview("m1")})
+
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	state := decode(t, merged.Data)
+	var reviews []Review
+	if err := json.Unmarshal(state["monthReviews"], &reviews); err != nil || len(reviews) != 1 || reviews[0].ID != "m1" {
+		t.Fatalf("reviews = %s, err = %v", state["monthReviews"], err)
+	}
+	if _, ok := state["calendar"]; !ok {
+		t.Error("calendar was lost")
+	}
+}
+
+func TestMergeReplacesReviewWithTheSameIDAndKeepsOthers(t *testing.T) {
+	first, err := Merge(nil, Submission{Review: sampleReview("m1")})
+	if err != nil {
+		t.Fatalf("first: %v", err)
+	}
+	second, err := Merge(first.Data, Submission{Review: sampleReview("m2")})
+	if err != nil {
+		t.Fatalf("second: %v", err)
+	}
+	updated := sampleReview("m1")
+	updated.Headline = "Новый заголовок"
+	third, err := Merge(second.Data, Submission{Review: updated})
+	if err != nil {
+		t.Fatalf("third: %v", err)
+	}
+
+	var reviews []Review
+	if err := json.Unmarshal(decode(t, third.Data)["monthReviews"], &reviews); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(reviews) != 2 || reviews[0].ID != "m2" || reviews[1].ID != "m1" || reviews[1].Headline != "Новый заголовок" {
+		t.Fatalf("reviews = %+v", reviews)
+	}
+}
+
+func TestMergeKeepsOnlyTheLatestReviews(t *testing.T) {
+	var data json.RawMessage
+	for index := 0; index < MaxReviews+3; index++ {
+		merged, err := Merge(data, Submission{Review: sampleReview(fmt.Sprintf("m%d", index))})
+		if err != nil {
+			t.Fatalf("merge %d: %v", index, err)
+		}
+		data = merged.Data
+	}
+
+	var reviews []Review
+	if err := json.Unmarshal(decode(t, data)["monthReviews"], &reviews); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(reviews) != MaxReviews || reviews[0].ID != "m3" {
+		t.Fatalf("len = %d, first = %s", len(reviews), reviews[0].ID)
+	}
+}
+
+func TestMergeRejectsBadReviews(t *testing.T) {
+	doneTooMany := sampleReview("m1")
+	doneTooMany.Done = 99
+	backwards := sampleReview("m1")
+	backwards.From, backwards.To = "2026-11-16", "2026-10-20"
+	badDate := sampleReview("m1")
+	badDate.From = "20.10.2026"
+	noID := sampleReview(" ")
+	noHeadline := sampleReview("m1")
+	noHeadline.Headline = " "
+	noConclusions := sampleReview("m1")
+	noConclusions.Conclusions = nil
+
+	cases := map[string]*Review{
+		"done above planned": doneTooMany,
+		"backwards period":   backwards,
+		"bad date":           badDate,
+		"no id":              noID,
+		"no headline":        noHeadline,
+		"no conclusions":     noConclusions,
+	}
+	for name, review := range cases {
+		if _, err := Merge(nil, Submission{Review: review}); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+func sampleRecommendations() []Recommendation {
+	return []Recommendation{
+		{ID: "r1", Text: "Добавить запись в шапку", Importance: 90},
+		{ID: "r2", Text: "Обновить аватар", Importance: 40},
+	}
+}
+
+func storedRecommendations(t *testing.T, data json.RawMessage) []Recommendation {
+	t.Helper()
+	var recommendations []Recommendation
+	if err := json.Unmarshal(decode(t, data)["recommendations"], &recommendations); err != nil {
+		t.Fatalf("recommendations: %v", err)
+	}
+	return recommendations
+}
+
+func TestMergeStoresRecommendationsWithoutTouchingTheRest(t *testing.T) {
+	existing := json.RawMessage(`{"calendar":{"startedOn":"2026-10-20"}}`)
+
+	merged, err := Merge(existing, Submission{Recommendations: sampleRecommendations()})
+
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	got := storedRecommendations(t, merged.Data)
+	if len(got) != 2 || got[0].ID != "r1" || got[0].Importance != 90 || got[0].Done {
+		t.Fatalf("recommendations = %+v", got)
+	}
+	if _, ok := decode(t, merged.Data)["calendar"]; !ok {
+		t.Error("calendar was lost")
+	}
+}
+
+func TestMergeKeepsTheDoneMarksOfRecommendationsThatStay(t *testing.T) {
+	existing := json.RawMessage(`{"recommendations":[{"id":"r1","text":"старое","importance":10,"done":true},{"id":"r9","text":"ушло","importance":5,"done":true}]}`)
+
+	merged, err := Merge(existing, Submission{Recommendations: sampleRecommendations()})
+
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	got := storedRecommendations(t, merged.Data)
+	if len(got) != 2 || !got[0].Done || got[0].Text != "Добавить запись в шапку" || got[1].Done {
+		t.Fatalf("recommendations = %+v", got)
+	}
+}
+
+func TestMergeClearsRecommendationsWithAnEmptyList(t *testing.T) {
+	existing := json.RawMessage(`{"recommendations":[{"id":"r1","text":"x","importance":10,"done":false}]}`)
+
+	merged, err := Merge(existing, Submission{Recommendations: []Recommendation{}})
+
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	if got := storedRecommendations(t, merged.Data); len(got) != 0 {
+		t.Fatalf("recommendations = %+v", got)
+	}
+}
+
+func TestMergeRejectsBadRecommendations(t *testing.T) {
+	tooMany := make([]Recommendation, MaxRecommendations+1)
+	for index := range tooMany {
+		tooMany[index] = Recommendation{ID: fmt.Sprintf("r%d", index), Text: "x", Importance: 1}
+	}
+	cases := map[string][]Recommendation{
+		"no id":          {{ID: " ", Text: "x", Importance: 10}},
+		"duplicate id":   {{ID: "a", Text: "x", Importance: 10}, {ID: "a", Text: "y", Importance: 20}},
+		"no text":        {{ID: "a", Text: " ", Importance: 10}},
+		"negative":       {{ID: "a", Text: "x", Importance: -1}},
+		"above hundred":  {{ID: "a", Text: "x", Importance: 101}},
+		"too long":       {{ID: "a", Text: strings.Repeat("я", MaxTextRunes+1), Importance: 10}},
+		"too many items": tooMany,
+	}
+	for name, recommendations := range cases {
+		if _, err := Merge(nil, Submission{Recommendations: recommendations}); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}

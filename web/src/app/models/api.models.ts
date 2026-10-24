@@ -1,14 +1,4 @@
 import { ServerState } from './account.models';
-import { MessageRole } from './chat.models';
-
-export interface ApiTurn {
-  role: MessageRole;
-  text: string;
-}
-
-export interface ApiReply {
-  reply: string;
-}
 
 export interface ClientErrorReport {
   message: string;

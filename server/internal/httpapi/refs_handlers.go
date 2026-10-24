@@ -171,7 +171,7 @@ func (h *refsAgentHandler) next(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, RefAgentItem{
-		ID: item.ID, Key: item.Key, Format: item.Format, Kind: refs.KindFor(item.Format), Prompts: plan.Prompts,
+		ID: item.ID, Key: item.Key, Format: item.Format, Kind: refs.KindPhoto, Prompts: plan.Prompts,
 	})
 }
 
@@ -265,8 +265,6 @@ var refMediaKinds = map[string]string{
 	"image/png":  refs.KindPhoto,
 	"image/jpeg": refs.KindPhoto,
 	"image/webp": refs.KindPhoto,
-	"video/mp4":  refs.KindVideo,
-	"video/webm": refs.KindVideo,
 }
 
 func (h *refsAgentHandler) fail(w http.ResponseWriter, r *http.Request) {

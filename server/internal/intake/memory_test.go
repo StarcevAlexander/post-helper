@@ -97,3 +97,23 @@ func TestTelegramDisabledWithoutSettings(t *testing.T) {
 		t.Error("expected nil notifier")
 	}
 }
+
+func TestMemoryRemembersThatTheMasterAsksForTheMonthReview(t *testing.T) {
+	store := NewMemory()
+	ctx := context.Background()
+	now := time.Now()
+	draft := Draft{Networks: []Network{{Platform: PlatformVK, URL: "https://vk.com/anna"}}, Goals: []string{"reach"}}
+	_, _, _ = store.Submit(ctx, "m1", draft, now)
+	_ = store.Ready(ctx, "m1", "План готов", now.Add(time.Hour))
+
+	draft.Review = true
+	review, updated, err := store.Submit(ctx, "m1", draft, now.Add(24*time.Hour))
+
+	if err != nil || updated || !review.Review {
+		t.Fatalf("review = %+v, updated %v, err %v", review, updated, err)
+	}
+	listed, _ := store.List(ctx, StatusNew, 10)
+	if len(listed) != 1 || !listed[0].Review {
+		t.Fatalf("listed = %+v", listed)
+	}
+}

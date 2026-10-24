@@ -1,16 +1,5 @@
-.screen {
-  width: min(32rem, calc(100% - 2rem));
-  max-height: calc(100dvh - 2rem);
-  margin: auto;
-  padding: 0;
-  border: 0.0625rem solid var(--border);
-  border-radius: 1rem;
-  background: var(--surface);
-  color: var(--text);
-
-  &::backdrop {
-    background: rgb(0 0 0 / 60%);
-  }
+:host {
+  display: block;
 }
 
 .screen__body {
@@ -47,30 +36,6 @@
   color: var(--text-muted);
   font-size: 0.875rem;
   line-height: 1.4;
-}
-
-.screen__close {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--chip);
-    color: var(--text);
-  }
-
-  &:focus-visible {
-    outline: 0.125rem solid var(--focus);
-    outline-offset: 0.125rem;
-  }
 }
 
 .section {

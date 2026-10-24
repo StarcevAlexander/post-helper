@@ -46,14 +46,3 @@ export interface StoredCalendar {
   items: PlanItem[];
   startedOn: string;
 }
-
-export interface IcsEvent {
-  uid: string;
-  summary: string;
-  description: string;
-  start: Date;
-  durationMinutes: number;
-  alarmMinutes: number;
-  weeklyOn?: number;
-  url?: string;
-}

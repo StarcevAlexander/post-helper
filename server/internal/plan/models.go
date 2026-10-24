@@ -72,10 +72,12 @@ type StoredKit struct {
 }
 
 type Submission struct {
-	Strategy *Strategy      `json:"strategy"`
-	Calendar *Calendar      `json:"calendar"`
-	Kits     map[string]Kit `json:"kits"`
-	Note     string         `json:"note"`
+	Strategy        *Strategy        `json:"strategy"`
+	Calendar        *Calendar        `json:"calendar"`
+	Kits            map[string]Kit   `json:"kits"`
+	Review          *Review          `json:"review"`
+	Recommendations []Recommendation `json:"recommendations"`
+	Note            string           `json:"note"`
 }
 
 type Merged struct {

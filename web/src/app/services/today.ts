@@ -1,4 +1,5 @@
 import { Service, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { APP_LINK_PARAM } from '../constants';
 import { PlanItem } from '../models';
 import { isTodayLink } from '../utils/app-link';
@@ -12,9 +13,8 @@ function byMoment(first: PlanItem, second: PlanItem): number {
 @Service()
 export class Today {
   private readonly plan = inject(CalendarPlan);
+  private readonly router = inject(Router);
   private readonly now = signal(new Date());
-
-  readonly open = signal(false);
 
   readonly todayKey = computed(() => toDateKey(this.now()));
   readonly todayItems = computed(() =>
@@ -29,6 +29,11 @@ export class Today {
       .filter((item) => !item.done && item.date < this.todayKey())
       .sort(byMoment),
   );
+  readonly shootWeek = computed(
+    () =>
+      this.plan.weeks().find((week) => week.contentDays.some((day) => day.date === this.todayKey()))
+        ?.index,
+  );
   readonly nextItem = computed<PlanItem | undefined>(() =>
     this.todayItems().length > 0
       ? undefined
@@ -38,24 +43,17 @@ export class Today {
           .sort(byMoment)[0],
   );
 
-  show(): void {
+  refresh(): void {
     this.now.set(new Date());
-    this.open.set(true);
   }
 
-  close(): void {
-    this.open.set(false);
+  openFromLink(): void {
     if (!isTodayLink(window.location.search)) {
       return;
     }
     const url = new URL(window.location.href);
     url.searchParams.delete(APP_LINK_PARAM);
     window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
-  }
-
-  openFromLink(): void {
-    if (isTodayLink(window.location.search)) {
-      this.show();
-    }
+    void this.router.navigateByUrl('/today');
   }
 }

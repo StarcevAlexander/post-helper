@@ -78,6 +78,32 @@ describe('YandexAuth', () => {
     expect(service.available()).toBe(false);
   });
 
+  it('is available at once when the id was cached by an earlier visit', async () => {
+    await configured();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+
+    expect(TestBed.inject(YandexAuth).available()).toBe(true);
+  });
+
+  it('keeps the cached id when the config cannot be loaded', async () => {
+    await configured();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    const next = TestBed.inject(YandexAuth);
+    const loaded = next.loadConfig();
+    TestBed.inject(HttpTestingController)
+      .expectOne(configUrl)
+      .flush({}, { status: 500, statusText: 'Server Error' });
+    await loaded;
+
+    expect(next.available()).toBe(true);
+  });
+
   it('sends the person to Yandex and remembers why', async () => {
     await configured();
 

@@ -56,8 +56,6 @@ func newIntakeFixture(t *testing.T) *intakeFixture {
 	notifier := &fakeNotifier{reach: make(chan struct{}, 4)}
 	store := refs.NewMemory()
 	base.handler = NewHandler(Options{
-		Responder:      base.responder,
-		Reviewer:       base.reviewer,
 		Accounts:       base.store,
 		Refs:           store,
 		Intake:         intake.NewMemory(),
@@ -93,7 +91,7 @@ func TestMasterSubmitsRequestAndOwnerIsNotified(t *testing.T) {
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"status":"new"`) {
 		t.Fatalf("submit = %d %s", response.Code, response.Body)
 	}
-	for _, want := range []string{"Новая заявка", "Анна", "Instagram: https://instagram.com/anna_nails", "ВКонтакте", "Увеличить охваты", "Без танцев"} {
+	for _, want := range []string{"Новая заявка", "Анна", "Instagram*: https://instagram.com/anna_nails", "запрещённой", "ВКонтакте", "Увеличить охваты", "Без танцев"} {
 		if !strings.Contains(sent, want) {
 			t.Errorf("notification lacks %q:\n%s", want, sent)
 		}

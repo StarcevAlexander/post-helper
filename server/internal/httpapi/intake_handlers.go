@@ -41,22 +41,24 @@ func (h *intakeHandler) submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	draft.Review = body.Review
+
 	request, updated, err := h.intake.Submit(r.Context(), identity.MasterID, draft, time.Now())
 	if err != nil {
 		h.logger.Error("submit intake failed", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, MsgIntakeFailed)
 		return
 	}
-	h.announce(r.Context(), request, identity.Name, updated)
+	h.announce(r.Context(), request, identity.Name, updated, body.Review)
 	writeJSON(w, http.StatusOK, request)
 }
 
-func (h *intakeHandler) announce(ctx context.Context, request intake.Request, masterName string, updated bool) {
+func (h *intakeHandler) announce(ctx context.Context, request intake.Request, masterName string, updated, review bool) {
 	if h.notifier == nil {
 		h.logger.Warn("intake notifier is not configured: the owner will not be notified")
 		return
 	}
-	text := intake.Announcement(request, masterName, updated)
+	text := intake.Announcement(request, masterName, updated, review)
 	go func() {
 		notifyCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), intake.TelegramTimeout)
 		defer cancel()

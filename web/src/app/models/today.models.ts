@@ -1,12 +1,10 @@
-import { KitStatus } from './kit.models';
 import { PlanItem } from './schedule.models';
 
 export interface TodayEntry {
   item: PlanItem;
   whenLabel: string;
   formatLabel: string;
-  status: KitStatus;
-  error?: string;
+  hasKit: boolean;
   refLabel?: string;
   refStale: boolean;
 }

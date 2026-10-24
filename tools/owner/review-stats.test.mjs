@@ -86,3 +86,32 @@ test('accepts a single stored audit object', () => {
 
   assert.equal(stats.audits.length, 1);
 });
+
+test('hands earlier monthly reviews over for the comparison', () => {
+  const stats = buildReviewStats(
+    exported([item('a', '2026-10-02')], { monthReviews: [{ id: 'm1', headline: 'Выполнено 12 из 16' }] }),
+    '2026-10-31',
+  );
+
+  assert.equal(stats.monthReviews[0].headline, 'Выполнено 12 из 16');
+  assert.deepEqual(buildReviewStats(exported([item('a', '2026-10-02')]), '2026-10-31').monthReviews, []);
+});
+
+test('lists the recommendations with the marks and the importance', () => {
+  const stats = buildReviewStats(
+    exported([item('a', '2026-10-02')], {
+      recommendations: [
+        { id: 'r1', text: 'Добавить запись в шапку', importance: 90, done: true },
+        { id: 'r2', text: 'Обновить аватар', importance: 40, done: false },
+      ],
+    }),
+    '2026-10-31',
+  );
+
+  assert.equal(stats.recommendations.length, 2);
+  const text = describeReviewStats(stats);
+  assert.match(text, /Рекомендации по профилю: сделано 1 из 2/);
+  assert.match(text, /\[x\] 90% Добавить запись в шапку/);
+  assert.match(text, /\[ \] 40% Обновить аватар/);
+  assert.match(describeReviewStats(buildReviewStats(exported([item('a', '2026-10-02')]), '2026-10-31')), /Рекомендаций по профилю пока нет/);
+});

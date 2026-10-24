@@ -6,6 +6,8 @@ export const DEFAULT_THEME: ThemeId = 'light';
 
 export const SCALE_STORAGE_KEY = 'helper.scale';
 
+export const SETTINGS_STORAGE_KEY = 'helper.settings';
+
 export const DEFAULT_SCALE = 100;
 
 export const MIN_SCALE = 80;

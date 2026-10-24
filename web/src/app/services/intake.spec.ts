@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { Router, provideRouter } from '@angular/router';
 import {
   API_DEV_URL,
   API_INTAKE_PATH,
@@ -38,8 +39,9 @@ describe('Intake', () => {
   beforeEach(() => {
     localStorage.clear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     intake = TestBed.inject(Intake);
     http = TestBed.inject(HttpTestingController);
     TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
@@ -106,7 +108,6 @@ describe('Intake', () => {
       .flush(null, { status: 204, statusText: 'No Content' });
     await pending;
 
-    expect(intake.open()).toBe(true);
     expect(intake.loaded()).toBe(true);
     expect(intake.showForm()).toBe(true);
   });
@@ -116,7 +117,6 @@ describe('Intake', () => {
     const pending = intake.refresh();
     http.expectOne({ method: 'GET', url: intakeUrl }).flush(request());
     await pending;
-    expect(intake.open()).toBe(false);
 
     intake.edit();
     expect(intake.draft()).toEqual({
@@ -138,22 +138,22 @@ describe('Intake', () => {
       replyNote: 'План готов',
     });
     const pull = vi.spyOn(TestBed.inject(Sync), 'pull').mockResolvedValue();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
 
     const pending = intake.refresh();
     http.expectOne({ method: 'GET', url: intakeUrl }).flush(ready);
     await pending;
 
-    expect(intake.open()).toBe(true);
+    expect(navigate).toHaveBeenCalledWith('/intake');
     expect(intake.ready()).toBe(true);
     expect(pull).toHaveBeenCalledTimes(1);
 
-    intake.hide();
+    intake.markSeen();
     expect(localStorage.getItem(INTAKE_SEEN_STORAGE_KEY)).toBe('2026-10-23T10:00:00Z');
-    intake.open.set(false);
     const again = intake.refresh();
     http.expectOne({ method: 'GET', url: intakeUrl }).flush(ready);
     await again;
-    expect(intake.open()).toBe(false);
+    expect(navigate).toHaveBeenCalledTimes(1);
     expect(pull).toHaveBeenCalledTimes(1);
   });
 
@@ -219,5 +219,56 @@ describe('Intake', () => {
       intake.removeLink(0);
     }
     expect(intake.draft().links).toEqual(['']);
+  });
+
+  it('asks for the month review from the previous request and sends the review flag', async () => {
+    vi.spyOn(TestBed.inject(Sync), 'pull').mockResolvedValue();
+    const pending = intake.refresh();
+    http
+      .expectOne({ method: 'GET', url: intakeUrl })
+      .flush(request({ status: 'ready', readyAt: '2026-10-23T10:00:00Z' }));
+    await pending;
+
+    intake.askForReview();
+
+    expect(intake.reviewing()).toBe(true);
+    expect(intake.draft().goals).toEqual(['reach', 'check']);
+    const sending = intake.submit();
+    const sent = http.expectOne({ method: 'POST', url: intakeUrl });
+    expect(sent.request.body).toMatchObject({ review: true });
+    sent.flush(request({ review: true }));
+    await sending;
+
+    expect(intake.reviewWaiting()).toBe(true);
+    expect(intake.reviewing()).toBe(true);
+    expect(intake.reviewMode()).toBe(false);
+  });
+
+  it('does not mark an ordinary request as a review', async () => {
+    fillDraft();
+
+    const pending = intake.submit();
+    const sent = http.expectOne({ method: 'POST', url: intakeUrl });
+    expect(sent.request.body).not.toHaveProperty('review');
+    sent.flush(request());
+    await pending;
+
+    expect(intake.reviewing()).toBe(false);
+    expect(intake.reviewWaiting()).toBe(false);
+  });
+
+  it('leaves the review mode when the form is cancelled', async () => {
+    vi.spyOn(TestBed.inject(Sync), 'pull').mockResolvedValue();
+    const pending = intake.refresh();
+    http
+      .expectOne({ method: 'GET', url: intakeUrl })
+      .flush(request({ status: 'ready', readyAt: '2026-10-23T10:00:00Z' }));
+    await pending;
+    intake.askForReview();
+
+    intake.cancelEdit();
+
+    expect(intake.reviewMode()).toBe(false);
+    expect(intake.reviewing()).toBe(false);
   });
 });

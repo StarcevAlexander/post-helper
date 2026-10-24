@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const MetaNote = "Instagram принадлежит компании Meta, признанной в России экстремистской организацией и запрещённой."
+
 const (
 	StatusNew   = "new"
 	StatusReady = "ready"
@@ -66,7 +68,7 @@ var platformHosts = map[string]string{
 }
 
 var platformLabels = map[string]string{
-	PlatformInstagram: "Instagram",
+	PlatformInstagram: "Instagram*",
 	PlatformVK:        "ВКонтакте",
 	PlatformTelegram:  "Telegram",
 	PlatformYouTube:   "YouTube",

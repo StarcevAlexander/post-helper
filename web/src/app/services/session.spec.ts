@@ -7,10 +7,9 @@ import {
   API_ME_PATH,
   API_STATE_PATH,
   CALENDAR_STORAGE_KEY,
-  ONBOARDING_STORAGE_KEY,
-  SCALE_STORAGE_KEY,
+  SETTINGS_STORAGE_KEY,
+  STRATEGY_STORAGE_KEY,
   SYNC_META_STORAGE_KEY,
-  THEME_STORAGE_KEY,
 } from '../constants';
 import { Access } from './access';
 import { Account } from './account';
@@ -63,29 +62,27 @@ describe('Session', () => {
 
   it('forgets the person and their data but keeps the look of the app', async () => {
     await signIn();
-    localStorage.setItem(ONBOARDING_STORAGE_KEY, '{"index":1}');
+    localStorage.setItem(STRATEGY_STORAGE_KEY, '{"index":1}');
     localStorage.setItem(CALENDAR_STORAGE_KEY, '{"items":[]}');
     localStorage.setItem(SYNC_META_STORAGE_KEY, '{"version":1,"dirty":false}');
-    localStorage.setItem(THEME_STORAGE_KEY, 'dark');
-    localStorage.setItem(SCALE_STORAGE_KEY, '120');
+    localStorage.setItem(SETTINGS_STORAGE_KEY, '{"theme":"dark","scale":120}');
     localStorage.setItem('other.key', 'stays');
 
     await expect(session.logout()).resolves.toBe(true);
 
     expect(access.granted()).toBe(false);
     expect(localStorage.getItem(ACCESS_PASSWORD_STORAGE_KEY)).toBeNull();
-    expect(localStorage.getItem(ONBOARDING_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(STRATEGY_STORAGE_KEY)).toBeNull();
     expect(localStorage.getItem(CALENDAR_STORAGE_KEY)).toBeNull();
     expect(localStorage.getItem(SYNC_META_STORAGE_KEY)).toBeNull();
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
-    expect(localStorage.getItem(SCALE_STORAGE_KEY)).toBe('120');
+    expect(localStorage.getItem(SETTINGS_STORAGE_KEY)).toBe('{"theme":"dark","scale":120}');
     expect(localStorage.getItem('other.key')).toBe('stays');
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it('stays signed in when the unsaved data could not reach the server', async () => {
     await signIn();
-    localStorage.setItem(ONBOARDING_STORAGE_KEY, '{"index":1}');
+    localStorage.setItem(STRATEGY_STORAGE_KEY, '{"index":1}');
     localStorage.setItem(SYNC_META_STORAGE_KEY, '{"version":0,"dirty":true}');
 
     const loggedOut = session.logout();
@@ -95,7 +92,7 @@ describe('Session', () => {
 
     await expect(loggedOut).resolves.toBe(false);
     expect(access.granted()).toBe(true);
-    expect(localStorage.getItem(ONBOARDING_STORAGE_KEY)).toBe('{"index":1}');
+    expect(localStorage.getItem(STRATEGY_STORAGE_KEY)).toBe('{"index":1}');
     expect(reload).not.toHaveBeenCalled();
   });
 });

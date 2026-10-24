@@ -1,0 +1,58 @@
+<div class="screen__body">
+  @if (waiting()) {
+    <p class="headline" role="status">{{ texts.waitingText }}</p>
+  } @else if (reviews.due()) {
+    <p class="headline" role="status">{{ texts.dueText }}</p>
+    <button type="button" class="screen__primary" (click)="onAsk()">
+      {{ texts.request }}
+    </button>
+  }
+
+  @for (review of reviews.latestFirst(); track review.id) {
+    <article class="review">
+      <h3 class="review__period">{{ period(review.from, review.to) }}</h3>
+      <p class="review__headline">{{ review.headline }}</p>
+      <p class="screen__hint">
+        {{ texts.progress }} {{ review.done }} {{ texts.of }} {{ review.planned }}
+      </p>
+      @if (review.facts.length > 0) {
+        <section class="section">
+          <h4 class="section__heading">{{ texts.facts }}</h4>
+          <ul class="section__list">
+            @for (fact of review.facts; track $index) {
+              <li>{{ fact }}</li>
+            }
+          </ul>
+        </section>
+      }
+      <section class="section">
+        <h4 class="section__heading">{{ texts.conclusions }}</h4>
+        <ul class="section__list">
+          @for (conclusion of review.conclusions; track $index) {
+            <li>{{ conclusion }}</li>
+          }
+        </ul>
+      </section>
+      @if (review.changes.length > 0) {
+        <section class="section">
+          <h4 class="section__heading">{{ texts.changes }}</h4>
+          <ul class="section__list">
+            @for (change of review.changes; track $index) {
+              <li>{{ change }}</li>
+            }
+          </ul>
+        </section>
+      }
+      @if (review.note) {
+        <section class="section">
+          <h4 class="section__heading">{{ texts.note }}</h4>
+          <p class="suggestion">{{ review.note }}</p>
+        </section>
+      }
+    </article>
+  } @empty {
+    @if (!reviews.due() && !waiting()) {
+      <p class="screen__hint">{{ texts.emptyText }}</p>
+    }
+  }
+</div>

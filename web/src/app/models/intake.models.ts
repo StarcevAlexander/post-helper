@@ -43,6 +43,10 @@ export interface IntakeDraft {
   note: string;
 }
 
+export interface IntakeSubmission extends IntakeDraft {
+  review?: boolean;
+}
+
 export interface IntakeRequest {
   id: string;
   networks: IntakeNetwork[];
@@ -54,4 +58,5 @@ export interface IntakeRequest {
   createdAt: string;
   updatedAt: string;
   readyAt?: string;
+  review?: boolean;
 }

@@ -15,6 +15,7 @@ type Draft struct {
 	References []Network
 	Goals      []string
 	Note       string
+	Review     bool
 }
 
 type Request struct {
@@ -26,6 +27,7 @@ type Request struct {
 	Goals      []string  `json:"goals"`
 	GoalTitles []string  `json:"goalTitles,omitempty"`
 	Note       string    `json:"note,omitempty"`
+	Review     bool      `json:"review,omitempty"`
 	Status     string    `json:"status"`
 	ReplyNote  string    `json:"replyNote,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`

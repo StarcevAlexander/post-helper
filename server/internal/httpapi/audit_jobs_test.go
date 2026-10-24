@@ -33,8 +33,6 @@ func newJobsFixture(t *testing.T, withAgent bool) *jobsFixture {
 		token = agentToken
 	}
 	base.handler = NewHandler(Options{
-		Responder:      base.responder,
-		Reviewer:       base.reviewer,
 		Auditor:        auditor,
 		Accounts:       base.store,
 		AgentToken:     token,

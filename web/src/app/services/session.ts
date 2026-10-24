@@ -1,20 +1,11 @@
 import { Service, inject } from '@angular/core';
-import {
-  STORAGE_PREFIX,
-  THEME_STORAGE_KEY,
-  SCALE_STORAGE_KEY,
-  SPEAK_REPLIES_STORAGE_KEY,
-} from '../constants';
+import { STORAGE_PREFIX, SETTINGS_STORAGE_KEY, YANDEX_CLIENT_ID_STORAGE_KEY } from '../constants';
 import { Access } from './access';
 import { PAGE_RELOAD } from './page-reload';
 import { PushNotifications } from './push-notifications';
 import { Sync } from './sync';
 
-const KEPT_STORAGE_KEYS: readonly string[] = [
-  THEME_STORAGE_KEY,
-  SCALE_STORAGE_KEY,
-  SPEAK_REPLIES_STORAGE_KEY,
-];
+const KEPT_STORAGE_KEYS: readonly string[] = [SETTINGS_STORAGE_KEY, YANDEX_CLIENT_ID_STORAGE_KEY];
 
 @Service()
 export class Session {

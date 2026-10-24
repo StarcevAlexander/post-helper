@@ -87,7 +87,7 @@ func (m *Memory) Statuses(_ context.Context, masterID string, now time.Time) ([]
 		}
 		sort.Slice(files, func(a, b int) bool { return files[a].Index < files[b].Index })
 		statuses = append(statuses, Status{
-			Key: stored.Key, Status: stored.Status, Kind: KindFor(stored.Format), Date: stored.Date,
+			Key: stored.Key, Status: stored.Status, Kind: KindPhoto, Date: stored.Date,
 			Stale: isStale(stored.Item, now), Error: stored.Error, Files: files,
 		})
 	}

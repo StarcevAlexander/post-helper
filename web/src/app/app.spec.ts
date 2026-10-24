@@ -1,9 +1,27 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { Router, provideRouter } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { App } from './app';
-import { ACCESS_PASSWORD_STORAGE_KEY, ONBOARDING_STEPS, ONBOARDING_STORAGE_KEY } from './constants';
+import { routes } from './app.routes';
+import { ACCESS_PASSWORD_STORAGE_KEY, CALENDAR_STORAGE_KEY } from './constants';
+
+const calendar = {
+  schedule: { slots: [{ weekday: 3, time: '18:00' }], publishTime: '19:00' },
+  items: [
+    {
+      id: 'w1',
+      date: '2026-10-21',
+      time: '19:00',
+      format: 'post',
+      pillar: 'До и после',
+      idea: 'Кадр до',
+      done: false,
+    },
+  ],
+  startedOn: '2026-10-20',
+};
 
 describe('App', () => {
   beforeEach(async () => {
@@ -13,6 +31,7 @@ describe('App', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter(routes),
         provideServiceWorker('ngsw-worker.js', { enabled: false }),
       ],
     }).compileComponents();
@@ -22,58 +41,60 @@ describe('App', () => {
     localStorage.clear();
   });
 
-  it('asks for the password before showing the composer', async () => {
+  async function start() {
     const fixture = TestBed.createComponent(App);
+    await TestBed.inject(Router).navigateByUrl('/');
     await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
+    return { fixture, element: fixture.nativeElement as HTMLElement };
+  }
+
+  it('shows only the sign-in gate to a stranger', async () => {
+    const { element } = await start();
 
     expect(element.querySelector('h1')?.textContent).toContain('Помощник');
     expect(element.querySelector('app-access-gate')).toBeTruthy();
-    expect(element.querySelector('app-composer')).toBeNull();
+    expect(element.querySelector('nav.tabs')).toBeNull();
   });
 
-  it('renders a plain welcome without questions once the password is stored', async () => {
+  it('opens the request while there is no plan', async () => {
     localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
 
+    const { element } = await start();
+
+    expect(TestBed.inject(Router).url).toBe('/intake');
     expect(element.querySelector('app-access-gate')).toBeNull();
-    expect(element.querySelectorAll('app-message-bubble').length).toBe(1);
-    expect(element.querySelector('.shell__strategy')).toBeNull();
-    expect(element.querySelector('app-composer')).toBeTruthy();
+    expect(element.querySelector('h1')?.textContent).toContain('Контент-план для вас');
+    expect(element.querySelector('app-intake-screen')).toBeTruthy();
   });
 
-  it('renders the introduction with the first question once the user has started', async () => {
+  it('opens today once the plan has arrived and offers five tabs', async () => {
     localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
-    localStorage.setItem(
-      ONBOARDING_STORAGE_KEY,
-      JSON.stringify({ index: 0, answers: {}, started: true }),
-    );
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
+    localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(calendar));
 
-    expect(element.querySelectorAll('app-message-bubble').length).toBe(2);
-    expect(element.querySelector('.shell__strategy')).toBeNull();
-    expect(element.querySelector('app-composer')).toBeTruthy();
+    const { element } = await start();
+
+    expect(TestBed.inject(Router).url).toBe('/today');
+    const tabs = Array.from(element.querySelectorAll('nav.tabs .tab'));
+    expect(tabs.map((tab) => tab.textContent?.trim())).toEqual([
+      'Сегодня',
+      'Календарь',
+      'Итоги',
+      'Профиль',
+      'Заявка',
+    ]);
+    expect(element.querySelector('.tab--active')?.textContent).toContain('Сегодня');
+    expect(element.querySelector('.shell__back')).toBeNull();
   });
 
-  it('shows the strategy button once the profile is complete', async () => {
+  it('shows a way back on the screens that are not tabs', async () => {
     localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
-    localStorage.setItem(
-      ONBOARDING_STORAGE_KEY,
-      JSON.stringify({
-        index: ONBOARDING_STEPS.length,
-        answers: { specialty: 'маникюр' },
-        confirmed: true,
-      }),
-    );
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
+    localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(calendar));
+    const { fixture, element } = await start();
 
-    expect(element.querySelector('.shell__strategy')).toBeTruthy();
-    expect(element.querySelectorAll('app-message-bubble').length).toBe(1);
+    await TestBed.inject(Router).navigateByUrl('/settings');
+    await fixture.whenStable();
+
+    expect(element.querySelector('h1')?.textContent).toContain('Настройки');
+    expect(element.querySelector('.shell__back')).toBeTruthy();
   });
 });

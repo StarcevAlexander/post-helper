@@ -1,4 +1,3 @@
-import { MasterProfile } from './profile.models';
 import { PostFormat } from './schedule.models';
 
 export interface KitFrame {
@@ -14,25 +13,10 @@ export interface PublicationKit {
   tip: string;
 }
 
-export interface KitRequest {
-  profile: MasterProfile;
-  positioning: string;
-  format: PostFormat;
-  pillar: string;
-  idea: string;
-}
-
 export interface StoredKit {
   itemId: string;
   format: PostFormat;
   pillar: string;
   idea: string;
   kit: PublicationKit;
-}
-
-export type KitStatus = 'idle' | 'loading' | 'ready' | 'failed';
-
-export interface KitBatch {
-  done: number;
-  total: number;
 }

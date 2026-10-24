@@ -1,109 +1,74 @@
-<dialog
-  #dialog
-  class="screen"
-  aria-labelledby="kit-title"
-  (click)="onDialogClicked($event)"
-  (close)="onDialogClosed()"
->
-  <div class="screen__body">
-    <header class="screen__header">
-      <div class="screen__heading-block">
-        <h2 id="kit-title" class="screen__title">{{ heading() }}</h2>
-        @if (subheading()) {
-          <p class="screen__subtitle">{{ subheading() }}</p>
-        }
-      </div>
-      <button
-        type="button"
-        class="screen__close"
-        [attr.aria-label]="closeLabel"
-        (click)="onClose()"
-      >
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-          <path
-            d="M6 6l12 12M18 6L6 18"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
-      </button>
-    </header>
-
-    @if (kit(); as kit) {
-      @if (kit.shots.length > 0) {
-        <section class="section">
-          <h3 class="section__heading">{{ sections.shots }}</h3>
-          <ul class="section__list">
-            @for (shot of kit.shots; track $index) {
-              <li>{{ shot }}</li>
-            }
-          </ul>
-        </section>
+<div class="screen__body">
+  <header class="screen__header">
+    <div class="screen__heading-block">
+      <h2 id="kit-title" class="screen__title">{{ heading() }}</h2>
+      @if (subheading()) {
+        <p class="screen__subtitle">{{ subheading() }}</p>
       }
+    </div>
+  </header>
 
+  @if (kit(); as kit) {
+    @if (kit.shots.length > 0) {
       <section class="section">
-        <h3 class="section__heading">{{ sections.frames }}</h3>
-        @for (frame of kit.frames; track $index) {
-          <article class="frame">
-            <h4 class="frame__title">{{ frameLabel() }} {{ $index + 1 }}</h4>
-            @if (frame.visual) {
-              <p class="frame__line">
-                <span class="frame__label">{{ visualLabel }}:</span> {{ frame.visual }}
-              </p>
-            }
-            @if (frame.overlay) {
-              <p class="frame__line">
-                <span class="frame__label">{{ overlayLabel }}:</span> {{ frame.overlay }}
-              </p>
-            }
-          </article>
-        }
+        <h3 class="section__heading">{{ sections.shots }}</h3>
+        <ul class="section__list">
+          @for (shot of kit.shots; track $index) {
+            <li>{{ shot }}</li>
+          }
+        </ul>
       </section>
-
-      @if (kit.caption) {
-        <section class="section">
-          <h3 class="section__heading">{{ sections.caption }}</h3>
-          <p class="caption">{{ kit.caption }}</p>
-        </section>
-      }
-
-      @if (kit.hashtags.length > 0) {
-        <section class="section">
-          <h3 class="section__heading">{{ sections.hashtags }}</h3>
-          <p class="caption">{{ kit.hashtags.join(' ') }}</p>
-        </section>
-      }
-
-      @if (kit.tip) {
-        <section class="section">
-          <h3 class="section__heading">{{ sections.tip }}</h3>
-          <p class="caption">{{ kit.tip }}</p>
-        </section>
-      }
-
-      <div class="actions">
-        @if (kit.caption) {
-          <button type="button" class="screen__primary" (click)="onCopyCaption()">
-            {{ copyCaptionLabel }}
-          </button>
-        }
-        <button type="button" class="screen__secondary" (click)="onCopyAll()">
-          {{ copyAllLabel }}
-        </button>
-        <button
-          type="button"
-          class="screen__secondary"
-          [disabled]="loading()"
-          (click)="onRegenerate()"
-        >
-          {{ loading() ? preparingLabel : regenerateLabel }}
-        </button>
-        <p class="actions__feedback" role="status" aria-live="polite">{{ copyFeedback() }}</p>
-      </div>
-    } @else {
-      <p class="screen__subtitle">{{ missingText }}</p>
     }
-  </div>
-</dialog>
+
+    <section class="section">
+      <h3 class="section__heading">{{ sections.frames }}</h3>
+      @for (frame of kit.frames; track $index) {
+        <article class="frame">
+          <h4 class="frame__title">{{ frameLabel() }} {{ $index + 1 }}</h4>
+          @if (frame.visual) {
+            <p class="frame__line">
+              <span class="frame__label">{{ visualLabel }}:</span> {{ frame.visual }}
+            </p>
+          }
+          @if (frame.overlay) {
+            <p class="frame__line">
+              <span class="frame__label">{{ overlayLabel }}:</span> {{ frame.overlay }}
+            </p>
+          }
+        </article>
+      }
+    </section>
+
+    @if (kit.caption) {
+      <section class="section">
+        <h3 class="section__heading">{{ sections.caption }}</h3>
+        <p class="caption">{{ kit.caption }}</p>
+      </section>
+    }
+
+    @if (kit.hashtags.length > 0) {
+      <section class="section">
+        <h3 class="section__heading">{{ sections.hashtags }}</h3>
+        <p class="caption">{{ kit.hashtags.join(' ') }}</p>
+      </section>
+    }
+
+    @if (kit.tip) {
+      <section class="section">
+        <h3 class="section__heading">{{ sections.tip }}</h3>
+        <p class="caption">{{ kit.tip }}</p>
+      </section>
+    }
+
+    <div class="actions">
+      @if (kit.caption) {
+        <button type="button" class="screen__primary" (click)="onCopyCaption()">
+          {{ copyCaptionLabel }}
+        </button>
+      }
+      <p class="actions__feedback" role="status" aria-live="polite">{{ copyFeedback() }}</p>
+    </div>
+  } @else {
+    <p class="screen__subtitle">{{ missingText }}</p>
+  }
+</div>

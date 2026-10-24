@@ -63,8 +63,18 @@ func TestPostgresIntakeLifecycle(t *testing.T) {
 		t.Fatalf("latest = %+v, err %v", latest, err)
 	}
 	next, updated, err := db.Submit(ctx, master.ID, draft, now.Add(2*time.Hour))
-	if err != nil || updated || next.ID == first.ID {
+	if err != nil || updated || next.ID == first.ID || next.Review {
 		t.Fatalf("next = %+v, updated %v, err %v", next, updated, err)
+	}
+
+	draft.Review = true
+	asked, updated, err := db.Submit(ctx, master.ID, draft, now.Add(3*time.Hour))
+	if err != nil || !updated || asked.ID != next.ID || !asked.Review {
+		t.Fatalf("asked = %+v, updated %v, err %v", asked, updated, err)
+	}
+	stored, err := db.Latest(ctx, master.ID)
+	if err != nil || !stored.Review {
+		t.Fatalf("stored = %+v, err %v", stored, err)
 	}
 }
 

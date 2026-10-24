@@ -1,15 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import {
-  API_DEV_URL,
-  API_KIT_PATH,
-  ONBOARDING_STEPS,
-  ONBOARDING_STORAGE_KEY,
-  STRATEGY_STORAGE_KEY,
-} from '../../constants';
+import { provideRouter } from '@angular/router';
 import { PublicationKit, ScheduleDraft, Strategy } from '../../models';
-import { Access } from '../../services/access';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
 import { Today } from '../../services/today';
@@ -47,7 +40,6 @@ describe('TodayScreen', () => {
   let plan: CalendarPlan;
   let kits: Kits;
   let today: Today;
-  let http: HttpTestingController;
 
   beforeEach(() => {
     HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
@@ -58,23 +50,12 @@ describe('TodayScreen', () => {
     };
     vi.useFakeTimers({ toFake: ['Date'] });
     localStorage.clear();
-    localStorage.setItem(
-      ONBOARDING_STORAGE_KEY,
-      JSON.stringify({
-        index: ONBOARDING_STEPS.length,
-        answers: { specialty: 'маникюр' },
-        confirmed: true,
-      }),
-    );
-    localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(strategy));
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     plan = TestBed.inject(CalendarPlan);
     kits = TestBed.inject(Kits);
     today = TestBed.inject(Today);
-    http = TestBed.inject(HttpTestingController);
-    TestBed.inject(Access).save('secret-pass');
   });
 
   afterEach(() => {
@@ -91,24 +72,22 @@ describe('TodayScreen', () => {
     const [year, month, day] = item.date.split('-').map(Number);
     vi.setSystemTime(new Date(year, month - 1, day, 9, 0));
     const fixture = TestBed.createComponent(TodayScreen);
-    today.show();
     await fixture.whenStable();
     return { item, fixture, element: fixture.nativeElement as HTMLElement };
   }
 
   it('explains that there is no calendar yet', async () => {
     const fixture = TestBed.createComponent(TodayScreen);
-    today.show();
     await fixture.whenStable();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Календаря пока нет');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Плана пока нет');
   });
 
-  it('shows the publication of the day with a way to prepare its kit', async () => {
+  it('shows the publication of the day and says the kit is still to come', async () => {
     const { item, element } = await openOnFirstPublication();
 
     expect(element.textContent).toContain(item.idea);
-    expect(element.textContent).toContain('Подготовить комплект');
+    expect(element.textContent).toContain('скоро появится');
     expect(element.querySelector('.entry__copy')).toBeNull();
   });
 
@@ -116,9 +95,15 @@ describe('TodayScreen', () => {
     const writeText = vi.fn(() => Promise.resolve());
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     const { item, fixture, element } = await openOnFirstPublication();
-    const pending = kits.generate(item);
-    http.expectOne(`${API_DEV_URL}${API_KIT_PATH}`).flush(kit);
-    await pending;
+    kits.stored.set({
+      [item.id]: {
+        itemId: item.id,
+        format: item.format,
+        pillar: item.pillar,
+        idea: item.idea,
+        kit,
+      },
+    });
     await fixture.whenStable();
 
     element.querySelector<HTMLButtonElement>('.entry__copy')?.click();
@@ -138,25 +123,29 @@ describe('TodayScreen', () => {
     expect(element.querySelector('.entry--done')).not.toBeNull();
   });
 
-  it('closes by clearing the open flag', async () => {
-    const { fixture, element } = await openOnFirstPublication();
+  it('links to the calendar', async () => {
+    const { element } = await openOnFirstPublication();
 
-    element.querySelector<HTMLButtonElement>('.screen__close')?.click();
-    await fixture.whenStable();
+    const links = element.querySelectorAll<HTMLAnchorElement>('a.screen__secondary');
 
-    expect(today.open()).toBe(false);
+    expect(links[links.length - 1].getAttribute('href')).toBe('/calendar');
   });
 
-  it('hands over to the calendar', async () => {
-    const { fixture, element } = await openOnFirstPublication();
-    let requested = 0;
-    fixture.componentInstance.calendarRequested.subscribe(() => (requested += 1));
-
-    const buttons = element.querySelectorAll<HTMLButtonElement>('.screen__secondary');
-    buttons[buttons.length - 1].click();
+  it('offers the shooting list for the week on a content day', async () => {
+    plan.build(draft, strategy, new Date(2026, 9, 19, 10, 0));
+    const [year, month, day] = plan.weeks()[0].contentDays[0].date.split('-').map(Number);
+    vi.setSystemTime(new Date(year, month - 1, day, 9, 0));
+    const fixture = TestBed.createComponent(TodayScreen);
     await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
 
-    expect(requested).toBe(1);
-    expect(today.open()).toBe(false);
+    expect(element.querySelector('.shoot')?.textContent).toContain('Сегодня день контента');
+    expect(element.querySelector('.shoot a')?.getAttribute('href')).toBe('/shoot/0');
+  });
+
+  it('does not show the shooting card on an ordinary day', async () => {
+    const { element } = await openOnFirstPublication();
+
+    expect(element.querySelector('.shoot')).toBeNull();
   });
 });

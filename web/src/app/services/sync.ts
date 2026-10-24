@@ -1,11 +1,10 @@
 import { Service, effect, inject, signal, untracked } from '@angular/core';
 import {
-  AUDIT_STORAGE_KEY,
   CALENDAR_STORAGE_KEY,
-  CHAT_HISTORY_STORAGE_KEY,
   KITS_STORAGE_KEY,
-  ONBOARDING_STORAGE_KEY,
-  REVIEWS_STORAGE_KEY,
+  MONTH_REVIEWS_STORAGE_KEY,
+  RECOMMENDATIONS_STORAGE_KEY,
+  SETTINGS_STORAGE_KEY,
   STRATEGY_STORAGE_KEY,
   SYNC_BACKUP_STORAGE_KEY,
   SYNC_META_STORAGE_KEY,
@@ -23,23 +22,21 @@ import {
 } from '../models';
 import { Access } from './access';
 import { Account } from './account';
-import { Audit } from './audit';
 import { CalendarPlan } from './calendar-plan';
-import { Chat } from './chat';
 import { ChatApi } from './chat-api';
 import { Kits } from './kits';
-import { Onboarding } from './onboarding';
+import { MonthReviews } from './month-reviews';
 import { PAGE_RELOAD } from './page-reload';
-import { Reviews } from './reviews';
+import { Recommendations } from './recommendations';
+import { Settings } from './settings';
 
 const SYNC_KEYS: Record<SyncKey, string> = {
-  onboarding: ONBOARDING_STORAGE_KEY,
   strategy: STRATEGY_STORAGE_KEY,
   calendar: CALENDAR_STORAGE_KEY,
   kits: KITS_STORAGE_KEY,
-  reviews: REVIEWS_STORAGE_KEY,
-  audit: AUDIT_STORAGE_KEY,
-  chat: CHAT_HISTORY_STORAGE_KEY,
+  monthReviews: MONTH_REVIEWS_STORAGE_KEY,
+  recommendations: RECOMMENDATIONS_STORAGE_KEY,
+  settings: SETTINGS_STORAGE_KEY,
 };
 
 const KEYS = Object.keys(SYNC_KEYS) as SyncKey[];
@@ -49,12 +46,11 @@ export class Sync {
   private readonly api = inject(ChatApi);
   private readonly access = inject(Access);
   private readonly account = inject(Account);
-  private readonly onboarding = inject(Onboarding);
   private readonly calendar = inject(CalendarPlan);
   private readonly kits = inject(Kits);
-  private readonly reviews = inject(Reviews);
-  private readonly audit = inject(Audit);
-  private readonly chat = inject(Chat);
+  private readonly monthReviews = inject(MonthReviews);
+  private readonly recommendations = inject(Recommendations);
+  private readonly settings = inject(Settings);
   private readonly reload = inject(PAGE_RELOAD);
 
   readonly status = signal<SyncStatus>('off');
@@ -75,17 +71,13 @@ export class Sync {
     });
 
     effect(() => {
-      this.onboarding.answers();
-      this.onboarding.index();
-      this.onboarding.confirmed();
-      this.onboarding.resumeIndex();
-      this.onboarding.strategy();
       this.calendar.items();
       this.calendar.schedule();
       this.kits.stored();
-      this.reviews.items();
-      this.audit.stored();
-      this.chat.messages();
+      this.monthReviews.items();
+      this.recommendations.items();
+      this.settings.theme();
+      this.settings.scale();
       if (!this.started) {
         this.started = true;
         return;
@@ -148,7 +140,7 @@ export class Sync {
   private async reconcile(server: ServerState): Promise<void> {
     const meta = this.readMeta();
     const local = this.readBundle();
-    const localEmpty = !Object.keys(local).some((key) => key !== 'chat');
+    const localEmpty = Object.keys(local).length === 0;
 
     if (server.version === 0 || !server.data) {
       if (localEmpty) {

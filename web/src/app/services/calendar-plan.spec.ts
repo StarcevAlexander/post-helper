@@ -89,44 +89,6 @@ describe('CalendarPlan', () => {
     expect(plan.items()[3].done).toBe(false);
   });
 
-  it('exports a weekly content day and the upcoming publications', () => {
-    plan.build({ ...draft, weekday2: '6' }, strategy, TODAY);
-
-    const events = plan.icsEvents(TODAY);
-
-    const weekly = events.filter((event) => event.weeklyOn !== undefined);
-    expect(weekly.map((event) => toDateKey(event.start))).toEqual(['2026-10-22', '2026-10-25']);
-    expect(weekly[0].summary).toContain('четверг');
-    expect(events.length).toBe(2 + 36);
-  });
-
-  it('puts the app link into every exported event when asked', () => {
-    plan.build(draft, strategy, TODAY);
-    const link = 'https://example.github.io/post_helper/?screen=today';
-
-    const events = plan.icsEvents(TODAY, link);
-
-    expect(events.length).toBeGreaterThan(0);
-    expect(events.every((event) => event.url === link)).toBe(true);
-    expect(events.every((event) => event.description.endsWith(`\n${link}`))).toBe(true);
-    expect(plan.icsEvents(TODAY).every((event) => event.url === undefined)).toBe(true);
-  });
-
-  it('leaves done and past publications out of the export', () => {
-    plan.build(draft, strategy, TODAY);
-    plan.toggleDone(plan.items()[0].id);
-    const later = new Date(2026, 10, 1, 12, 0);
-
-    const events = plan.icsEvents(later).filter((event) => event.weeklyOn === undefined);
-
-    expect(events.every((event) => event.start.getTime() > later.getTime())).toBe(true);
-    expect(events.length).toBeLessThan(35);
-  });
-
-  it('exports nothing without a schedule', () => {
-    expect(plan.icsEvents(TODAY)).toEqual([]);
-  });
-
   it('forgets everything on reset', () => {
     plan.build(draft, strategy, TODAY);
 

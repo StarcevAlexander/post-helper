@@ -1,65 +1,29 @@
+import { Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
-  Component,
-  ElementRef,
-  computed,
-  effect,
-  inject,
-  model,
-  signal,
-  untracked,
-  viewChild,
-} from '@angular/core';
-import { form, FormField, validate } from '@angular/forms/signals';
-import {
-  BUILD_PLAN_LABEL,
-  CALENDAR_CLOSE_LABEL,
   CALENDAR_HINT,
-  CALENDAR_TITLE,
-  CONTENT_DAY_FIRST_LABEL,
-  CONTENT_DAY_SECOND_LABEL,
-  CONTENT_DAY_TITLE,
   CONTENT_DAY_WEEK_LABEL,
   DONE_LABEL,
-  EXPORT_HINT,
-  EXPORT_LABEL,
   FORMAT_LABELS,
-  ICS_FILE_NAME,
   KIT_OPEN_LABEL,
+  KIT_PENDING_LABEL,
   REFS_TEXTS,
-  KIT_PREPARE_LABEL,
-  KIT_PREPARE_WEEK_LABEL,
-  KIT_PREPARING_LABEL,
-  KIT_RETRY_LABEL,
-  KIT_WEEK_READY_LABEL,
-  REVIEW_TEXTS,
-  NO_SECOND_DAY_LABEL,
+  SHOOT_TEXTS,
   PLAN_EMPTY_TEXT,
   PLAN_TITLE,
-  PUBLISH_TIME_LABEL,
-  REBUILD_PLAN_LABEL,
-  SAME_DAY_ERROR_TEXT,
-  TIME_ERROR_TEXT,
-  TIME_LABEL,
-  TIME_PATTERN,
-  WEEKDAY_NAMES,
   WEEK_LABEL,
 } from '../../constants';
-import { KitStatus, PlanItem, PlanWeek, ScheduleDraft } from '../../models';
+import { PlanItem } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
-import { Onboarding } from '../../services/onboarding';
-import { Reviews } from '../../services/reviews';
 import { Refs } from '../../services/refs';
-import { todayLink } from '../../utils/app-link';
-import { buildIcs } from '../../utils/ics-builder';
-import { fromDateKey, toDateKey } from '../../utils/date-utils';
+import { fromDateKey } from '../../utils/date-utils';
 
 interface ItemView {
   item: PlanItem;
   dayLabel: string;
   formatLabel: string;
-  status: KitStatus;
-  error?: string;
+  hasKit: boolean;
   refLabel?: string;
   refStale: boolean;
 }
@@ -69,10 +33,6 @@ interface WeekView {
   title: string;
   contentDays: string[];
   items: ItemView[];
-  pending: number;
-  source: PlanWeek;
-  reviewable: boolean;
-  hasReview: boolean;
 }
 
 const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
@@ -84,69 +44,23 @@ const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
 const RANGE_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
 
 @Component({
-  imports: [FormField],
+  imports: [RouterLink],
   selector: 'app-calendar-screen',
   styleUrl: './calendar-screen.scss',
   templateUrl: './calendar-screen.html',
 })
 export class CalendarScreen {
-  readonly open = model(false);
-
   protected readonly plan = inject(CalendarPlan);
-  protected readonly onboarding = inject(Onboarding);
   protected readonly kits = inject(Kits);
-  protected readonly reviews = inject(Reviews);
   protected readonly refs = inject(Refs);
   protected readonly refsTexts = REFS_TEXTS;
-  protected readonly reviewTexts = REVIEW_TEXTS;
   protected readonly openKitLabel = KIT_OPEN_LABEL;
-  protected readonly prepareKitLabel = KIT_PREPARE_LABEL;
-  protected readonly preparingLabel = KIT_PREPARING_LABEL;
-  protected readonly retryLabel = KIT_RETRY_LABEL;
-  protected readonly prepareWeekLabel = KIT_PREPARE_WEEK_LABEL;
-  protected readonly weekReadyLabel = KIT_WEEK_READY_LABEL;
-  protected readonly title = CALENDAR_TITLE;
+  protected readonly shootLabel = SHOOT_TEXTS.weekLink;
+  protected readonly kitPendingLabel = KIT_PENDING_LABEL;
   protected readonly hint = CALENDAR_HINT;
-  protected readonly closeLabel = CALENDAR_CLOSE_LABEL;
-  protected readonly contentDayTitle = CONTENT_DAY_TITLE;
-  protected readonly firstDayLabel = CONTENT_DAY_FIRST_LABEL;
-  protected readonly secondDayLabel = CONTENT_DAY_SECOND_LABEL;
-  protected readonly noSecondDayLabel = NO_SECOND_DAY_LABEL;
-  protected readonly timeLabel = TIME_LABEL;
-  protected readonly publishTimeLabel = PUBLISH_TIME_LABEL;
   protected readonly planTitle = PLAN_TITLE;
   protected readonly emptyText = PLAN_EMPTY_TEXT;
   protected readonly doneLabel = DONE_LABEL;
-  protected readonly exportLabel = EXPORT_LABEL;
-  protected readonly exportHint = EXPORT_HINT;
-  protected readonly weekdays = WEEKDAY_NAMES.map((name, index) => ({
-    value: String(index),
-    name,
-  }));
-
-  protected readonly draft = signal<ScheduleDraft>(this.plan.toDraft());
-  protected readonly calendarForm = form(this.draft, (path) => {
-    validate(path.time1, ({ value }) =>
-      TIME_PATTERN.test(value()) ? undefined : { kind: 'time', message: TIME_ERROR_TEXT },
-    );
-    validate(path.publishTime, ({ value }) =>
-      TIME_PATTERN.test(value()) ? undefined : { kind: 'time', message: TIME_ERROR_TEXT },
-    );
-    validate(path.weekday2, ({ value, valueOf }) =>
-      value() !== '' && value() === valueOf(path.weekday1)
-        ? { kind: 'sameDay', message: SAME_DAY_ERROR_TEXT }
-        : undefined,
-    );
-    validate(path.time2, ({ value, valueOf }) =>
-      valueOf(path.weekday2) !== '' && !TIME_PATTERN.test(value())
-        ? { kind: 'time', message: TIME_ERROR_TEXT }
-        : undefined,
-    );
-  });
-
-  protected readonly buildLabel = computed(() =>
-    this.plan.hasPlan() ? REBUILD_PLAN_LABEL : BUILD_PLAN_LABEL,
-  );
   protected readonly weekViews = computed<WeekView[]>(() =>
     this.plan.weeks().map((week) => ({
       index: week.index,
@@ -159,19 +73,12 @@ export class CalendarScreen {
         item,
         dayLabel: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time}`,
         formatLabel: FORMAT_LABELS[item.format],
-        status: this.kits.statusOf(item),
-        error: this.kits.errorOf(item),
+        hasKit: this.kits.kitFor(item) !== undefined,
         refLabel: this.refLabel(item.id),
         refStale: this.refs.byKey().get(item.id)?.stale ?? false,
       })),
-      pending: week.items.filter((item) => this.kits.statusOf(item) !== 'ready').length,
-      source: week,
-      reviewable: week.from <= toDateKey(new Date()),
-      hasReview: this.reviews.forWeek(week.from) !== undefined,
     })),
   );
-
-  private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
 
   private refLabel(key: string): string | undefined {
     const status = this.refs.byKey().get(key);
@@ -186,58 +93,6 @@ export class CalendarScreen {
         return REFS_TEXTS.made;
       default:
         return REFS_TEXTS.making;
-    }
-  }
-
-  constructor() {
-    effect(() => {
-      const element = this.dialog().nativeElement;
-      if (this.open() && !element.open) {
-        untracked(() => this.draft.set(this.plan.toDraft()));
-        element.showModal();
-      } else if (!this.open() && element.open) {
-        element.close();
-      }
-    });
-  }
-
-  protected errorOf(field: keyof ScheduleDraft): string | undefined {
-    return this.calendarForm[field]().errors()[0]?.message;
-  }
-
-  protected onBuild(): void {
-    const strategy = this.onboarding.strategy();
-    if (!strategy || this.calendarForm().invalid()) {
-      return;
-    }
-    this.plan.build(this.draft(), strategy);
-  }
-
-  protected onPrepareWeek(week: WeekView): void {
-    void this.kits.generateMany(week.items.map((view) => view.item));
-  }
-
-  protected onExport(): void {
-    const text = buildIcs(this.plan.icsEvents(new Date(), todayLink(document.baseURI)));
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = ICS_FILE_NAME;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  protected onDialogClosed(): void {
-    if (!this.dialog().nativeElement.open) {
-      this.open.set(false);
-    }
-  }
-
-  protected onDialogClicked(event: MouseEvent): void {
-    if (event.target === this.dialog().nativeElement) {
-      this.open.set(false);
     }
   }
 }

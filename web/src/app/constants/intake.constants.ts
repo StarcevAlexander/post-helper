@@ -30,7 +30,7 @@ export const INTAKE_GOALS: readonly IntakeGoal[] = [
 ];
 
 export const INTAKE_PLATFORM_LABELS: Record<IntakePlatform, string> = {
-  instagram: 'Instagram',
+  instagram: 'Instagram*',
   vk: 'ВКонтакте',
   telegram: 'Telegram',
   youtube: 'YouTube',
@@ -61,6 +61,8 @@ export const INTAKE_PLATFORM_HOSTS: Record<string, IntakePlatform> = {
 };
 
 export const INTAKE_TEXTS = {
+  metaNote:
+    '* Instagram принадлежит компании Meta, признанной в России экстремистской организацией и запрещённой.',
   open: 'Заявка на контент-план',
   title: 'Контент-план для вас',
   closeLabel: 'Закрыть заявку',
@@ -68,7 +70,7 @@ export const INTAKE_TEXTS = {
     'Расскажите, где вас найти и чего вы хотите добиться. Я изучу ваши соцсети, познакомлюсь с вами и подготовлю план публикаций с примерами кадров. Это занимает время, поэтому готовый план появится у вас в приложении.',
   linksTitle: 'Ваши соцсети',
   linksHint:
-    'Вставьте ссылку на каждую страницу, которую ведёте: Instagram, ВКонтакте, Telegram и другие.',
+    'Вставьте ссылку на каждую страницу, которую ведёте: Instagram*, ВКонтакте, Telegram и другие.',
   linkLabel: 'Ссылка на соцсеть',
   linkPlaceholder: 'Например, vk.com/anna_nails',
   addLink: 'Добавить ещё одну соцсеть',
@@ -77,7 +79,7 @@ export const INTAKE_TEXTS = {
   referencesHint:
     'Страницы, чей контент и подачу стоит взять за образец или переработать под себя: коллеги, блогеры, даже из другой ниши. Я изучу их вместе с вашими страницами и учту в плане. Заполните сколько есть, пять мест уже готовы, можно добавить сколько угодно ещё.',
   referenceLabel: 'Ссылка на страницу-референс',
-  referencePlaceholder: 'Например, instagram.com/master_nails',
+  referencePlaceholder: 'Например, instagram.com/master_nails*',
   addReference: 'Добавить ещё референс',
   removeReference: 'Убрать референс',
   referencesCounter: 'Заполнено',

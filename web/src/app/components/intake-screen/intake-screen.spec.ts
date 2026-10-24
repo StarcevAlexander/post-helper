@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { API_DEV_URL, API_INTAKE_PATH, INTAKE_GOALS, INTAKE_TEXTS } from '../../constants';
 import { IntakeRequest } from '../../models';
 import { Access } from '../../services/access';
@@ -35,7 +36,7 @@ describe('IntakeScreen', () => {
     };
     localStorage.clear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     intake = TestBed.inject(Intake);
     http = TestBed.inject(HttpTestingController);
@@ -50,7 +51,6 @@ describe('IntakeScreen', () => {
 
   async function render() {
     const fixture = TestBed.createComponent(IntakeScreen);
-    intake.show();
     await fixture.whenStable();
     return fixture;
   }
@@ -94,6 +94,22 @@ describe('IntakeScreen', () => {
     fixture.detectChanges();
 
     expect(html.querySelector('.link__platform')?.textContent).toContain('Telegram');
+  });
+
+  it('marks Instagram with an asterisk and explains it next to the links and the references', async () => {
+    const fixture = await render();
+    const html = fixture.nativeElement as HTMLElement;
+
+    type(html.querySelector<HTMLInputElement>('#intake-link-0')!, 'instagram.com/anna');
+    fixture.detectChanges();
+
+    expect(html.querySelector('.link__platform')?.textContent).toContain('Instagram*');
+    const notes = Array.from(html.querySelectorAll('.screen__hint')).filter((hint) =>
+      hint.textContent?.includes('Meta'),
+    );
+    expect(notes).toHaveLength(2);
+    expect(notes[0].textContent).toContain('запрещённой');
+    expect(html.textContent).toContain('Instagram*, ВКонтакте');
   });
 
   it('sends the link, the chosen goals and the wishes', async () => {

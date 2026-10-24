@@ -4,14 +4,12 @@ import { after, before, describe, it } from 'node:test';
 import {
   failRef,
   ffmpegArgs,
-  mediaTypeOf,
+  MEDIA_TYPE,
   nextRef,
-  outputName,
+  OUTPUT_NAME,
   parseFreeVram,
   photoWorkflow,
   submitRefs,
-  videoLength,
-  videoWorkflow,
   workflowFor,
 } from './lib.mjs';
 
@@ -27,31 +25,16 @@ describe('workflows', () => {
     assert.deepEqual(graph[6].inputs.positive, ['4', 0]);
   });
 
-  it('puts the prompt and the seed into the video graph', () => {
-    const graph = videoWorkflow('hands in motion', 7, 'ph_ref_7');
-
-    assert.equal(graph[5].inputs.text, 'hands in motion');
-    assert.equal(graph[8].inputs.seed, 7);
-    assert.equal(graph[7].inputs.length, videoLength(3, 24));
-  });
-
-  it('counts video frames as 4n+1 like Wan wants', () => {
-    assert.equal(videoLength(3, 24), 73);
-    assert.equal(videoLength(1, 16), 17);
-    assert.equal((videoLength(5, 24) - 1) % 4, 0);
-  });
-
   it('picks the graph by the kind and refuses unknown ones', () => {
     assert.ok(workflowFor('photo', 'x', 1, 'p')[8]);
-    assert.ok(workflowFor('video', 'x', 1, 'p')[11]);
+    assert.throws(() => workflowFor('video', 'x', 1, 'p'), /Неизвестный тип/);
     assert.throws(() => workflowFor('audio', 'x', 1, 'p'), /Неизвестный тип/);
   });
 
   it('makes small files for the phone', () => {
-    assert.ok(ffmpegArgs('video', 'in', 'out').includes('-an'));
-    assert.ok(ffmpegArgs('photo', 'in', 'out.jpg').includes('scale=640:-2'));
-    assert.equal(outputName('video'), 'ref.mp4');
-    assert.equal(mediaTypeOf('photo'), 'image/jpeg');
+    assert.ok(ffmpegArgs('in', 'out.jpg').includes('scale=640:-2'));
+    assert.equal(OUTPUT_NAME, 'ref.jpg');
+    assert.equal(MEDIA_TYPE, 'image/jpeg');
   });
 });
 

@@ -13,16 +13,13 @@ import (
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/audit"
-	"post-helper/server/internal/chat"
 	"post-helper/server/internal/config"
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/intake"
-	"post-helper/server/internal/kit"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
-	"post-helper/server/internal/review"
+	"post-helper/server/internal/reminders"
 	"post-helper/server/internal/store"
-	"post-helper/server/internal/strategy"
 	"post-helper/server/internal/yandex"
 )
 
@@ -62,6 +59,7 @@ func run() error {
 	var refsStore refs.Store = refs.NewMemory()
 	var intakeStore intake.Store = intake.NewMemory()
 	var pushStore push.Store = push.NewMemory()
+	var reminderSent reminders.Sent = reminders.NewMemory()
 	if cfg.DatabaseURL != "" {
 		openCtx, cancel := context.WithTimeout(context.Background(), databaseOpenTimeout)
 		postgres, err := store.Open(openCtx, cfg.DatabaseURL, logger)
@@ -76,6 +74,7 @@ func run() error {
 		refsStore = refs.NewPostgres(postgres.Pool())
 		intakeStore = intake.NewPostgres(postgres.Pool())
 		pushStore = push.NewPostgres(postgres.Pool())
+		reminderSent = reminders.NewPostgres(postgres.Pool())
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
 		slog.SetDefault(logger)
 	} else {
@@ -96,6 +95,13 @@ func run() error {
 	var pusher push.Sender
 	if service := push.New(pushStore, cfg.VapidPublicKey, cfg.VapidPrivateKey, cfg.VapidSubject); service != nil {
 		pusher = service
+		go (&reminders.Scheduler{
+			Accounts: accountStore,
+			Sender:   pusher,
+			Sent:     reminderSent,
+			Location: reminderLocation(cfg.ReminderTimezone),
+			Logger:   logger,
+		}).Run(ctxRetention)
 	} else {
 		slog.Warn("VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not set: push notifications are off")
 	}
@@ -114,7 +120,6 @@ func run() error {
 	if cfg.AdminRestart {
 		shutdown = stop
 	}
-	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{
 		Shutdown:       shutdown,
 		Yandex:         yandexLogin,
@@ -123,10 +128,6 @@ func run() error {
 		Notifier:       notifier,
 		PushStore:      pushStore,
 		Pusher:         pusher,
-		Responder:      claude,
-		Strategist:     strategy.NewClaude(cfg.APIKey, cfg.Model),
-		KitMaker:       kit.NewClaude(cfg.APIKey, cfg.Model),
-		Reviewer:       review.NewClaude(cfg.APIKey, cfg.Model),
 		Auditor:        audit.NewClaude(cfg.APIKey, cfg.Model),
 		AgentToken:     cfg.AgentToken,
 		Refs:           refsStore,
@@ -193,4 +194,16 @@ func runRetention(ctx context.Context, store accounts.Store, days int) {
 			purge()
 		}
 	}
+}
+
+func reminderLocation(name string) *time.Location {
+	if name == "" {
+		return time.Local
+	}
+	location, err := time.LoadLocation(name)
+	if err != nil {
+		slog.Warn("REMINDER_TIMEZONE is not a known time zone: the server time zone is used", slog.String("name", name))
+		return time.Local
+	}
+	return location
 }

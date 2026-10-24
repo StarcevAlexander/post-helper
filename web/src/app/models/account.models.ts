@@ -13,7 +13,7 @@ export interface AccountInfo {
 }
 
 export type SyncKey =
-  'onboarding' | 'strategy' | 'calendar' | 'kits' | 'reviews' | 'audit' | 'chat';
+  'strategy' | 'calendar' | 'kits' | 'monthReviews' | 'recommendations' | 'settings';
 
 export type SyncBundle = Partial<Record<SyncKey, JsonValue>>;
 

@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { API_DEV_URL, API_ME_PATH } from '../../constants';
 import { Access } from '../../services/access';
 import { AccountInfo } from '../../models';
@@ -20,7 +21,7 @@ describe('SettingsPanel account block', () => {
   beforeEach(() => {
     localStorage.clear();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
   });
 
@@ -43,7 +44,7 @@ describe('SettingsPanel account block', () => {
     expect(element.querySelector('.account')).toBeNull();
   });
 
-  it('shows the master name and the daily use of the AI', async () => {
+  it('shows the master name and how long the data is kept', async () => {
     const element = await render({
       role: 'master',
       name: 'Анна',
@@ -53,8 +54,8 @@ describe('SettingsPanel account block', () => {
     });
 
     expect(element.querySelector('.account')?.textContent).toContain('Анна');
-    expect(element.querySelector('.account')?.textContent).toContain('3 из 80');
-    expect(element.querySelector('.account')?.textContent).toContain('хранится 3 года');
+    expect(element.querySelector('.account')?.textContent).not.toContain('из 80');
+    expect(element.querySelector('.account')?.textContent).toContain('хранятся 3 года');
     expect(element.textContent).not.toContain('Мастера и расходы');
   });
 
@@ -73,10 +74,10 @@ describe('SettingsPanel account block', () => {
     expect(element.textContent).not.toContain('Мастера и расходы');
   });
 
-  it('refreshes the daily use of the AI each time the settings are opened', async () => {
+  it('refreshes the daily use of the AI each time the screen is opened', async () => {
     TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
     const http = TestBed.inject(HttpTestingController);
-    const fixture = TestBed.createComponent(SettingsPanel);
+    TestBed.inject(Account);
     TestBed.tick();
     http.match(`${API_DEV_URL}${API_ME_PATH}`).forEach((request) =>
       request.flush({
@@ -87,10 +88,9 @@ describe('SettingsPanel account block', () => {
         retentionDays: 1095,
       }),
     );
-    await fixture.whenStable();
+    await vi.waitFor(() => expect(TestBed.inject(Account).info()?.usageToday).toBe(1));
 
-    fixture.componentRef.setInput('open', true);
-    fixture.detectChanges();
+    const fixture = TestBed.createComponent(SettingsPanel);
     await fixture.whenStable();
 
     const requests = http.match(`${API_DEV_URL}${API_ME_PATH}`);
