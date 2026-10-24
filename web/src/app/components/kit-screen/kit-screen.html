@@ -9,17 +9,6 @@
   </header>
 
   @if (kit(); as kit) {
-    @if (kit.shots.length > 0) {
-      <section class="section">
-        <h3 class="section__heading">{{ sections.shots }}</h3>
-        <ul class="section__list">
-          @for (shot of kit.shots; track $index) {
-            <li>{{ shot }}</li>
-          }
-        </ul>
-      </section>
-    }
-
     <section class="section">
       <h3 class="section__heading">{{ sections.frames }}</h3>
       @for (frame of kit.frames; track $index) {

@@ -82,7 +82,7 @@ describe('KitScreen', () => {
     const { element } = await prepare();
 
     const text = element.textContent ?? '';
-    expect(text).toContain('Снять руки крупно');
+    expect(text).not.toContain('Снять руки крупно');
     expect(text).toContain('Руки с гель-лаком');
     expect(text).toContain('Смотрите');
     expect(text).toContain('Показываю маникюр.');

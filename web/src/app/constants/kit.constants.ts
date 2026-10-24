@@ -13,7 +13,6 @@ export const KIT_CLOSE_LABEL = 'Закрыть комплект';
 export const KIT_TITLE = 'Комплект публикации';
 
 export const KIT_SECTIONS = {
-  shots: 'Что снять',
   frames: 'По порядку показа',
   caption: 'Подпись',
   hashtags: 'Хэштеги',
