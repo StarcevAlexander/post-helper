@@ -12,11 +12,11 @@ export const DIALOG_CANCEL_LABEL = 'Отмена';
 
 export const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
-export const UPDATE_APPLY_RETRY_MS = 5000;
-
 export const UPDATE_VERSION_PATH = '/version.json';
 
 export const UPDATE_LAUNCH_WAIT_MS = 15000;
+
+export const UPDATE_CHECK_TIMEOUT_MS = 4000;
 
 export const UPDATE_LAUNCH_POLL_MS = 500;
 
@@ -25,6 +25,6 @@ export const UPDATE_ATTEMPTS_KEY = 'helper.update-attempts';
 export const UPDATE_MAX_ATTEMPTS = 3;
 
 export const UPDATE_TEXTS = {
+  loading: 'Загружаем приложение',
   spinner: 'Обновляем приложение',
-  spinnerHint: 'Загружается новая версия, это займёт несколько секунд.',
 } as const;

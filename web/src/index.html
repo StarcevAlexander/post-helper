@@ -16,8 +16,52 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
     <link rel="manifest" href="manifest.webmanifest" />
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background: #0d1117;
+        color: #e6edf3;
+        font-family: system-ui, sans-serif;
+      }
+      #splash[hidden] {
+        display: none;
+      }
+      .splash__spinner {
+        width: 2.5rem;
+        height: 2.5rem;
+        border: 0.25rem solid #30363d;
+        border-top-color: #58a6ff;
+        border-radius: 50%;
+        animation: splash-spin 0.9s linear infinite;
+      }
+      .splash__text {
+        margin: 0;
+        font-size: 1rem;
+      }
+      @keyframes splash-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .splash__spinner {
+          animation-duration: 3s;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="splash" role="status" aria-live="polite">
+      <span class="splash__spinner" aria-hidden="true"></span>
+      <p id="splash-text" class="splash__text">Загружаем приложение</p>
+    </div>
     <app-root></app-root>
     <noscript>Включите JavaScript, чтобы пользоваться приложением.</noscript>
   </body>

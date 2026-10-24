@@ -2,9 +2,9 @@ import { Service, inject, signal } from '@angular/core';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { filter } from 'rxjs';
 import {
-  UPDATE_APPLY_RETRY_MS,
   UPDATE_ATTEMPTS_KEY,
   UPDATE_CHECK_INTERVAL_MS,
+  UPDATE_CHECK_TIMEOUT_MS,
   UPDATE_LAUNCH_POLL_MS,
   UPDATE_LAUNCH_WAIT_MS,
   UPDATE_MAX_ATTEMPTS,
@@ -18,19 +18,14 @@ import { Sync } from './sync';
 @Service()
 export class AppUpdate {
   readonly ready = signal(false);
+  readonly checking = signal(true);
   readonly updating = signal(false);
 
   private readonly swUpdate = inject(SwUpdate);
   private readonly sync = inject(Sync);
   private readonly reload = inject(PAGE_RELOAD);
-  private idleCheck: () => boolean = () => true;
   private started = false;
   private applying = false;
-  private retryTimer: ReturnType<typeof setTimeout> | undefined;
-
-  setIdleCheck(check: () => boolean): void {
-    this.idleCheck = check;
-  }
 
   start(): void {
     if (this.started) {
@@ -41,17 +36,13 @@ export class AppUpdate {
     if (this.swUpdate.isEnabled) {
       this.swUpdate.versionUpdates
         .pipe(filter((event): event is VersionReadyEvent => event.type === 'VERSION_READY'))
-        .subscribe(() => {
-          this.ready.set(true);
-          this.tryApply();
-        });
+        .subscribe(() => this.ready.set(true));
       this.swUpdate.unrecoverable.subscribe(() => this.reload());
     }
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         void this.check();
-        this.tryApply();
       }
     });
     window.addEventListener('online', () => void this.check());
@@ -64,34 +55,18 @@ export class AppUpdate {
       return;
     }
     this.applying = true;
-    clearTimeout(this.retryTimer);
     this.sync.flush();
-    if (!this.swUpdate.isEnabled) {
-      this.ready.set(false);
-      this.reload();
-      return;
-    }
-    try {
-      await this.swUpdate.activateUpdate();
-    } catch {
-      this.applying = false;
-      this.retryTimer = setTimeout(() => this.tryApply(), UPDATE_APPLY_RETRY_MS);
-      return;
+    if (this.swUpdate.isEnabled) {
+      try {
+        await this.swUpdate.activateUpdate();
+      } catch {
+        this.applying = false;
+        this.reload();
+        return;
+      }
     }
     this.ready.set(false);
     this.reload();
-  }
-
-  private tryApply(): void {
-    clearTimeout(this.retryTimer);
-    if (!this.ready() || this.applying) {
-      return;
-    }
-    if (this.idleCheck()) {
-      void this.apply();
-      return;
-    }
-    this.retryTimer = setTimeout(() => this.tryApply(), UPDATE_APPLY_RETRY_MS);
   }
 
   private async check(atLaunch = false): Promise<void> {
@@ -100,15 +75,19 @@ export class AppUpdate {
     if (!newer) {
       this.forgetAttempts();
     }
-    if (newer && atLaunch && this.takeAttempt(published)) {
+    const takeOver = newer && atLaunch && this.takeAttempt(published);
+    if (takeOver) {
       this.updating.set(true);
+    }
+    if (atLaunch) {
+      this.checking.set(false);
     }
     if (this.swUpdate.isEnabled) {
       await this.swUpdate.checkForUpdate().catch(() => false);
     } else if (newer) {
       this.ready.set(true);
     }
-    if (this.updating()) {
+    if (takeOver) {
       await this.finishLaunchUpdate();
     }
   }
@@ -127,9 +106,12 @@ export class AppUpdate {
   }
 
   private async publishedVersion(): Promise<string | undefined> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), UPDATE_CHECK_TIMEOUT_MS);
     try {
       const response = await fetch(`${UPDATE_VERSION_PATH}?ngsw-bypass=true&t=${Date.now()}`, {
         cache: 'no-store',
+        signal: controller.signal,
       });
       if (!response.ok) {
         return undefined;
@@ -139,6 +121,8 @@ export class AppUpdate {
       return typeof version === 'string' ? version : undefined;
     } catch {
       return undefined;
+    } finally {
+      clearTimeout(timer);
     }
   }
 

@@ -17,6 +17,7 @@ import { Settings } from './services/settings';
 import { Sync } from './services/sync';
 import { Today } from './services/today';
 import { YandexAuth } from './services/yandex-auth';
+import { hideSplash, showSplash } from './utils/splash';
 import { APP_VERSION } from './version';
 
 @Component({
@@ -48,6 +49,16 @@ export class App {
 
   constructor() {
     effect(() => {
+      if (this.appUpdate.updating()) {
+        showSplash(UPDATE_TEXTS.spinner);
+      } else if (this.appUpdate.checking()) {
+        showSplash(UPDATE_TEXTS.loading);
+      } else {
+        hideSplash();
+      }
+    });
+
+    effect(() => {
       const ready =
         this.access.granted() &&
         this.account.signedIn() &&
@@ -63,7 +74,6 @@ export class App {
       void this.yandexAuth.loadConfig();
       void this.yandexAuth.completeFromUrl();
       this.today.openFromLink();
-      this.appUpdate.setIdleCheck(() => this.isIdle());
       this.appUpdate.start();
 
       const viewport = window.visualViewport;
@@ -83,13 +93,5 @@ export class App {
         });
       }
     });
-  }
-
-  private isIdle(): boolean {
-    return (
-      !this.intake.busy() &&
-      this.sync.status() !== 'syncing' &&
-      document.querySelector('dialog[open]') === null
-    );
   }
 }
