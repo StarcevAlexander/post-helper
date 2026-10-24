@@ -19,7 +19,6 @@ import {
   validateCollected,
 } from './lib.mjs';
 
-const TOKEN = 'agent-token-0123456789abcdef';
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 
 describe('parseArgs', () => {
@@ -35,21 +34,20 @@ describe('parseArgs', () => {
 
 describe('parseEnvText and loadConfig', () => {
   it('reads keys, ignores comments and strips quotes', () => {
-    const values = parseEnvText('# note\nAGENT_SERVER="https://x.example"\n\nAGENT_TOKEN = abc \nBAD LINE\n');
+    const values = parseEnvText('# note\nAGENT_SERVER="https://x.example"\n\nAGENT_PORT = abc \nBAD LINE\n');
 
-    assert.deepEqual(values, { AGENT_SERVER: 'https://x.example', AGENT_TOKEN: 'abc' });
+    assert.deepEqual(values, { AGENT_SERVER: 'https://x.example', AGENT_PORT: 'abc' });
   });
 
   it('takes the environment first and trims the slash', () => {
-    const config = loadConfig({ AGENT_SERVER: 'https://x.example///', AGENT_TOKEN: TOKEN }, undefined);
+    const config = loadConfig({ AGENT_SERVER: 'https://x.example///' }, undefined);
 
-    assert.deepEqual(config, { server: 'https://x.example', token: TOKEN });
+    assert.deepEqual(config, { server: 'https://x.example' });
   });
 
-  it('refuses a missing address, a bad address and a weak token', () => {
-    assert.throws(() => loadConfig({ AGENT_TOKEN: TOKEN }, undefined), AgentError);
-    assert.throws(() => loadConfig({ AGENT_SERVER: 'x.example', AGENT_TOKEN: TOKEN }, undefined), /http/);
-    assert.throws(() => loadConfig({ AGENT_SERVER: 'https://x.example', AGENT_TOKEN: 'short' }, undefined), /AGENT_TOKEN/);
+  it('uses the local admin port when no address is given and refuses a bad address', () => {
+    assert.deepEqual(loadConfig({}, undefined), { server: 'http://127.0.0.1:8081' });
+    assert.throws(() => loadConfig({ AGENT_SERVER: 'x.example' }, undefined), /http/);
   });
 });
 
@@ -67,6 +65,21 @@ describe('validateCollected', () => {
   it('accepts a complete profile and a minimal one', () => {
     assert.deepEqual(validateCollected(good), []);
     assert.deepEqual(validateCollected({ handle: 'a' }), []);
+  });
+
+  it('accepts the place from the header and the geotags of the posts', () => {
+    const withPlace = { ...good, location: 'Ангарск, 7 микрорайон', geoTags: [{ name: 'Ангарск', count: 12 }, { name: 'Иркутск', count: null }] };
+
+    assert.deepEqual(validateCollected(withPlace), []);
+  });
+
+  it('refuses broken place data', () => {
+    const problems = validateCollected({ handle: 'a', location: 5, geoTags: [{ name: '', count: 1 }, { name: 'x', count: -2 }, 'y'] });
+
+    assert.equal(problems.length, 4);
+    assert.ok(problems.some((text) => text.includes('location')));
+    assert.ok(problems.some((text) => text.includes('геометка 2')));
+    assert.deepEqual(validateCollected({ handle: 'a', geoTags: 'нет' }), ['поле geoTags должно быть списком']);
   });
 
   it('names every problem', () => {
@@ -140,12 +153,7 @@ describe('talking to the server', () => {
       request.on('data', (chunk) => chunks.push(chunk));
       request.on('end', () => {
         const body = Buffer.concat(chunks);
-        calls.push({ method: request.method, url: request.url, auth: request.headers.authorization, type: request.headers['content-type'], body });
-        if (request.headers.authorization !== `Bearer ${TOKEN}`) {
-          response.writeHead(401, { 'Content-Type': 'application/json' });
-          response.end(JSON.stringify({ error: 'Неверный токен агента' }));
-          return;
-        }
+        calls.push({ method: request.method, url: request.url, type: request.headers['content-type'], body });
         if (request.url === '/api/agent/jobs/next') {
           if (!nextResponse) {
             response.writeHead(204);
@@ -166,7 +174,7 @@ describe('talking to the server', () => {
       });
     });
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-    config = { server: `http://127.0.0.1:${server.address().port}`, token: TOKEN };
+    config = { server: `http://127.0.0.1:${server.address().port}` };
   });
 
   after(() => server.close());
@@ -179,7 +187,6 @@ describe('talking to the server', () => {
     const job = await nextJob(config);
 
     assert.equal(job.handle, 'anna_nails');
-    assert.equal(calls.at(-1).auth, `Bearer ${TOKEN}`);
   });
 
   it('uploads the data and the pictures as a form', async () => {
@@ -223,9 +230,8 @@ describe('talking to the server', () => {
     assert.deepEqual(JSON.parse(call.body.toString()), { reason: 'Профиль закрытый', final: true });
   });
 
-  it('tells about a wrong token and about an unreachable server', async () => {
-    await assert.rejects(() => nextJob({ ...config, token: 'x'.repeat(30) }), (error) => error.code === 5);
-    await assert.rejects(() => nextJob({ server: 'http://127.0.0.1:1', token: TOKEN }), (error) => error.code === 4);
+  it('tells about an unreachable server', async () => {
+    await assert.rejects(() => nextJob({ server: 'http://127.0.0.1:1' }), (error) => error.code === 4);
   });
 });
 

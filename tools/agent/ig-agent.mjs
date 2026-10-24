@@ -12,7 +12,7 @@ const HELP = `Инструмент агента «Помощника» для р
                                 отправить собранные данные и скриншоты (до 12 картинок)
   fail <id> "причина" [--final] вернуть заказ в очередь (или закрыть насовсем с --final)
 
-Настройка: AGENT_SERVER и AGENT_TOKEN в окружении или в файле tools/agent/.env`;
+Настройка: сервер по умолчанию http://127.0.0.1:8081 (локальный админский порт), другой адрес задаётся AGENT_SERVER в окружении или в tools/agent/.env`;
 
 async function main(argv) {
   const { positional, flags } = parseArgs(argv);

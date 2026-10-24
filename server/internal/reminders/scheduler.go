@@ -40,7 +40,7 @@ func (s *Scheduler) Tick(ctx context.Context) {
 	}
 	for _, master := range masters {
 		if !master.Disabled {
-			s.remind(ctx, master.ID, now)
+			s.remind(ctx, master.Master, now)
 		}
 	}
 	if err := s.Sent.Forget(ctx, now.Add(-ForgetAfter)); err != nil {
@@ -48,12 +48,13 @@ func (s *Scheduler) Tick(ctx context.Context) {
 	}
 }
 
-func (s *Scheduler) remind(ctx context.Context, masterID string, now time.Time) {
+func (s *Scheduler) remind(ctx context.Context, master accounts.Master, now time.Time) {
+	masterID := master.ID
 	state, err := s.Accounts.LoadState(ctx, masterID)
 	if err != nil || len(state.Data) == 0 {
 		return
 	}
-	for _, reminder := range Due(state.Data, now, s.Location) {
+	for _, reminder := range Due(state.Data, now, s.locationOf(master)) {
 		already, err := s.Sent.Has(ctx, masterID, reminder.Key)
 		if err != nil {
 			s.Logger.Error("reminders: check failed", slog.Any("error", err))
@@ -75,6 +76,16 @@ func (s *Scheduler) remind(ctx context.Context, masterID string, now time.Time) 
 		}
 		s.Logger.Info("reminder sent", slog.String("key", reminder.Key), slog.Int("devices", sent))
 	}
+}
+
+func (s *Scheduler) locationOf(master accounts.Master) *time.Location {
+	if master.Timezone != "" {
+		if location, err := time.LoadLocation(master.Timezone); err == nil {
+			return location
+		}
+		s.Logger.Warn("reminders: the time zone of the master is not known, the server one is used", slog.String("zone", master.Timezone))
+	}
+	return s.Location
 }
 
 func (s *Scheduler) now() time.Time {

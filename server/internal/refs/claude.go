@@ -9,8 +9,6 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
-
-	"post-helper/server/internal/strategy"
 )
 
 type Claude struct {
@@ -48,7 +46,7 @@ func (c *Claude) Generate(ctx context.Context, request Request) (Plan, error) {
 
 func describeRequest(request Request) string {
 	var text strings.Builder
-	text.WriteString(strategy.DescribeProfile(request.Profile))
+	text.WriteString(request.About)
 	fmt.Fprintf(&text, "\nПункт плана:\nФормат публикации: %s\nРубрика: %s\nИдея: %s\nРеференсы нужны как: фото\n",
 		request.Item.Format, request.Item.Pillar, request.Item.Idea)
 	return text.String()

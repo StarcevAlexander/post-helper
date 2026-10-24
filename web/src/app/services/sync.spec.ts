@@ -34,13 +34,11 @@ describe('Sync', () => {
     return raw ? (JSON.parse(raw) as { version: number; dirty: boolean }) : undefined;
   }
 
-  async function signIn(role: 'master' | 'admin' = 'master'): Promise<void> {
+  async function signIn(): Promise<void> {
     TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
     TestBed.tick();
-    http
-      .expectOne(meUrl)
-      .flush({ role, name: 'Анна', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
-    await vi.waitFor(() => expect(account.role()).toBe(role));
+    http.expectOne(meUrl).flush({ name: 'Анна', retentionDays: 1095 });
+    await vi.waitFor(() => expect(account.signedIn()).toBe(true));
     TestBed.tick();
   }
 
@@ -63,13 +61,6 @@ describe('Sync', () => {
     vi.useRealTimers();
     http.verify();
     localStorage.clear();
-  });
-
-  it('does nothing for the owner', async () => {
-    await signIn('admin');
-
-    http.expectNone(stateUrl);
-    expect(sync.status()).toBe('off');
   });
 
   it('loads the saved data on a new phone and reloads the page', async () => {

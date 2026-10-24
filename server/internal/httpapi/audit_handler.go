@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"post-helper/server/internal/audit"
-	"post-helper/server/internal/chat"
 )
 
 func imageNames(images []audit.Image) []string {
@@ -43,7 +42,7 @@ func readAuditImages(headers []*multipart.FileHeader, limit int, logger *slog.Lo
 		if len(data) > audit.MaxImageBytes {
 			return nil, http.StatusRequestEntityTooLarge, MsgTooLarge
 		}
-		mediaType, _, _ := strings.Cut(http.DetectContentType(data[:min(len(data), chat.SniffLength)]), ";")
+		mediaType, _, _ := strings.Cut(http.DetectContentType(data[:min(len(data), SniffLength)]), ";")
 		if _, ok := audit.MediaTypes[mediaType]; !ok {
 			return nil, http.StatusUnsupportedMediaType, MsgUnsupportedFile
 		}

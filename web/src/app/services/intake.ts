@@ -20,8 +20,16 @@ function referenceSlots(urls: readonly string[]): string[] {
   return [...urls, ...Array<string>(Math.max(INTAKE_MIN_REFERENCES - urls.length, 0)).fill('')];
 }
 
+function browserTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function emptyDraft(): IntakeDraft {
-  return { links: [''], references: referenceSlots([]), goals: [], note: '' };
+  return { links: [''], references: referenceSlots([]), goals: [], note: '', city: '' };
 }
 
 function draftOf(request: IntakeRequest, withNote: boolean): IntakeDraft {
@@ -30,6 +38,7 @@ function draftOf(request: IntakeRequest, withNote: boolean): IntakeDraft {
     references: referenceSlots((request.references ?? []).map((network) => network.url)),
     goals: [...request.goals],
     note: withNote ? (request.note ?? '') : '',
+    city: request.city ?? '',
   };
 }
 
@@ -71,7 +80,7 @@ export class Intake {
 
   constructor() {
     effect(() => {
-      if (this.account.role() === 'master') {
+      if (this.account.signedIn()) {
         untracked(() => void this.refresh());
       } else {
         untracked(() => this.reset());
@@ -106,6 +115,8 @@ export class Intake {
           references: draft.references.map((link) => link.trim()).filter(Boolean),
           goals: draft.goals,
           note: draft.note.trim(),
+          city: draft.city.trim(),
+          timeZone: browserTimeZone(),
           ...(this.reviewMode() ? { review: true } : {}),
         }),
       );
@@ -202,6 +213,10 @@ export class Intake {
     }));
   }
 
+  setCity(value: string): void {
+    this.draft.update((draft) => ({ ...draft, city: value }));
+  }
+
   setNote(value: string): void {
     this.draft.update((draft) => ({ ...draft, note: value }));
   }
@@ -251,6 +266,7 @@ export class Intake {
     return (
       draft.goals.length === 0 &&
       draft.note === '' &&
+      draft.city === '' &&
       draft.links.every((link) => link === '') &&
       draft.references.every((link) => link === '')
     );

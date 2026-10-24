@@ -71,12 +71,18 @@ type StoredKit struct {
 	Kit    Kit    `json:"kit"`
 }
 
+type Place struct {
+	City     string `json:"city"`
+	Timezone string `json:"timezone"`
+}
+
 type Submission struct {
 	Strategy        *Strategy        `json:"strategy"`
 	Calendar        *Calendar        `json:"calendar"`
 	Kits            map[string]Kit   `json:"kits"`
 	Review          *Review          `json:"review"`
 	Recommendations []Recommendation `json:"recommendations"`
+	Location        *Place           `json:"location"`
 	Note            string           `json:"note"`
 }
 

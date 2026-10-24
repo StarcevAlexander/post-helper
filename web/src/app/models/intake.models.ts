@@ -41,10 +41,12 @@ export interface IntakeDraft {
   references: string[];
   goals: IntakeGoalId[];
   note: string;
+  city: string;
 }
 
 export interface IntakeSubmission extends IntakeDraft {
   review?: boolean;
+  timeZone?: string;
 }
 
 export interface IntakeRequest {
@@ -53,6 +55,7 @@ export interface IntakeRequest {
   references?: IntakeNetwork[];
   goals: IntakeGoalId[];
   note?: string;
+  city?: string;
   status: IntakeStatus;
   replyNote?: string;
   createdAt: string;

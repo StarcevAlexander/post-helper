@@ -9,7 +9,7 @@ export class Account {
   private readonly access = inject(Access);
 
   readonly info = signal<AccountInfo | undefined>(undefined);
-  readonly role = computed(() => this.info()?.role);
+  readonly signedIn = computed(() => this.info() !== undefined);
 
   constructor() {
     effect(() => {

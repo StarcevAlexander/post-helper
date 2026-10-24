@@ -44,10 +44,8 @@ func newYandexFixture(t *testing.T) *yandexFixture {
 		store:    accounts.NewMemory(),
 		exchange: &fakeExchanger{profile: yandex.Profile{ID: "42", Login: "anna", RealName: "Анна Иванова"}},
 	}
-	fixture.handler = NewHandler(Options{
+	fixture.handler = bothHandlers(Options{
 		Accounts:       fixture.store,
-		DailyAILimit:   5,
-		Password:       testPassword,
 		AllowedOrigins: []string{yandexOrigin},
 		Yandex:         fixture.exchange,
 		YandexClientID: "app-id",
@@ -90,7 +88,7 @@ func TestAuthConfigIsPublic(t *testing.T) {
 }
 
 func TestYandexIsOffWithoutKeys(t *testing.T) {
-	handler := NewHandler(Options{Accounts: accounts.NewMemory(), Password: testPassword, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	handler := bothHandlers(Options{Accounts: accounts.NewMemory(), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 
 	config := httptest.NewRecorder()
 	handler.ServeHTTP(config, httptest.NewRequest(http.MethodGet, "/api/auth/config", nil))
@@ -114,7 +112,7 @@ func TestYandexSignInRegistersANewMasterAndTheTokenWorks(t *testing.T) {
 		t.Errorf("exchange got %q %q", fixture.exchange.code, fixture.exchange.redir)
 	}
 	me := fixture.call(http.MethodGet, "/api/me", session.Token, "")
-	for _, want := range []string{`"role":"master"`, `"name":"Анна Иванова"`, `"providers":["yandex"]`} {
+	for _, want := range []string{`"name":"Анна Иванова"`, `"providers":["yandex"]`} {
 		if !strings.Contains(me.Body.String(), want) {
 			t.Errorf("me %s lacks %s", me.Body, want)
 		}
@@ -223,7 +221,6 @@ func TestLinkYandexRefusals(t *testing.T) {
 	}{
 		"already linked to another master": {code, http.StatusConflict},
 		"no token":                         {"", http.StatusUnauthorized},
-		"owner":                            {testPassword, http.StatusForbidden},
 	}
 	for name, tc := range cases {
 		if got := fixture.call(http.MethodPost, "/api/me/yandex", tc.token, body).Code; got != tc.want {

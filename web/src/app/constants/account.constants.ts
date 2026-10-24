@@ -15,7 +15,6 @@ export const SYNC_STATUS_TEXT = {
 export const ACCOUNT_LABELS = {
   signedInAs: 'Вы вошли как',
   of: 'из',
-  owner: 'владелец',
 } as const;
 
 export const ACCOUNT_TEXTS = {

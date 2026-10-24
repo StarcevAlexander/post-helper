@@ -48,18 +48,14 @@ func TestAuthenticate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	authenticator := New("owner-secret-1", store)
+	authenticator := New(store)
 	ctx := context.Background()
 
-	admin, ok := authenticator.Authenticate(ctx, "owner-secret-1")
-	if !ok || !admin.Admin {
-		t.Errorf("admin = %+v, %v", admin, ok)
-	}
 	got, ok := authenticator.Authenticate(ctx, strings.ToLower(code))
-	if !ok || got.Admin || got.MasterID != master.ID || got.Name != "Анна" {
+	if !ok || got.MasterID != master.ID || got.Name != "Анна" {
 		t.Errorf("master = %+v, %v", got, ok)
 	}
-	for _, token := range []string{"", "wrong", "ABCDE-FGHJK-LMNPQ-RSTUV", "owner-secret-2"} {
+	for _, token := range []string{"", "wrong", "ABCDE-FGHJK-LMNPQ-RSTUV", "owner-secret-1"} {
 		if _, ok := authenticator.Authenticate(ctx, token); ok {
 			t.Errorf("token %q must be refused", token)
 		}
@@ -78,7 +74,7 @@ func TestAuthenticateRecordsLastSeen(t *testing.T) {
 	code, _ := GenerateCode()
 	master, _ := store.CreateMaster(context.Background(), "Анна", HashCode(code))
 
-	New("owner-secret-1", store).Authenticate(context.Background(), code)
+	New(store).Authenticate(context.Background(), code)
 
 	list, _ := store.ListMasters(context.Background(), master.CreatedAt)
 	if len(list) != 1 || list[0].LastSeenAt.IsZero() {

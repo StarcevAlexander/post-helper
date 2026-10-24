@@ -202,3 +202,45 @@ func TestOldMarksAreForgotten(t *testing.T) {
 		t.Error("a fresh mark was lost")
 	}
 }
+
+func TestTheSchedulerUsesTheTimeZoneOfEachMaster(t *testing.T) {
+	scheduler, store, sender := newScheduler(t, moment("2026-10-27", "18:46"))
+	local := masterWithPlan(t, store, "Анна")
+	moscow := masterWithPlan(t, store, "Вера")
+	_ = store.SetLocation(context.Background(), moscow.ID, "Москва", "Europe/Moscow")
+
+	scheduler.Tick(context.Background())
+
+	if len(sender.messages[local.ID]) != 1 {
+		t.Errorf("a master without a zone lives in the server one: %+v", sender.messages[local.ID])
+	}
+	if len(sender.messages[moscow.ID]) != 0 {
+		t.Errorf("at that instant it is 13:46 in Moscow, nothing is due: %+v", sender.messages[moscow.ID])
+	}
+}
+
+func TestTheSchedulerRemindsAMoscowMasterOnMoscowTime(t *testing.T) {
+	moscow := time.FixedZone("moscow", 3*3600)
+	instant, _ := time.ParseInLocation("2006-01-02 15:04", "2026-10-27 18:46", moscow)
+	scheduler, store, sender := newScheduler(t, instant)
+	master := masterWithPlan(t, store, "Вера")
+	_ = store.SetLocation(context.Background(), master.ID, "Москва", "Europe/Moscow")
+
+	scheduler.Tick(context.Background())
+
+	if len(sender.messages[master.ID]) != 1 {
+		t.Fatalf("messages = %+v", sender.messages[master.ID])
+	}
+}
+
+func TestAnUnknownZoneFallsBackToTheServerOne(t *testing.T) {
+	scheduler, store, sender := newScheduler(t, moment("2026-10-27", "18:46"))
+	master := masterWithPlan(t, store, "Анна")
+	_ = store.SetLocation(context.Background(), master.ID, "Нигдевск", "Mars/Base")
+
+	scheduler.Tick(context.Background())
+
+	if len(sender.messages[master.ID]) != 1 {
+		t.Fatalf("messages = %+v", sender.messages[master.ID])
+	}
+}

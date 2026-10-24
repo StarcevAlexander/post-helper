@@ -17,23 +17,12 @@ import (
 type meHandler struct {
 	retentionDays int
 	accounts      accounts.Store
-	dailyLimit    int
 	logger        *slog.Logger
 }
 
 func (h *meHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	identity, _ := auth.FromContext(r.Context())
-	response := MeResponse{Role: "master", Name: identity.Name, DailyLimit: h.dailyLimit, RetentionDays: h.retentionDays}
-	if identity.Admin {
-		response.Role = "admin"
-		writeJSON(w, http.StatusOK, response)
-		return
-	}
-	used, err := h.accounts.CountUsage(r.Context(), identity.MasterID, dayStart(time.Now()))
-	if err != nil {
-		h.logger.Error("count usage failed", slog.Any("error", err))
-	}
-	response.UsageToday = used
+	response := MeResponse{Name: identity.Name, RetentionDays: h.retentionDays}
 	providers, err := h.accounts.Providers(r.Context(), identity.MasterID)
 	if err != nil {
 		h.logger.Error("list providers failed", slog.Any("error", err))

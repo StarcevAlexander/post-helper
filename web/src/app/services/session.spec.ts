@@ -30,10 +30,8 @@ describe('Session', () => {
   async function signIn(): Promise<void> {
     access.save('ABCDE-FGHJK-LMNPQ-RSTUV');
     TestBed.tick();
-    http
-      .expectOne(meUrl)
-      .flush({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
-    await vi.waitFor(() => expect(account.role()).toBe('master'));
+    http.expectOne(meUrl).flush({ name: 'Анна', retentionDays: 1095 });
+    await vi.waitFor(() => expect(account.signedIn()).toBe(true));
     TestBed.tick();
     http.expectOne(stateUrl).flush({ version: 0, data: null, updatedAt: '' });
     await vi.waitFor(() => expect(TestBed.inject(Sync).status()).toBe('ok'));

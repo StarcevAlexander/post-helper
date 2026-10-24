@@ -197,13 +197,7 @@ describe('YandexAuth', () => {
   });
 
   it('links Yandex to the signed-in master and reloads who they are', async () => {
-    const info = {
-      role: 'master',
-      name: 'Анна',
-      dailyLimit: 80,
-      usageToday: 0,
-      retentionDays: 1095,
-    };
+    const info = { name: 'Анна', retentionDays: 1095 };
     TestBed.inject(Access).save('MASTER-PASSWORD');
     TestBed.tick();
     http.expectOne(meUrl).flush(info);

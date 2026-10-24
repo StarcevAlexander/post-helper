@@ -1,0 +1,1 @@
+ALTER TABLE intake_requests ADD COLUMN city TEXT NOT NULL DEFAULT '';

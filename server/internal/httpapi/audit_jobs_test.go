@@ -24,21 +24,14 @@ type jobsFixture struct {
 	auditor *fakeAuditor
 }
 
-func newJobsFixture(t *testing.T, withAgent bool) *jobsFixture {
+func newJobsFixture(t *testing.T) *jobsFixture {
 	t.Helper()
 	base := newAccountFixture(t, 50)
 	auditor := &fakeAuditor{result: audit.Result{Summary: "Профиль аккуратный", Fixes: []string{"Добавьте ссылку"}}}
-	token := ""
-	if withAgent {
-		token = agentToken
-	}
-	base.handler = NewHandler(Options{
+	base.handler = bothHandlers(Options{
 		Auditor:        auditor,
 		Accounts:       base.store,
-		AgentToken:     token,
-		DailyAILimit:   50,
 		RetentionDays:  1095,
-		Password:       testPassword,
 		AllowedOrigins: []string{testOrigin},
 		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
@@ -89,7 +82,7 @@ func (f *jobsFixture) claim(t *testing.T) AgentJob {
 const collectedJSON = `{"handle":"anna_nails","name":"Анна | Маникюр","bio":"Маникюр в Иркутске","followers":1250,"posts":[{"type":"reel","caption":"Нюд на неделю","likes":120}]}`
 
 func TestMasterOrdersAnAuditOfHerOpenAccount(t *testing.T) {
-	fixture := newJobsFixture(t, true)
+	fixture := newJobsFixture(t)
 	code, master := fixture.master(t, "Анна")
 
 	empty := fixture.call(http.MethodGet, "/api/audit/jobs/latest", code, "")
@@ -112,7 +105,7 @@ func TestMasterOrdersAnAuditOfHerOpenAccount(t *testing.T) {
 }
 
 func TestOrderRejections(t *testing.T) {
-	fixture := newJobsFixture(t, true)
+	fixture := newJobsFixture(t)
 	code, _ := fixture.master(t, "Анна")
 	tests := []struct {
 		name  string
@@ -126,7 +119,6 @@ func TestOrderRejections(t *testing.T) {
 		{"a post link", code, `{"handle":"https://instagram.com/p/Cxyz/","consent":true}`, http.StatusBadRequest},
 		{"bad json", code, `nope`, http.StatusBadRequest},
 		{"no login", "", `{"handle":"anna_nails","consent":true}`, http.StatusUnauthorized},
-		{"the owner has no data to audit", testPassword, `{"handle":"anna_nails","consent":true}`, http.StatusForbidden},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -138,7 +130,7 @@ func TestOrderRejections(t *testing.T) {
 }
 
 func TestSecondOrderIsRefusedWhileOneIsActiveAndCancelFreesIt(t *testing.T) {
-	fixture := newJobsFixture(t, true)
+	fixture := newJobsFixture(t)
 	code, _ := fixture.master(t, "Анна")
 	first := fixture.order(t, code)
 
@@ -161,39 +153,10 @@ func TestSecondOrderIsRefusedWhileOneIsActiveAndCancelFreesIt(t *testing.T) {
 	}
 }
 
-func TestAgentEndpointsDoNotExistWithoutAToken(t *testing.T) {
-	fixture := newJobsFixture(t, false)
-
-	if got := fixture.call(http.MethodGet, "/api/agent/jobs/next", agentToken, "").Code; got != http.StatusNotFound {
-		t.Errorf("status = %d, want 404", got)
-	}
-}
-
-func TestAgentEndpointsAcceptOnlyTheAgentToken(t *testing.T) {
-	fixture := newJobsFixture(t, true)
-	code, _ := fixture.master(t, "Анна")
-	job := fixture.order(t, code)
-
-	for name, token := range map[string]string{"none": "", "wrong": "wrong-token", "owner password": testPassword, "master code": code} {
-		if got := fixture.call(http.MethodGet, "/api/agent/jobs/next", token, "").Code; got != http.StatusUnauthorized {
-			t.Errorf("next with %s: status = %d", name, got)
-		}
-		if got := fixture.call(http.MethodPost, "/api/agent/jobs/"+job.ID+"/fail", token, `{"reason":"x"}`).Code; got != http.StatusUnauthorized {
-			t.Errorf("fail with %s: status = %d", name, got)
-		}
-		if got := fixture.upload(job.ID, token, collectedJSON, pngFiles(1)).Code; got != http.StatusUnauthorized {
-			t.Errorf("result with %s: status = %d", name, got)
-		}
-	}
-	if got := fixture.call(http.MethodGet, "/api/agent/jobs/next", agentToken, "").Code; got != http.StatusOK {
-		t.Errorf("the agent token must work, status = %d", got)
-	}
-}
-
-func TestAgentClaimsTheOldestJobWithTheProfileOfTheMaster(t *testing.T) {
-	fixture := newJobsFixture(t, true)
-	code, _ := fixture.master(t, "Анна")
-	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":0,"data":{"onboarding":{"answers":{"specialty":"маникюр","city":"Иркутск","name":"Анна","audit":"старый разбор"}}}}`)
+func TestAgentClaimsTheOldestJobWithTheNameAndCityOfTheMaster(t *testing.T) {
+	fixture := newJobsFixture(t)
+	code, master := fixture.master(t, "Анна")
+	_ = fixture.store.SetLocation(context.Background(), master.ID, "Иркутск", "Asia/Irkutsk")
 	none := fixture.call(http.MethodGet, "/api/agent/jobs/next", agentToken, "")
 	fixture.order(t, code)
 
@@ -203,18 +166,16 @@ func TestAgentClaimsTheOldestJobWithTheProfileOfTheMaster(t *testing.T) {
 	if none.Code != http.StatusNoContent || second.Code != http.StatusNoContent {
 		t.Errorf("none = %d, second = %d", none.Code, second.Code)
 	}
-	if job.Handle != "anna_nails" || job.Attempts != 1 || job.Profile.Specialty != "маникюр" || job.Profile.City != "Иркутск" || job.Profile.Name != "Анна" {
+	if job.Handle != "anna_nails" || job.Attempts != 1 || job.Profile.City != "Иркутск" || job.Profile.Name != "Анна" {
 		t.Errorf("job = %+v", job)
-	}
-	if strings.Contains(fixture.call(http.MethodGet, "/api/agent/jobs/next", agentToken, "").Body.String(), "старый разбор") {
-		t.Error("the previous audit must not travel to the agent")
 	}
 }
 
 func TestAgentDeliversTheResultAndTheMasterGetsTheAudit(t *testing.T) {
-	fixture := newJobsFixture(t, true)
+	fixture := newJobsFixture(t)
 	code, master := fixture.master(t, "Анна")
-	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":0,"data":{"onboarding":{"answers":{"specialty":"маникюр","city":"Иркутск"}}}}`)
+	_ = fixture.store.SetLocation(context.Background(), master.ID, "Иркутск", "Asia/Irkutsk")
+	fixture.call(http.MethodPut, "/api/state", code, `{"baseVersion":0,"data":{"strategy":{"positioning":"Аккуратный маникюр"}}}`)
 	fixture.order(t, code)
 	job := fixture.claim(t)
 
@@ -224,7 +185,7 @@ func TestAgentDeliversTheResultAndTheMasterGetsTheAudit(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
 	}
 	request := fixture.auditor.requests[0]
-	if request.Profile.Specialty != "маникюр" || len(request.Images) != 3 {
+	if !strings.Contains(request.About, "Анна") || !strings.Contains(request.About, "Иркутск") || !strings.Contains(request.About, "Аккуратный маникюр") || len(request.Images) != 3 {
 		t.Errorf("request = %+v", request)
 	}
 	for _, want := range []string{"@anna_nails", "Подписчиков: 1250", "Нюд на неделю", "Лайков: 120"} {
@@ -248,7 +209,7 @@ func TestAgentDeliversTheResultAndTheMasterGetsTheAudit(t *testing.T) {
 }
 
 func TestResultRejections(t *testing.T) {
-	fixture := newJobsFixture(t, true)
+	fixture := newJobsFixture(t)
 	code, _ := fixture.master(t, "Анна")
 	job := fixture.order(t, code)
 
@@ -277,7 +238,7 @@ func TestResultRejections(t *testing.T) {
 }
 
 func TestAnAuditThatFailsPutsTheJobBackOrClosesIt(t *testing.T) {
-	fixture := newJobsFixture(t, true)
+	fixture := newJobsFixture(t)
 	code, _ := fixture.master(t, "Анна")
 	job := fixture.order(t, code)
 	claimed := fixture.claim(t)
@@ -308,7 +269,7 @@ func TestAnAuditThatFailsPutsTheJobBackOrClosesIt(t *testing.T) {
 }
 
 func TestAgentReportsAFailure(t *testing.T) {
-	fixture := newJobsFixture(t, true)
+	fixture := newJobsFixture(t)
 	code, master := fixture.master(t, "Анна")
 	job := fixture.order(t, code)
 	fixture.claim(t)
@@ -345,7 +306,7 @@ func TestAgentReportsAFailure(t *testing.T) {
 }
 
 func TestOwnerSeesTheQueueWithoutTheResults(t *testing.T) {
-	fixture := newJobsFixture(t, true)
+	fixture := newJobsFixture(t)
 	code, _ := fixture.master(t, "Анна")
 	job := fixture.order(t, code)
 	fixture.claim(t)
@@ -358,8 +319,5 @@ func TestOwnerSeesTheQueueWithoutTheResults(t *testing.T) {
 	}
 	if strings.Contains(list.Body.String(), "Профиль аккуратный") {
 		t.Errorf("the list must not carry the audits, got %s", list.Body)
-	}
-	if got := fixture.call(http.MethodGet, "/api/admin/audit-jobs", code, "").Code; got != http.StatusForbidden {
-		t.Errorf("a master must not see the queue, status = %d", got)
 	}
 }

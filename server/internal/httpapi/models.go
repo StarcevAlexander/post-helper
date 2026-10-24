@@ -9,6 +9,7 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/audit"
 	"post-helper/server/internal/intake"
+	"post-helper/server/internal/places"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/store"
@@ -19,18 +20,16 @@ type Options struct {
 	Auditor        audit.Generator
 	Refs           refs.Store
 	RefPlanner     refs.Generator
+	Places         places.Resolver
 	Intake         intake.Store
 	Notifier       intake.Notifier
 	PushStore      push.Store
 	Pusher         push.Sender
-	AgentToken     string
 	Yandex         yandex.Exchanger
 	YandexClientID string
 	Shutdown       func()
 	Accounts       accounts.Store
-	DailyAILimit   int
 	RetentionDays  int
-	Password       string
 	AllowedOrigins []string
 	Store          store.Store
 	Logger         *slog.Logger
@@ -65,19 +64,12 @@ type statusRecorder struct {
 	status int
 }
 
-type ReplyResponse struct {
-	Reply string `json:"reply"`
-}
-
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
 type MeResponse struct {
-	Role          string   `json:"role"`
 	Name          string   `json:"name"`
-	DailyLimit    int      `json:"dailyLimit"`
-	UsageToday    int      `json:"usageToday"`
 	RetentionDays int      `json:"retentionDays"`
 	Providers     []string `json:"providers"`
 }

@@ -35,7 +35,7 @@ export class PushNotifications {
   constructor() {
     effect(() => {
       const subscription = this.subscription();
-      const master = this.account.role() === 'master';
+      const master = this.account.signedIn();
       untracked(() => {
         if (subscription && master && subscription.endpoint !== this.syncedEndpoint) {
           void this.upload(subscription).catch(() => undefined);

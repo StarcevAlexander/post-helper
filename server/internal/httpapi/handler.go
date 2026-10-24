@@ -13,78 +13,30 @@ import (
 	"post-helper/server/internal/store"
 )
 
-func NewHandler(options Options) http.Handler {
+type core struct {
+	options Options
+	logger  *slog.Logger
+	history store.Store
+	people  accounts.Store
+	refs    refs.Store
+	intake  intake.Store
+	pushes  *pushHandler
+	refsOn  bool
+	keeper  *placeKeeper
+}
+
+func newCore(options Options) *core {
 	logger := options.Logger
 	if logger == nil {
 		logger = slog.Default()
 	}
-
 	history := options.Store
 	if history == nil {
 		history = store.Noop{}
 	}
-	accountStore := options.Accounts
-	if accountStore == nil {
-		accountStore = accounts.NewMemory()
-	}
-	authenticator := auth.New(options.Password, accountStore)
-	protected := func(next http.Handler) http.Handler { return withAuth(authenticator, next) }
-
-	state := &stateHandler{accounts: accountStore, logger: logger}
-	admin := &adminHandler{accounts: accountStore, logger: logger}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc(HealthRoute, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-
-	mux.Handle(HistoryRoute, protected(requireAdmin(&historyHandler{reader: history, logger: logger})))
-	mux.Handle(EventsRoute, protected(requireAdmin(&eventsHandler{reader: history, logger: logger})))
-	mux.Handle(ErrorsRoute, protected(requireAdmin(&errorsHandler{reader: history, logger: logger})))
-	mux.Handle(IngestRoute, protected(requireAdmin(&ingestHandler{recorder: history})))
-	mux.Handle(ClientErrorRoute, protected(&clientErrorHandler{recorder: history}))
-
-	mux.Handle(MeRoute, protected(&meHandler{accounts: accountStore, dailyLimit: options.DailyAILimit, retentionDays: options.RetentionDays, logger: logger}))
-	mux.Handle(MeRenameRoute, protected(requireMaster(&renameHandler{accounts: accountStore, logger: logger})))
-	signIn := &authHandler{
-		accounts:       accountStore,
-		exchanger:      options.Yandex,
-		clientID:       options.YandexClientID,
-		allowedOrigins: options.AllowedOrigins,
-		limiter:        &signInLimiter{max: SignInLimitPerWindow, window: SignInLimitWindow},
-		logger:         logger,
-	}
-	if options.Shutdown != nil {
-		mux.Handle(AdminShutdownRoute, protected(requireAdmin(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			logger.Warn("shutdown requested by the owner")
-			writeJSON(w, http.StatusOK, map[string]bool{"shuttingDown": true})
-			time.AfterFunc(ShutdownDelay, options.Shutdown)
-		}))))
-	}
-	mux.HandleFunc(AuthConfigRoute, signIn.config)
-	mux.HandleFunc(AuthYandexRoute, signIn.login)
-	mux.Handle(MeYandexRoute, protected(requireMaster(http.HandlerFunc(signIn.link))))
-	mux.Handle(StateGetRoute, protected(requireMaster(http.HandlerFunc(state.get))))
-	mux.Handle(StatePutRoute, protected(requireMaster(http.HandlerFunc(state.put))))
-	mux.Handle(AdminMastersRoute, protected(requireAdmin(http.HandlerFunc(admin.list))))
-	mux.Handle(AdminCreateMasterRoute, protected(requireAdmin(http.HandlerFunc(admin.create))))
-	mux.Handle(AdminEventsRoute, protected(requireAdmin(http.HandlerFunc(admin.events))))
-	mux.Handle(AdminVersionsRoute, protected(requireAdmin(http.HandlerFunc(admin.versions))))
-	mux.Handle(AdminExportRoute, protected(requireAdmin(http.HandlerFunc(admin.export))))
-	mux.Handle(AdminDeleteMasterRoute, protected(requireAdmin(http.HandlerFunc(admin.deleteMaster))))
-	mux.Handle(AdminRestoreRoute, protected(requireAdmin(http.HandlerFunc(admin.restore))))
-	mux.Handle(AdminDisableMasterRoute, protected(requireAdmin(http.HandlerFunc(admin.disable))))
-
-	jobs := &auditJobsHandler{accounts: accountStore, logger: logger}
-	mux.Handle(AuditJobCreateRoute, protected(requireMaster(http.HandlerFunc(jobs.create))))
-	mux.Handle(AuditJobLatestRoute, protected(requireMaster(http.HandlerFunc(jobs.latest))))
-	mux.Handle(AuditJobCancelRoute, protected(requireMaster(http.HandlerFunc(jobs.cancel))))
-	mux.Handle(AdminAuditJobsRoute, protected(requireAdmin(http.HandlerFunc(jobs.list))))
-	if options.AgentToken != "" {
-		agent := &agentHandler{auditJobsHandler: *jobs, generator: options.Auditor}
-		mux.Handle(AgentNextRoute, withAgentToken(options.AgentToken, http.HandlerFunc(agent.next)))
-		mux.Handle(AgentResultRoute, withAgentToken(options.AgentToken, http.HandlerFunc(agent.result)))
-		mux.Handle(AgentFailRoute, withAgentToken(options.AgentToken, http.HandlerFunc(agent.fail)))
+	people := options.Accounts
+	if people == nil {
+		people = accounts.NewMemory()
 	}
 	refsStore := options.Refs
 	if refsStore == nil {
@@ -94,33 +46,121 @@ func NewHandler(options Options) http.Handler {
 	if pushStore == nil {
 		pushStore = push.NewMemory()
 	}
-	pushes := &pushHandler{store: pushStore, sender: options.Pusher, accounts: accountStore, logger: logger}
-	mux.Handle(PushKeyRoute, protected(requireMaster(http.HandlerFunc(pushes.key))))
-	mux.Handle(PushSubscribeRoute, protected(requireMaster(http.HandlerFunc(pushes.subscribe))))
-	mux.Handle(PushUnsubscribeRoute, protected(requireMaster(http.HandlerFunc(pushes.unsubscribe))))
-	mux.Handle(AdminPushRoute, protected(requireAdmin(http.HandlerFunc(pushes.adminSend))))
-	refsOn := options.AgentToken != "" && options.RefPlanner != nil
-	refsMaster := &refsHandler{refs: refsStore, accounts: accountStore, planner: options.RefPlanner, pushes: pushes, logger: logger}
-	mux.Handle(RefsOrderRoute, protected(requireMaster(http.HandlerFunc(refsMaster.order))))
-	mux.Handle(RefsStatusRoute, protected(requireMaster(http.HandlerFunc(refsMaster.status))))
-	mux.Handle(RefsMadeRoute, protected(requireMaster(http.HandlerFunc(refsMaster.made))))
-	mux.Handle(RefsFileRoute, protected(requireMaster(http.HandlerFunc(refsMaster.file))))
 	intakeStore := options.Intake
 	if intakeStore == nil {
 		intakeStore = intake.NewMemory()
 	}
-	intakes := &intakeHandler{intake: intakeStore, accounts: accountStore, refs: refsStore, notifier: options.Notifier, pushes: pushes, refsOn: refsOn, logger: logger}
-	mux.Handle(IntakeSubmitRoute, protected(requireMaster(http.HandlerFunc(intakes.submit))))
-	mux.Handle(IntakeLatestRoute, protected(requireMaster(http.HandlerFunc(intakes.latest))))
-	mux.Handle(AdminIntakesRoute, protected(requireAdmin(http.HandlerFunc(intakes.list))))
-	mux.Handle(AdminPlanRoute, protected(requireAdmin(http.HandlerFunc(intakes.deliverPlan))))
-	mux.Handle(AdminRefsDeliverRoute, protected(requireAdmin(http.HandlerFunc(intakes.deliverRefs))))
-	mux.Handle(AdminRefsClearRoute, protected(requireAdmin(http.HandlerFunc(intakes.clearRefs))))
-	if refsOn {
-		refsAgent := &refsAgentHandler{refsHandler: *refsMaster}
-		mux.Handle(AgentRefsNextRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.next)))
-		mux.Handle(AgentRefsResultRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.result)))
-		mux.Handle(AgentRefsFailRoute, withAgentToken(options.AgentToken, http.HandlerFunc(refsAgent.fail)))
+	return &core{
+		options: options,
+		logger:  logger,
+		history: history,
+		people:  people,
+		refs:    refsStore,
+		intake:  intakeStore,
+		pushes:  &pushHandler{store: pushStore, sender: options.Pusher, accounts: people, logger: logger},
+		refsOn:  options.RefPlanner != nil,
+		keeper:  &placeKeeper{accounts: people, places: options.Places, logger: logger},
 	}
-	return withCORS(options.AllowedOrigins, withLogging(logger, withRecover(logger, mux)))
+}
+
+func (c *core) refsHandler() *refsHandler {
+	return &refsHandler{refs: c.refs, accounts: c.people, intakes: c.intake, planner: c.options.RefPlanner, pushes: c.pushes, logger: c.logger}
+}
+
+func (c *core) intakeHandler() *intakeHandler {
+	return &intakeHandler{intake: c.intake, accounts: c.people, refs: c.refs, notifier: c.options.Notifier, pushes: c.pushes, refsOn: c.refsOn, places: c.options.Places, keeper: c.keeper, logger: c.logger}
+}
+
+func NewHandler(options Options) http.Handler {
+	c := newCore(options)
+	authenticator := auth.New(c.people)
+	protected := func(next http.Handler) http.Handler { return withAuth(authenticator, next) }
+	state := &stateHandler{accounts: c.people, logger: c.logger}
+	jobs := &auditJobsHandler{accounts: c.people, intakes: c.intake, keeper: c.keeper, logger: c.logger}
+	refsMaster := c.refsHandler()
+	intakes := c.intakeHandler()
+	signIn := &authHandler{
+		accounts:       c.people,
+		exchanger:      options.Yandex,
+		clientID:       options.YandexClientID,
+		allowedOrigins: options.AllowedOrigins,
+		limiter:        &signInLimiter{max: SignInLimitPerWindow, window: SignInLimitWindow},
+		logger:         c.logger,
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc(HealthRoute, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc(AuthConfigRoute, signIn.config)
+	mux.HandleFunc(AuthYandexRoute, signIn.login)
+	mux.Handle(ClientErrorRoute, protected(&clientErrorHandler{recorder: c.history}))
+	mux.Handle(MeRoute, protected(&meHandler{accounts: c.people, retentionDays: options.RetentionDays, logger: c.logger}))
+	mux.Handle(MeRenameRoute, protected(&renameHandler{accounts: c.people, logger: c.logger}))
+	mux.Handle(MeYandexRoute, protected(http.HandlerFunc(signIn.link)))
+	mux.Handle(StateGetRoute, protected(http.HandlerFunc(state.get)))
+	mux.Handle(StatePutRoute, protected(http.HandlerFunc(state.put)))
+	mux.Handle(AuditJobCreateRoute, protected(http.HandlerFunc(jobs.create)))
+	mux.Handle(AuditJobLatestRoute, protected(http.HandlerFunc(jobs.latest)))
+	mux.Handle(AuditJobCancelRoute, protected(http.HandlerFunc(jobs.cancel)))
+	mux.Handle(PushKeyRoute, protected(http.HandlerFunc(c.pushes.key)))
+	mux.Handle(PushSubscribeRoute, protected(http.HandlerFunc(c.pushes.subscribe)))
+	mux.Handle(PushUnsubscribeRoute, protected(http.HandlerFunc(c.pushes.unsubscribe)))
+	mux.Handle(RefsOrderRoute, protected(http.HandlerFunc(refsMaster.order)))
+	mux.Handle(RefsStatusRoute, protected(http.HandlerFunc(refsMaster.status)))
+	mux.Handle(RefsMadeRoute, protected(http.HandlerFunc(refsMaster.made)))
+	mux.Handle(RefsFileRoute, protected(http.HandlerFunc(refsMaster.file)))
+	mux.Handle(IntakeSubmitRoute, protected(http.HandlerFunc(intakes.submit)))
+	mux.Handle(IntakeLatestRoute, protected(http.HandlerFunc(intakes.latest)))
+	return withCORS(options.AllowedOrigins, withLogging(c.logger, withRecover(c.logger, mux)))
+}
+
+func NewAdminHandler(options Options) http.Handler {
+	c := newCore(options)
+	admin := &adminHandler{accounts: c.people, logger: c.logger}
+	jobs := &auditJobsHandler{accounts: c.people, intakes: c.intake, keeper: c.keeper, logger: c.logger}
+	intakes := c.intakeHandler()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc(HealthRoute, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.Handle(HistoryRoute, &historyHandler{reader: c.history, logger: c.logger})
+	mux.Handle(EventsRoute, &eventsHandler{reader: c.history, logger: c.logger})
+	mux.Handle(ErrorsRoute, &errorsHandler{reader: c.history, logger: c.logger})
+	mux.Handle(IngestRoute, &ingestHandler{recorder: c.history})
+	mux.HandleFunc(AdminMastersRoute, admin.list)
+	mux.HandleFunc(AdminCreateMasterRoute, admin.create)
+	mux.HandleFunc(AdminEventsRoute, admin.events)
+	mux.HandleFunc(AdminVersionsRoute, admin.versions)
+	mux.HandleFunc(AdminExportRoute, admin.export)
+	mux.HandleFunc(AdminDeleteMasterRoute, admin.deleteMaster)
+	mux.HandleFunc(AdminRestoreRoute, admin.restore)
+	mux.HandleFunc(AdminDisableMasterRoute, admin.disable)
+	mux.HandleFunc(AdminAuditJobsRoute, jobs.list)
+	mux.HandleFunc(AdminLocationRoute, (&placeHandler{keeper: c.keeper}).set)
+	mux.HandleFunc(AdminPushRoute, c.pushes.adminSend)
+	mux.HandleFunc(AdminIntakesRoute, intakes.list)
+	mux.HandleFunc(AdminPlanRoute, intakes.deliverPlan)
+	mux.HandleFunc(AdminRefsDeliverRoute, intakes.deliverRefs)
+	mux.HandleFunc(AdminRefsClearRoute, intakes.clearRefs)
+
+	agent := &agentHandler{auditJobsHandler: *jobs, generator: options.Auditor}
+	mux.HandleFunc(AgentNextRoute, agent.next)
+	mux.HandleFunc(AgentResultRoute, agent.result)
+	mux.HandleFunc(AgentFailRoute, agent.fail)
+	if c.refsOn {
+		refsAgent := &refsAgentHandler{refsHandler: *c.refsHandler()}
+		mux.HandleFunc(AgentRefsNextRoute, refsAgent.next)
+		mux.HandleFunc(AgentRefsResultRoute, refsAgent.result)
+		mux.HandleFunc(AgentRefsFailRoute, refsAgent.fail)
+	}
+	if options.Shutdown != nil {
+		mux.HandleFunc(AdminShutdownRoute, func(w http.ResponseWriter, _ *http.Request) {
+			c.logger.Warn("shutdown requested through the admin port")
+			writeJSON(w, http.StatusOK, map[string]bool{"shuttingDown": true})
+			time.AfterFunc(ShutdownDelay, options.Shutdown)
+		})
+	}
+	return withLogging(c.logger, withRecover(c.logger, mux))
 }

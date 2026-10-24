@@ -20,17 +20,15 @@ import {
 
 export { AgentError, canRunNow };
 
+export const DEFAULT_SERVER = 'http://127.0.0.1:8081';
+
 export function loadOwnerConfig(env, envFile) {
   const fromFile = envFile && existsSync(envFile) ? parseEnvText(readFileSync(envFile, 'utf8')) : {};
-  const server = (env.OWNER_SERVER ?? fromFile.OWNER_SERVER ?? '').trim().replace(/\/+$/, '');
-  const password = (env.OWNER_PASSWORD ?? fromFile.OWNER_PASSWORD ?? '').trim();
+  const server = (env.OWNER_SERVER ?? fromFile.OWNER_SERVER ?? DEFAULT_SERVER).trim().replace(/\/+$/, '');
   if (!/^https?:\/\//.test(server)) {
-    throw new AgentError('Задайте OWNER_SERVER (адрес сервера) в tools/owner/.env', 2);
+    throw new AgentError('OWNER_SERVER должен начинаться с http:// или https://', 2);
   }
-  if (!password) {
-    throw new AgentError('Задайте OWNER_PASSWORD в tools/owner/.env', 2);
-  }
-  return { server, password };
+  return { server };
 }
 
 async function ownerRequest(config, method, path, body) {
@@ -38,10 +36,7 @@ async function ownerRequest(config, method, path, body) {
   try {
     response = await fetch(`${config.server}${path}`, {
       method,
-      headers: {
-        Authorization: `Bearer ${config.password}`,
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      },
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (error) {
@@ -58,7 +53,7 @@ async function ownerRequest(config, method, path, body) {
     parsed = { error: text.slice(0, 200) };
   }
   if (!response.ok) {
-    throw new AgentError(`${parsed?.error ?? 'ошибка'} (HTTP ${response.status})`, response.status === 401 ? 5 : 6);
+    throw new AgentError(`${parsed?.error ?? 'ошибка'} (HTTP ${response.status})`, 6);
   }
   return parsed;
 }
@@ -144,6 +139,14 @@ export function validatePlan(plan, now = new Date()) {
   }
   if (!plan.strategy && !plan.calendar && !plan.kits && plan.recommendations === undefined) {
     problems.push('нужен хотя бы один из блоков strategy, calendar, kits, recommendations');
+  }
+  if (plan.location !== undefined) {
+    const place = plan.location;
+    if (!isObject(place) || typeof place.city !== 'string' || !place.city.trim() || place.city.length > 100) {
+      problems.push('location: нужен city, название населённого пункта');
+    } else if (place.timezone !== undefined && (typeof place.timezone !== 'string' || !/^[A-Za-z_]+\/[A-Za-z_\/+-]+$/.test(place.timezone))) {
+      problems.push('location.timezone должна быть зоной IANA, например Asia/Irkutsk');
+    }
   }
   if (plan.recommendations !== undefined) {
     if (!Array.isArray(plan.recommendations)) {
@@ -280,7 +283,7 @@ export function buildPrompt(intake, { guide, tomorrow }) {
     `2. Реши, что взять у референсов, а что переработать под голос и нишу мастера. Не копируй дословно.`,
     `3. Построчно сверь план с блоком «note» заявки (пожелания и рекомендации): каждое «не хочу», «люблю», «не получается», «свободна по» должно быть отражено в рубриках, форматах, идеях или расписании. Невыполнимое объясни мастеру в note плана.`,
     `4. Цели из заявки определяют рубрики и частоту.`,
-    `5. Запиши план в файл ${PLAN_FILE} в рабочей папке, по формату ниже. Даты публикаций не раньше ${tomorrow}, у каждой публикации свой id, календарь на 4 недели, к каждой публикации комплект в kits: в shots и frames конкретно, что снять (мастер снимает всё на неделю в один день контента). Добавь блок recommendations: рекомендации по оформлению профиля, у каждой id (r1, r2) и importance в процентах от 0 до 100.`,
+    `5. Запиши план в файл ${PLAN_FILE} в рабочей папке, по формату ниже. Даты публикаций не раньше ${tomorrow}, у каждой публикации свой id, календарь на 4 недели, к каждой публикации комплект в kits: в shots и frames конкретно, что снять (мастер снимает всё на неделю в один день контента). Добавь блок recommendations: рекомендации по оформлению профиля, у каждой id (r1, r2) и importance в процентах от 0 до 100. Определи населённый пункт мастера: сначала поле «Населённый пункт» и пожелания в заявке, затем адрес в шапке его страниц и самые частые геометки публикаций; запиши в блок location (city и, если уверен, timezone зоной IANA, например Asia/Irkutsk). Время публикаций и дней контента в плане указывай по местному времени этого населённого пункта.`,
     `6. В note плана напиши мастеру короткую записку, не длиннее ${MAX_NOTE_LENGTH} знаков: что учтено из его пожеланий и что взято у референсов. Пиши на «вы», простым русским языком, без англицизмов и без шуток. Любое другое текстовое поле плана не длиннее 2000 знаков.`,
     `7. Запиши report.md: какие пожелания учтены и как; что взято у референсов; какие страницы не открылись; допущения. Токены и пароли нигде не пиши.`,
     `8. В конце ответь одной строкой: «готово».`,

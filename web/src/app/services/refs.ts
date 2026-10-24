@@ -47,7 +47,7 @@ export class Refs {
   constructor() {
     effect(() => {
       const items = this.plan.items().map(toOrderItem);
-      const ready = this.account.role() === 'master';
+      const ready = this.account.signedIn();
       untracked(() => {
         if (ready) {
           this.scheduleOrder(items);

@@ -13,6 +13,7 @@ const (
 	MaxCollectedCaption  = 1500
 	MaxCollectedNote     = 1000
 	MaxCollectedShort    = 200
+	MaxGeoTags           = 20
 )
 
 type CollectedPost struct {
@@ -25,6 +26,11 @@ type CollectedPost struct {
 	URL      string `json:"url"`
 }
 
+type GeoTag struct {
+	Name  string `json:"name"`
+	Count *int   `json:"count"`
+}
+
 type Collected struct {
 	Handle      string          `json:"handle"`
 	Name        string          `json:"name"`
@@ -34,6 +40,8 @@ type Collected struct {
 	Followers   *int            `json:"followers"`
 	Following   *int            `json:"following"`
 	PostsCount  *int            `json:"postsCount"`
+	Location    string          `json:"location"`
+	GeoTags     []GeoTag        `json:"geoTags"`
 	Highlights  []string        `json:"highlights"`
 	Posts       []CollectedPost `json:"posts"`
 	Notes       string          `json:"notes"`
@@ -63,6 +71,7 @@ func DescribeCollected(data Collected) string {
 		{"Категория", clipText(data.Category, MaxCollectedShort)},
 		{"Описание", clipText(data.Bio, MaxCollectedBioRunes)},
 		{"Ссылка в шапке", clipText(data.ExternalURL, MaxCollectedShort)},
+		{"Адрес или город в шапке", clipText(data.Location, MaxCollectedShort)},
 	} {
 		if field.value != "" {
 			fmt.Fprintf(&text, "%s: %s\n", field.label, field.value)
@@ -71,6 +80,9 @@ func DescribeCollected(data Collected) string {
 	text.WriteString(number("Подписчиков", data.Followers))
 	text.WriteString(number("Подписок", data.Following))
 	text.WriteString(number("Публикаций", data.PostsCount))
+	if tags := geoTagLine(data.GeoTags); tags != "" {
+		fmt.Fprintf(&text, "Геометки публикаций (по частоте): %s\n", tags)
+	}
 	if len(data.Highlights) > 0 {
 		names := make([]string, 0, len(data.Highlights))
 		for _, name := range data.Highlights {
@@ -103,4 +115,33 @@ func DescribeCollected(data Collected) string {
 		fmt.Fprintf(&text, "\nЗаметки сборщика: %s\n", notes)
 	}
 	return text.String()
+}
+
+func geoTagLine(tags []GeoTag) string {
+	if len(tags) > MaxGeoTags {
+		tags = tags[:MaxGeoTags]
+	}
+	parts := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		name := clipText(tag.Name, MaxCollectedShort)
+		if name == "" {
+			continue
+		}
+		if tag.Count != nil && *tag.Count > 0 {
+			name = fmt.Sprintf("%s (%d)", name, *tag.Count)
+		}
+		parts = append(parts, name)
+	}
+	return strings.Join(parts, ", ")
+}
+
+func (data Collected) PlaceHint() string {
+	var hint strings.Builder
+	if location := clipText(data.Location, MaxCollectedShort); location != "" {
+		fmt.Fprintf(&hint, "Адрес или город в шапке: %s. ", location)
+	}
+	if tags := geoTagLine(data.GeoTags); tags != "" {
+		fmt.Fprintf(&hint, "Геометки публикаций по частоте: %s.", tags)
+	}
+	return strings.TrimSpace(hint.String())
 }

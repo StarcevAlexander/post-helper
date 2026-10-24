@@ -1,10 +1,6 @@
 package audit
 
-import (
-	"context"
-
-	"post-helper/server/internal/strategy"
-)
+import "context"
 
 type Image struct {
 	Name      string
@@ -13,9 +9,9 @@ type Image struct {
 }
 
 type Request struct {
-	Profile strategy.Profile
-	Images  []Image
-	Extra   string
+	About  string
+	Images []Image
+	Extra  string
 }
 
 type Result struct {

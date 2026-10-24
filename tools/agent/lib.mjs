@@ -58,20 +58,15 @@ export function parseEnvText(text) {
   return values;
 }
 
+export const DEFAULT_SERVER = 'http://127.0.0.1:8081';
+
 export function loadConfig(env, envFile) {
   const fromFile = envFile && existsSync(envFile) ? parseEnvText(readFileSync(envFile, 'utf8')) : {};
-  const server = (env.AGENT_SERVER ?? fromFile.AGENT_SERVER ?? '').trim().replace(/\/+$/, '');
-  const token = (env.AGENT_TOKEN ?? fromFile.AGENT_TOKEN ?? '').trim();
-  if (!server) {
-    throw new AgentError('Не задан AGENT_SERVER (адрес сервера, например https://post-helper-server.onrender.com)', 2);
-  }
+  const server = (env.AGENT_SERVER ?? fromFile.AGENT_SERVER ?? DEFAULT_SERVER).trim().replace(/\/+$/, '');
   if (!/^https?:\/\//.test(server)) {
     throw new AgentError('AGENT_SERVER должен начинаться с http:// или https://', 2);
   }
-  if (token.length < 24) {
-    throw new AgentError('Не задан AGENT_TOKEN (не короче 24 символов)', 2);
-  }
-  return { server, token };
+  return { server };
 }
 
 const NUMBER_FIELDS = ['followers', 'following', 'postsCount'];
@@ -89,7 +84,7 @@ export function validateCollected(data) {
   if (typeof data.handle !== 'string' || !data.handle.trim()) {
     problems.push('нет поля handle (ник профиля)');
   }
-  for (const field of ['name', 'bio', 'externalUrl', 'category', 'notes']) {
+  for (const field of ['name', 'bio', 'externalUrl', 'category', 'notes', 'location']) {
     if (data[field] !== undefined && typeof data[field] !== 'string') {
       problems.push(`поле ${field} должно быть строкой`);
     }
@@ -97,6 +92,19 @@ export function validateCollected(data) {
   for (const field of NUMBER_FIELDS) {
     if (!isCount(data[field])) {
       problems.push(`поле ${field} должно быть целым числом не меньше нуля или null`);
+    }
+  }
+  if (data.geoTags !== undefined) {
+    if (!Array.isArray(data.geoTags)) {
+      problems.push('поле geoTags должно быть списком');
+    } else {
+      data.geoTags.forEach((tag, index) => {
+        if (typeof tag !== 'object' || tag === null || typeof tag.name !== 'string' || !tag.name.trim()) {
+          problems.push(`геометка ${index + 1}: нужно поле name со строкой`);
+        } else if (!isCount(tag.count)) {
+          problems.push(`геометка ${index + 1}: поле count должно быть целым числом не меньше нуля или null`);
+        }
+      });
     }
   }
   if (data.highlights !== undefined && !(Array.isArray(data.highlights) && data.highlights.every((item) => typeof item === 'string'))) {
@@ -175,7 +183,7 @@ async function request(config, method, path, init = {}) {
     response = await fetch(`${config.server}${path}`, {
       method,
       ...init,
-      headers: { Authorization: `Bearer ${config.token}`, ...(init.headers ?? {}) },
+      headers: init.headers ?? {},
     });
   } catch (error) {
     throw new AgentError(`Сервер недоступен: ${error.message}`, 4);
@@ -192,7 +200,7 @@ async function request(config, method, path, init = {}) {
   }
   if (!response.ok) {
     const message = body?.error ?? `HTTP ${response.status}`;
-    throw new AgentError(`${message} (HTTP ${response.status})`, response.status === 401 ? 5 : 6);
+    throw new AgentError(`${message} (HTTP ${response.status})`, 6);
   }
   return { status: response.status, body };
 }
@@ -249,6 +257,6 @@ export function buildAgentPrompt(job, workDir, repoDir) {
     `Скриншоты (шапка, сетка 2-3 экрана, до 3 постов, Reels) сохрани в папку ${workDir}/shots, данные запиши в ${workDir}/data.json.`,
     `Отправь: node ${repoDir}/tools/agent/ig-agent.mjs submit ${job.id} --data ${workDir}/data.json --images ${workDir}/shots`,
     `Если вход потребовал пароль, капча, действие заблокировано, профиль закрытый или не найден: node ${repoDir}/tools/agent/ig-agent.mjs fail ${job.id} "причина" (для закрытого или несуществующего добавь --final) и остановись.`,
-    `Токен никогда не показывай. В конце коротко доложи: handle, сколько картинок ушло, ответ сервера.`,
+    `В конце коротко доложи: handle, сколько картинок ушло, ответ сервера.`,
   ].join('\n');
 }

@@ -127,11 +127,12 @@ describe('IntakeScreen', () => {
     submit.click();
 
     const request = http.expectOne({ method: 'POST', url: intakeUrl });
-    expect(request.request.body).toEqual({
+    expect(request.request.body).toMatchObject({
       links: ['vk.com/anna'],
       references: ['instagram.com/ref_one'],
       goals: ['reach', 'check'],
       note: 'Не показывать лицо',
+      city: '',
     });
     request.flush(sent());
     await fixture.whenStable();
@@ -152,5 +153,35 @@ describe('IntakeScreen', () => {
     expect(html.textContent).toContain(INTAKE_TEXTS.readyText);
     expect(html.textContent).toContain('Учёл ваши пожелания');
     expect(html.textContent).toContain(INTAKE_TEXTS.again);
+  });
+
+  it('asks where the master works and suggests to write it in the wishes too', async () => {
+    const fixture = await render();
+    const html = fixture.nativeElement as HTMLElement;
+
+    expect(html.querySelector('#intake-city')).not.toBeNull();
+    expect(html.textContent).toContain(INTAKE_TEXTS.cityTitle);
+    expect(html.textContent).toContain('Это поле можно не заполнять');
+    expect(html.textContent).toContain('напишите здесь, в каком городе или посёлке вы работаете');
+  });
+
+  it('sends the typed city and shows it in the sent request', async () => {
+    const fixture = await render();
+    const html = fixture.nativeElement as HTMLElement;
+
+    type(html.querySelector<HTMLInputElement>('#intake-link-0')!, 'vk.com/anna');
+    html.querySelectorAll<HTMLInputElement>('.goal input')[0].click();
+    type(html.querySelector<HTMLInputElement>('#intake-city')!, 'Иркутск');
+    fixture.detectChanges();
+    html.querySelector<HTMLButtonElement>('.screen__primary')!.click();
+
+    const request = http.expectOne({ method: 'POST', url: intakeUrl });
+    expect(request.request.body).toMatchObject({ city: 'Иркутск' });
+    request.flush({ ...sent(), city: 'Иркутск' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(html.textContent).toContain('Населённый пункт');
+    expect(html.textContent).toContain('Иркутск');
   });
 });

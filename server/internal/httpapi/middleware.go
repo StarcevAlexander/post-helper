@@ -3,13 +3,11 @@ package httpapi
 import (
 	"log/slog"
 	"net/http"
+	"post-helper/server/internal/auth"
 	"runtime/debug"
 	"slices"
 	"strings"
 	"time"
-
-	"post-helper/server/internal/accounts"
-	"post-helper/server/internal/auth"
 )
 
 func withCORS(allowedOrigins []string, next http.Handler) http.Handler {
@@ -83,48 +81,6 @@ func withAuth(authenticator *auth.Authenticator, next http.Handler) http.Handler
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(auth.WithIdentity(r.Context(), identity)))
-	})
-}
-
-func requireAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if identity, ok := auth.FromContext(r.Context()); !ok || !identity.Admin {
-			writeError(w, http.StatusForbidden, MsgForbidden)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func requireMaster(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if identity, ok := auth.FromContext(r.Context()); !ok || identity.MasterID == "" {
-			writeError(w, http.StatusForbidden, MsgMasterOnly)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func withQuota(store accounts.Store, limit int, kind string, logger *slog.Logger, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		identity, ok := auth.FromContext(r.Context())
-		if !ok || identity.Admin || limit <= 0 {
-			next.ServeHTTP(w, r)
-			return
-		}
-		now := time.Now()
-		used, err := store.CountUsage(r.Context(), identity.MasterID, dayStart(now))
-		if err != nil {
-			logger.Error("count usage failed", slog.Any("error", err))
-		} else if used >= limit {
-			writeError(w, http.StatusTooManyRequests, MsgQuotaExceeded)
-			return
-		}
-		if err := store.RecordUsage(r.Context(), identity.MasterID, kind, now); err != nil {
-			logger.Error("record usage failed", slog.Any("error", err))
-		}
-		next.ServeHTTP(w, r)
 	})
 }
 

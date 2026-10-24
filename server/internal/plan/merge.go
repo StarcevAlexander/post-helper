@@ -9,8 +9,8 @@ import (
 )
 
 func Merge(existing json.RawMessage, submission Submission) (Merged, error) {
-	if submission.Strategy == nil && submission.Calendar == nil && len(submission.Kits) == 0 && submission.Review == nil && submission.Recommendations == nil {
-		return Merged{}, fmt.Errorf("в плане нет ни стратегии, ни календаря, ни комплектов, ни итогов, ни рекомендаций")
+	if submission.Strategy == nil && submission.Calendar == nil && len(submission.Kits) == 0 && submission.Review == nil && submission.Recommendations == nil && submission.Location == nil {
+		return Merged{}, fmt.Errorf("в плане нет ни стратегии, ни календаря, ни комплектов, ни итогов, ни рекомендаций, ни места")
 	}
 	if utf8.RuneCountInString(strings.TrimSpace(submission.Note)) > MaxNoteRunes {
 		return Merged{}, fmt.Errorf("note: слишком длинная записка")

@@ -5,6 +5,7 @@ $server = Join-Path $repo 'server'
 $exe = Join-Path $server 'post-helper.exe'
 $fresh = Join-Path $server 'post-helper.new.exe'
 $base = 'http://127.0.0.1:8080'
+$admin = 'http://127.0.0.1:8081'
 $task = 'PostHelperServer'
 
 function Test-Health {
@@ -18,12 +19,10 @@ try {
 
   $running = Get-Process -Name 'post-helper' -ErrorAction SilentlyContinue
   if ($running) {
-    $line = Get-Content (Join-Path $server '.env') | Where-Object { $_ -match '^ACCESS_PASSWORD=' } | Select-Object -First 1
-    $password = ($line -replace '^ACCESS_PASSWORD=', '').Trim('"', "'", ' ')
     try {
-      Invoke-RestMethod "$base/api/admin/shutdown" -Method Post -Headers @{ Authorization = "Bearer $password" } | Out-Null
+      Invoke-RestMethod "$admin/api/admin/shutdown" -Method Post | Out-Null
     } catch {
-      Write-Output 'The running server has no shutdown endpoint (ADMIN_RESTART=1 is missing or the build is old).'
+      Write-Output 'The running server has no local admin port (the build is old).'
       Write-Output 'Stop it once as administrator: Stop-Process -Name post-helper -Force. The new build is ready in server\post-helper.new.exe.'
       exit 2
     }

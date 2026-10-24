@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"strings"
@@ -20,7 +19,6 @@ const (
 )
 
 type Identity struct {
-	Admin    bool
 	MasterID string
 	Name     string
 }
@@ -68,19 +66,14 @@ func GenerateCode() (string, error) {
 }
 
 type Authenticator struct {
-	adminHash [32]byte
-	accounts  accounts.Store
+	accounts accounts.Store
 }
 
-func New(adminPassword string, store accounts.Store) *Authenticator {
-	return &Authenticator{adminHash: sha256.Sum256([]byte(adminPassword)), accounts: store}
+func New(store accounts.Store) *Authenticator {
+	return &Authenticator{accounts: store}
 }
 
 func (a *Authenticator) Authenticate(ctx context.Context, token string) (Identity, bool) {
-	provided := sha256.Sum256([]byte(token))
-	if subtle.ConstantTimeCompare(provided[:], a.adminHash[:]) == 1 {
-		return Identity{Admin: true, Name: "owner"}, true
-	}
 	if NormalizeCode(token) == "" {
 		return Identity{}, false
 	}

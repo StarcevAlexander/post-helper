@@ -54,12 +54,10 @@ describe('Refs', () => {
   let refs: Refs;
   let http: HttpTestingController;
 
-  async function signIn(role: 'master' | 'admin' = 'master'): Promise<void> {
+  async function signIn(): Promise<void> {
     TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
     TestBed.tick();
-    http
-      .expectOne({ method: 'GET', url: meUrl })
-      .flush({ role, name: 'Анна', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
+    http.expectOne({ method: 'GET', url: meUrl }).flush({ name: 'Анна', retentionDays: 1095 });
     await vi.waitFor(() => {
       TestBed.tick();
     });
@@ -116,14 +114,6 @@ describe('Refs', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(refs.byKey().get('w1-mon')?.status).toBe('queued');
     expect(refs.active()).toBe(true);
-  });
-
-  it('does not order anything for the owner', async () => {
-    await signIn('admin');
-
-    await vi.advanceTimersByTimeAsync(REFS_ORDER_DELAY_MS * 2);
-
-    http.expectNone({ method: 'POST', url: orderUrl });
   });
 
   it('asks again later while something is being made and stops when it is done', async () => {

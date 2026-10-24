@@ -15,15 +15,15 @@ import (
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
-	"post-helper/server/internal/chat"
+	"post-helper/server/internal/intake"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
-	"post-helper/server/internal/strategy"
 )
 
 type refsHandler struct {
 	refs     refs.Store
 	accounts accounts.Store
+	intakes  intake.Store
 	planner  refs.Generator
 	pushes   *pushHandler
 	logger   *slog.Logger
@@ -160,9 +160,9 @@ func (h *refsAgentHandler) next(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), chat.RequestTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), RequestTimeout)
 	defer cancel()
-	plan, err := h.planner.Generate(ctx, refs.Request{Profile: h.profileOf(r.Context(), item.MasterID), Item: item})
+	plan, err := h.planner.Generate(ctx, refs.Request{About: aboutMaster(r.Context(), h.accounts, h.intakes, item.MasterID), Item: item})
 	if err != nil {
 		final := errors.Is(err, refs.ErrRefused)
 		h.logger.Error("plan refs failed", slog.Any("error", err))
@@ -173,24 +173,6 @@ func (h *refsAgentHandler) next(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, RefAgentItem{
 		ID: item.ID, Key: item.Key, Format: item.Format, Kind: refs.KindPhoto, Prompts: plan.Prompts,
 	})
-}
-
-func (h *refsAgentHandler) profileOf(ctx context.Context, masterID string) strategy.Profile {
-	state, err := h.accounts.LoadState(ctx, masterID)
-	if err != nil {
-		return strategy.Profile{}
-	}
-	var stored struct {
-		Onboarding struct {
-			Answers strategy.Profile `json:"answers"`
-		} `json:"onboarding"`
-	}
-	if err := json.Unmarshal(state.Data, &stored); err != nil {
-		return strategy.Profile{}
-	}
-	profile := stored.Onboarding.Answers
-	profile.Audit = ""
-	return profile
 }
 
 func (h *refsAgentHandler) result(w http.ResponseWriter, r *http.Request) {
@@ -253,7 +235,7 @@ func readRefFile(header *multipart.FileHeader, index int) (refs.File, int, strin
 	if len(data) > refs.MaxFileBytes {
 		return refs.File{}, http.StatusRequestEntityTooLarge, MsgTooLarge
 	}
-	mediaType, _, _ := strings.Cut(http.DetectContentType(data[:min(len(data), chat.SniffLength)]), ";")
+	mediaType, _, _ := strings.Cut(http.DetectContentType(data[:min(len(data), SniffLength)]), ";")
 	kind, ok := refMediaKinds[mediaType]
 	if !ok {
 		return refs.File{}, http.StatusUnsupportedMediaType, MsgUnsupportedFile

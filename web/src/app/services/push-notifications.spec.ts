@@ -153,13 +153,7 @@ describe('PushNotifications', () => {
 
     TestBed.tick();
     http.expectNone(subscribeUrl);
-    account.info.set({
-      role: 'master',
-      name: 'Анна',
-      dailyLimit: 80,
-      usageToday: 0,
-      retentionDays: 1095,
-    });
+    account.info.set({ name: 'Анна', retentionDays: 1095 });
     TestBed.tick();
 
     const request = http.expectOne(subscribeUrl);

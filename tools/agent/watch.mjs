@@ -98,9 +98,6 @@ async function main(argv) {
         continue;
       }
     } catch (error) {
-      if (error instanceof AgentError && error.code === 5) {
-        throw error;
-      }
       log(`сервер недоступен или ответил ошибкой: ${error.message}`);
     }
     if (flags.once) {

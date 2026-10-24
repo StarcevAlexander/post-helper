@@ -1,13 +1,8 @@
 export type JsonValue =
   string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-export type AccountRole = 'admin' | 'master';
-
 export interface AccountInfo {
-  role: AccountRole;
   name: string;
-  dailyLimit: number;
-  usageToday: number;
   retentionDays: number;
   providers?: string[];
 }

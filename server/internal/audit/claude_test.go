@@ -4,8 +4,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"post-helper/server/internal/strategy"
 )
 
 const auditJSON = `{"summary":"Профиль аккуратный, но без призыва записаться","strengths":["Единый светлый стиль"],"problems":["В шапке нет ссылки"],"fixes":["Добавьте ссылку для записи","Закрепите три работы"],"bioSuggestion":"Маникюр в Иркутске. Запись по ссылке","nameSuggestion":"Анна | Маникюр Иркутск","contentNotes":["Публикации выходят нерегулярно"],"missing":["Не видно статистики"]}`
@@ -85,8 +83,8 @@ func TestNormalizeCapsAndTrims(t *testing.T) {
 
 func TestDescribeRequestCountsImagesAndSkipsTheOldAudit(t *testing.T) {
 	text := describeRequest(Request{
-		Profile: strategy.Profile{Specialty: "маникюр", City: "Иркутск", Audit: "старый разбор"},
-		Images:  []Image{{Name: "a.png"}, {Name: "b.png"}},
+		About:  "Населённый пункт: Иркутск",
+		Images: []Image{{Name: "a.png"}, {Name: "b.png"}},
 	})
 
 	if !strings.Contains(text, "Скриншотов: 2") || !strings.Contains(text, "Иркутск") {

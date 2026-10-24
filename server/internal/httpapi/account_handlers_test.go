@@ -25,11 +25,9 @@ func newAccountFixture(t *testing.T, dailyLimit int) *accountFixture {
 	fixture := &accountFixture{
 		store: accounts.NewMemory(),
 	}
-	fixture.handler = NewHandler(Options{
+	fixture.handler = bothHandlers(Options{
 		Accounts:       fixture.store,
-		DailyAILimit:   dailyLimit,
 		RetentionDays:  1095,
-		Password:       testPassword,
 		AllowedOrigins: []string{testOrigin},
 		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
@@ -63,13 +61,9 @@ func TestMe(t *testing.T) {
 	fixture := newAccountFixture(t, 5)
 	code, _ := fixture.master(t, "Анна")
 
-	admin := fixture.call(http.MethodGet, "/api/me", testPassword, "")
 	master := fixture.call(http.MethodGet, "/api/me", code, "")
 
-	if !strings.Contains(admin.Body.String(), `"role":"admin"`) {
-		t.Errorf("admin = %s", admin.Body)
-	}
-	for _, want := range []string{`"role":"master"`, `"name":"Анна"`, `"dailyLimit":5`, `"usageToday":0`, `"retentionDays":1095`} {
+	for _, want := range []string{`"name":"Анна"`, `"retentionDays":1095`} {
 		if !strings.Contains(master.Body.String(), want) {
 			t.Errorf("master %s lacks %s", master.Body, want)
 		}
@@ -102,7 +96,6 @@ func TestRenameMasterRefusals(t *testing.T) {
 		"too long":   {code, tooLong, http.StatusBadRequest},
 		"bad json":   {code, `{`, http.StatusBadRequest},
 		"no token":   {"", `{"name":"Мария"}`, http.StatusUnauthorized},
-		"owner":      {testPassword, `{"name":"Мария"}`, http.StatusForbidden},
 	}
 	for name, tc := range cases {
 		if got := fixture.call(http.MethodPost, "/api/me/name", tc.token, tc.body).Code; got != tc.want {
@@ -119,34 +112,6 @@ func TestAuthRefusals(t *testing.T) {
 	for name, token := range map[string]string{"no token": "", "wrong": "wrong", "disabled master": code} {
 		if got := fixture.call(http.MethodGet, "/api/me", token, "").Code; got != http.StatusUnauthorized {
 			t.Errorf("%s: status = %d", name, got)
-		}
-	}
-}
-
-func TestOwnerOnlyEndpointsRefuseMasters(t *testing.T) {
-	fixture := newAccountFixture(t, 5)
-	code, _ := fixture.master(t, "Анна")
-
-	for _, route := range []struct{ method, path string }{
-		{http.MethodGet, "/api/history"},
-		{http.MethodGet, "/api/events"},
-		{http.MethodGet, "/api/errors"},
-		{http.MethodGet, "/api/admin/masters"},
-		{http.MethodPost, "/api/admin/masters"},
-		{http.MethodPost, "/api/admin/masters/x/disabled"},
-	} {
-		if got := fixture.call(route.method, route.path, code, `{"name":"x"}`).Code; got != http.StatusForbidden {
-			t.Errorf("%s %s: status = %d, want 403", route.method, route.path, got)
-		}
-	}
-}
-
-func TestMasterDataEndpointsRefuseTheOwner(t *testing.T) {
-	fixture := newAccountFixture(t, 5)
-
-	for _, method := range []string{http.MethodGet, http.MethodPut} {
-		if got := fixture.call(method, "/api/state", testPassword, `{"baseVersion":0,"data":{}}`).Code; got != http.StatusForbidden {
-			t.Errorf("%s: status = %d", method, got)
 		}
 	}
 }
@@ -274,9 +239,6 @@ func TestAdminSeesTheJournalAndTheVersionsOfAMaster(t *testing.T) {
 	}
 	if versions.Code != http.StatusOK || !strings.Contains(versions.Body.String(), `"version":2`) || !strings.Contains(versions.Body.String(), `"version":1`) {
 		t.Errorf("versions = %d %s", versions.Code, versions.Body)
-	}
-	if got := fixture.call(http.MethodGet, "/api/admin/masters/"+master.ID+"/events", code, "").Code; got != http.StatusForbidden {
-		t.Errorf("a master must not read the journal, status = %d", got)
 	}
 }
 

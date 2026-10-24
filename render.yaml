@@ -10,16 +10,10 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: ACCESS_PASSWORD
-        sync: false
       - key: DATABASE_URL
         sync: false
-      - key: DAILY_AI_LIMIT
-        value: "80"
       - key: RETENTION_DAYS
         value: "1095"
-      - key: AGENT_TOKEN
-        sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_CHAT_ID

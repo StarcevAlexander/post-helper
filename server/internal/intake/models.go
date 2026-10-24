@@ -15,24 +15,27 @@ type Draft struct {
 	References []Network
 	Goals      []string
 	Note       string
+	City       string
 	Review     bool
 }
 
 type Request struct {
-	ID         string    `json:"id"`
-	MasterID   string    `json:"masterId"`
-	MasterName string    `json:"masterName,omitempty"`
-	Networks   []Network `json:"networks"`
-	References []Network `json:"references"`
-	Goals      []string  `json:"goals"`
-	GoalTitles []string  `json:"goalTitles,omitempty"`
-	Note       string    `json:"note,omitempty"`
-	Review     bool      `json:"review,omitempty"`
-	Status     string    `json:"status"`
-	ReplyNote  string    `json:"replyNote,omitempty"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
-	ReadyAt    time.Time `json:"readyAt,omitzero"`
+	ID             string    `json:"id"`
+	MasterID       string    `json:"masterId"`
+	MasterName     string    `json:"masterName,omitempty"`
+	Networks       []Network `json:"networks"`
+	References     []Network `json:"references"`
+	Goals          []string  `json:"goals"`
+	GoalTitles     []string  `json:"goalTitles,omitempty"`
+	Note           string    `json:"note,omitempty"`
+	Review         bool      `json:"review,omitempty"`
+	City           string    `json:"city,omitempty"`
+	MasterTimezone string    `json:"masterTimezone,omitempty"`
+	Status         string    `json:"status"`
+	ReplyNote      string    `json:"replyNote,omitempty"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+	ReadyAt        time.Time `json:"readyAt,omitzero"`
 }
 
 type Store interface {

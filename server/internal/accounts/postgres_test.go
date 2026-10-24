@@ -291,3 +291,41 @@ func TestPostgresIdentitiesAndTokens(t *testing.T) {
 	}
 	_ = db.DeleteMaster(ctx, other.ID)
 }
+
+func TestPostgresRemembersWhereTheMasterLives(t *testing.T) {
+	db := openPostgres(t)
+	ctx := context.Background()
+	master, err := db.CreateMaster(ctx, "Тест города", "city-hash-"+time.Now().Format("150405.000000000"))
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	t.Cleanup(func() { _ = db.DeleteMaster(ctx, master.ID) })
+
+	if err := db.SetLocation(ctx, master.ID, "Иркутск", "Asia/Irkutsk"); err != nil {
+		t.Fatalf("SetLocation: %v", err)
+	}
+
+	got, err := db.GetMaster(ctx, master.ID)
+	if err != nil || got.City != "Иркутск" || got.Timezone != "Asia/Irkutsk" || got.Name != "Тест города" {
+		t.Fatalf("got = %+v, %v", got, err)
+	}
+	listed, err := db.ListMasters(ctx, time.Now())
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	var seen bool
+	for _, summary := range listed {
+		if summary.ID == master.ID {
+			seen = summary.City == "Иркутск" && summary.Timezone == "Asia/Irkutsk"
+		}
+	}
+	if !seen {
+		t.Error("the list must carry the city and the time zone")
+	}
+	if _, err := db.GetMaster(ctx, "missing-master"); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("unknown master: %v", err)
+	}
+	if err := db.SetLocation(ctx, "missing-master", "x", "y"); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("unknown master location: %v", err)
+	}
+}

@@ -13,13 +13,10 @@ func Load() (Config, error) {
 	cfg := Config{
 		Port:           valueOr(os.Getenv(EnvPort), DefaultPort),
 		APIKey:         strings.TrimSpace(os.Getenv(EnvAPIKey)),
-		AccessPassword: os.Getenv(EnvAccessPassword),
 		AllowedOrigins: parseList(os.Getenv(EnvAllowedOrigins), DefaultAllowedOrigins),
 		Model:          valueOr(os.Getenv(EnvModel), DefaultModel),
 		DatabaseURL:    strings.TrimSpace(os.Getenv(EnvDatabaseURL)),
-		DailyAILimit:   dailyLimit(os.Getenv(EnvDailyAILimit)),
 		RetentionDays:  nonNegative(os.Getenv(EnvRetentionDays), DefaultRetentionDays),
-		AgentToken:     strings.TrimSpace(os.Getenv(EnvAgentToken)),
 		HistoryKeep:    positive(os.Getenv(EnvHistoryKeep), DefaultHistoryKeep),
 		TelegramToken:  strings.TrimSpace(os.Getenv(EnvTelegramToken)),
 		TelegramChatID: strings.TrimSpace(os.Getenv(EnvTelegramChatID)),
@@ -31,20 +28,13 @@ func Load() (Config, error) {
 		YandexClientID:     strings.TrimSpace(os.Getenv(EnvYandexClientID)),
 		YandexClientSecret: strings.TrimSpace(os.Getenv(EnvYandexSecret)),
 
-		AdminRestart: strings.TrimSpace(os.Getenv(EnvAdminRestart)) == "1",
-
+		AdminPort:        valueOr(strings.TrimSpace(os.Getenv(EnvAdminPort)), DefaultAdminPort),
 		ReminderTimezone: strings.TrimSpace(os.Getenv(EnvReminderTimezone)),
 	}
 
 	var problems []error
 	if cfg.APIKey == "" {
 		problems = append(problems, fmt.Errorf("%s is not set", EnvAPIKey))
-	}
-	if len(cfg.AccessPassword) < MinPasswordLength {
-		problems = append(problems, fmt.Errorf("%s must be at least %d characters", EnvAccessPassword, MinPasswordLength))
-	}
-	if cfg.AgentToken != "" && len(cfg.AgentToken) < MinAgentTokenLength {
-		problems = append(problems, fmt.Errorf("%s must be at least %d characters", EnvAgentToken, MinAgentTokenLength))
 	}
 	if err := errors.Join(problems...); err != nil {
 		return Config{}, err
@@ -108,14 +98,6 @@ func parseList(raw string, fallback []string) []string {
 func valueOr(value, fallback string) string {
 	if strings.TrimSpace(value) == "" {
 		return fallback
-	}
-	return value
-}
-
-func dailyLimit(raw string) int {
-	value, err := strconv.Atoi(strings.TrimSpace(raw))
-	if err != nil || value < 0 {
-		return DefaultDailyLimit
 	}
 	return value
 }

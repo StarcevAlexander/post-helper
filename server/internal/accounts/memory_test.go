@@ -457,3 +457,32 @@ func TestMemoryDeleteMasterDropsIdentitiesAndTokens(t *testing.T) {
 		t.Errorf("token survived: %v", err)
 	}
 }
+
+func TestMemoryRemembersWhereTheMasterLives(t *testing.T) {
+	store := NewMemory()
+	ctx := context.Background()
+	master, _ := store.CreateMaster(ctx, "Анна", "hash-1")
+
+	before, err := store.GetMaster(ctx, master.ID)
+	if err != nil || before.City != "" || before.Timezone != "" {
+		t.Fatalf("before = %+v, %v", before, err)
+	}
+	if err := store.SetLocation(ctx, master.ID, "Иркутск", "Asia/Irkutsk"); err != nil {
+		t.Fatalf("SetLocation: %v", err)
+	}
+
+	after, err := store.GetMaster(ctx, master.ID)
+	if err != nil || after.City != "Иркутск" || after.Timezone != "Asia/Irkutsk" {
+		t.Fatalf("after = %+v, %v", after, err)
+	}
+	listed, _ := store.ListMasters(ctx, time.Now())
+	if len(listed) != 1 || listed[0].City != "Иркутск" {
+		t.Errorf("listed = %+v", listed)
+	}
+	if _, err := store.GetMaster(ctx, "missing"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("unknown master: %v", err)
+	}
+	if err := store.SetLocation(ctx, "missing", "x", "y"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("unknown master location: %v", err)
+	}
+}

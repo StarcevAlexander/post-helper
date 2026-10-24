@@ -27,7 +27,6 @@ import {
   validatePlan,
 } from './lib.mjs';
 
-const PASSWORD = 'owner-pass-1408';
 const NOW = new Date(2026, 9, 24, 12, 0, 0);
 
 const intake = {
@@ -119,6 +118,21 @@ describe('validatePlan', () => {
     const plan = { note: 'Записка мастеру, достаточно длинная.', recommendations: [] };
 
     assert.deepEqual(validatePlan(plan, NOW), []);
+  });
+
+  it('accepts the place of the master and refuses a broken one', () => {
+    const plan = goodPlan();
+    plan.location = { city: 'Иркутск', timezone: 'Asia/Irkutsk' };
+    assert.deepEqual(validatePlan(plan, NOW), []);
+
+    plan.location = { city: 'Иркутск' };
+    assert.deepEqual(validatePlan(plan, NOW), []);
+
+    plan.location = { city: ' ', timezone: 'Asia/Irkutsk' };
+    assert.match(validatePlan(plan, NOW).join('\n'), /location: нужен city/);
+
+    plan.location = { city: 'Иркутск', timezone: 'Иркутское время' };
+    assert.match(validatePlan(plan, NOW).join('\n'), /зоной IANA/);
   });
 
   it('rejects broken recommendations', () => {
@@ -257,10 +271,6 @@ describe('buildPrompt', () => {
     assert.match(prompt, /t\.me\/shkolammru/);
   });
 
-  it('never carries the server password', () => {
-    assert.ok(!prompt.includes(PASSWORD));
-  });
-
   it('builds a fix prompt that lists the problems', () => {
     const fix = buildFixPrompt(['дата 2026-10-24 раньше завтрашнего дня'], { tomorrow: '2026-10-25' });
 
@@ -297,15 +307,13 @@ describe('claudeBinary', () => {
 });
 
 describe('loadOwnerConfig', () => {
-  it('reads the server and the password', () => {
-    const config = loadOwnerConfig({ OWNER_SERVER: 'http://127.0.0.1:8080/', OWNER_PASSWORD: PASSWORD }, undefined);
-
-    assert.deepEqual(config, { server: 'http://127.0.0.1:8080', password: PASSWORD });
+  it('reads the server and falls back to the local admin port', () => {
+    assert.deepEqual(loadOwnerConfig({ OWNER_SERVER: 'http://127.0.0.1:8081/' }, undefined), { server: 'http://127.0.0.1:8081' });
+    assert.deepEqual(loadOwnerConfig({}, undefined), { server: 'http://127.0.0.1:8081' });
   });
 
-  it('complains about a missing server or password', () => {
-    assert.throws(() => loadOwnerConfig({ OWNER_PASSWORD: PASSWORD }, undefined), AgentError);
-    assert.throws(() => loadOwnerConfig({ OWNER_SERVER: 'http://x' }, undefined), AgentError);
+  it('complains about a server that is not an address', () => {
+    assert.throws(() => loadOwnerConfig({ OWNER_SERVER: 'x.example' }, undefined), AgentError);
   });
 });
 
@@ -319,10 +327,8 @@ describe('talking to the server', () => {
       let body = '';
       request.on('data', (chunk) => (body += chunk));
       request.on('end', () => {
-        seen.push({ method: request.method, url: request.url, auth: request.headers.authorization, body });
-        if (request.headers.authorization !== `Bearer ${PASSWORD}`) {
-          response.writeHead(401).end(JSON.stringify({ error: 'нет доступа' }));
-        } else if (request.url.startsWith('/api/admin/intakes')) {
+        seen.push({ method: request.method, url: request.url, body });
+        if (request.url.startsWith('/api/admin/intakes')) {
           response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify([intake]));
         } else if (request.url.endsWith('/plan') && body.includes('"bad"')) {
           response.writeHead(400).end(JSON.stringify({ error: 'format: неизвестный' }));
@@ -339,16 +345,15 @@ describe('talking to the server', () => {
 
   after(() => server.close());
 
-  it('lists only new intakes with the owner password', async () => {
-    const intakes = await listNewIntakes({ server: base, password: PASSWORD });
+  it('lists only new intakes', async () => {
+    const intakes = await listNewIntakes({ server: base });
 
     assert.equal(intakes[0].id, 'i1');
     assert.equal(seen.at(-1).url, '/api/admin/intakes?status=new&limit=50');
-    assert.equal(seen.at(-1).auth, `Bearer ${PASSWORD}`);
   });
 
   it('uploads a plan and returns the version', async () => {
-    const result = await uploadPlan({ server: base, password: PASSWORD }, 'm1', goodPlan());
+    const result = await uploadPlan({ server: base }, 'm1', goodPlan());
 
     assert.deepEqual(result, { version: 5, items: 2 });
     assert.equal(seen.at(-1).url, '/api/admin/masters/m1/plan');
@@ -357,21 +362,14 @@ describe('talking to the server', () => {
 
   it('turns a server refusal into an error with code 6', async () => {
     await assert.rejects(
-      uploadPlan({ server: base, password: PASSWORD }, 'm1', { note: 'bad' }),
+      uploadPlan({ server: base }, 'm1', { note: 'bad' }),
       (error) => error instanceof AgentError && error.code === 6 && /format/.test(error.message),
-    );
-  });
-
-  it('turns a wrong password into code 5', async () => {
-    await assert.rejects(
-      listNewIntakes({ server: base, password: 'wrong' }),
-      (error) => error instanceof AgentError && error.code === 5,
     );
   });
 
   it('reports an unreachable server as code 4', async () => {
     await assert.rejects(
-      listNewIntakes({ server: 'http://127.0.0.1:1', password: PASSWORD }),
+      listNewIntakes({ server: 'http://127.0.0.1:1' }),
       (error) => error instanceof AgentError && error.code === 4,
     );
   });

@@ -45,14 +45,11 @@ func newRefsFixture(t *testing.T) *refsFixture {
 		{Prompt: "polish bottles on a table", Caption: "Флаконы на столе"},
 		{Prompt: "client choosing a colour", Caption: "Клиентка выбирает цвет"},
 	}}}
-	base.handler = NewHandler(Options{
+	base.handler = bothHandlers(Options{
 		Accounts:       base.store,
 		Refs:           refs.NewMemory(),
 		RefPlanner:     planner,
-		AgentToken:     agentToken,
-		DailyAILimit:   50,
 		RetentionDays:  1095,
-		Password:       testPassword,
 		AllowedOrigins: []string{testOrigin},
 		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
@@ -149,7 +146,6 @@ func TestOrderOfReferencesIsValidated(t *testing.T) {
 		{"bad json", code, `nope`, http.StatusBadRequest},
 		{"too many", code, many, http.StatusBadRequest},
 		{"no login", "", planBody, http.StatusUnauthorized},
-		{"owner is not a master", testPassword, planBody, http.StatusForbidden},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -160,23 +156,19 @@ func TestOrderOfReferencesIsValidated(t *testing.T) {
 	}
 }
 
-func TestAgentRoutesNeedTheToken(t *testing.T) {
+func TestTheAgentQueueIsEmptyAtFirst(t *testing.T) {
 	fixture := newRefsFixture(t)
 
-	for _, token := range []string{"", "wrong-token-0123456789abcdef"} {
-		if got := fixture.call(http.MethodGet, "/api/agent/refs/next", token, "").Code; got != http.StatusUnauthorized {
-			t.Errorf("token %q: status = %d", token, got)
-		}
-	}
-	if got := fixture.call(http.MethodGet, "/api/agent/refs/next", agentToken, "").Code; got != http.StatusNoContent {
+	if got := fixture.call(http.MethodGet, "/api/agent/refs/next", "", "").Code; got != http.StatusNoContent {
 		t.Errorf("empty queue: status = %d", got)
 	}
 }
 
-func TestAgentGetsPromptsMadeFromTheMastersProfileAndDeliversFiles(t *testing.T) {
+func TestAgentGetsPromptsMadeFromWhatIsKnownAboutTheMasterAndDeliversFiles(t *testing.T) {
 	fixture := newRefsFixture(t)
 	code, master := fixture.master(t, "Анна")
-	_, _ = fixture.store.SaveState(context.Background(), master.ID, 0, json.RawMessage(`{"onboarding":{"answers":{"name":"Анна","specialty":"маникюр","city":"Иркутск"}}}`), time.Now())
+	_ = fixture.store.SetLocation(context.Background(), master.ID, "Иркутск", "Asia/Irkutsk")
+	_, _ = fixture.store.SaveState(context.Background(), master.ID, 0, json.RawMessage(`{"strategy":{"positioning":"Аккуратный маникюр"}}`), time.Now())
 	fixture.call(http.MethodPost, "/api/refs/order", code, planBody)
 
 	item := fixture.claim(t)
@@ -186,7 +178,8 @@ func TestAgentGetsPromptsMadeFromTheMastersProfileAndDeliversFiles(t *testing.T)
 	if item.Key != "w1-mon" || item.Kind != refs.KindPhoto || len(item.Prompts) != 3 {
 		t.Fatalf("item = %+v", item)
 	}
-	if fixture.planner.request.Profile.Specialty != "маникюр" || fixture.planner.request.Item.Idea != "Видео снятия гель-лака" {
+	about := fixture.planner.request.About
+	if !strings.Contains(about, "Анна") || !strings.Contains(about, "Иркутск") || !strings.Contains(about, "Аккуратный маникюр") || fixture.planner.request.Item.Idea != "Видео снятия гель-лака" {
 		t.Errorf("planner got %+v", fixture.planner.request)
 	}
 	if upload.Code != http.StatusOK {
@@ -233,7 +226,6 @@ func TestUploadRejections(t *testing.T) {
 		files [][]byte
 		want  int
 	}{
-		{"no token", "", [][]byte{pngBytes}, http.StatusUnauthorized},
 		{"no files", agentToken, nil, http.StatusBadRequest},
 		{"four files", agentToken, [][]byte{pngBytes, pngBytes, pngBytes, pngBytes}, http.StatusBadRequest},
 		{"not a picture", agentToken, [][]byte{[]byte("hello, this is text")}, http.StatusUnsupportedMediaType},

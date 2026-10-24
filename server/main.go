@@ -5,17 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/audit"
 	"post-helper/server/internal/config"
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/intake"
+	"post-helper/server/internal/places"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/reminders"
@@ -27,6 +30,9 @@ const (
 	readHeaderTimeout = 10 * time.Second
 	readTimeout       = 60 * time.Second
 	writeTimeout      = 150 * time.Second
+	adminReadTimeout  = 5 * time.Minute
+	adminWriteTimeout = 5 * time.Minute
+	adminHost         = "127.0.0.1"
 	idleTimeout       = 120 * time.Second
 	shutdownTimeout   = 10 * time.Second
 
@@ -116,12 +122,8 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	var shutdown func()
-	if cfg.AdminRestart {
-		shutdown = stop
-	}
-	handler := httpapi.NewHandler(httpapi.Options{
-		Shutdown:       shutdown,
+	options := httpapi.Options{
+		Shutdown:       stop,
 		Yandex:         yandexLogin,
 		YandexClientID: yandexClientID,
 		Intake:         intakeStore,
@@ -129,30 +131,41 @@ func run() error {
 		PushStore:      pushStore,
 		Pusher:         pusher,
 		Auditor:        audit.NewClaude(cfg.APIKey, cfg.Model),
-		AgentToken:     cfg.AgentToken,
 		Refs:           refsStore,
 		RefPlanner:     refs.NewClaude(cfg.APIKey, cfg.Model),
+		Places:         places.NewClaude(cfg.APIKey, cfg.Model),
 		Accounts:       accountStore,
-		DailyAILimit:   cfg.DailyAILimit,
 		RetentionDays:  cfg.RetentionDays,
-		Password:       cfg.AccessPassword,
 		AllowedOrigins: cfg.AllowedOrigins,
 		Store:          history,
 		Logger:         logger,
-	})
+	}
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           handler,
+		Handler:           httpapi.NewHandler(options),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,
 		IdleTimeout:       idleTimeout,
 	}
 
-	serverErr := make(chan error, 1)
+	adminServer := &http.Server{
+		Addr:              net.JoinHostPort(adminHost, cfg.AdminPort),
+		Handler:           httpapi.NewAdminHandler(options),
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       adminReadTimeout,
+		WriteTimeout:      adminWriteTimeout,
+		IdleTimeout:       idleTimeout,
+	}
+
+	serverErr := make(chan error, 2)
 	go func() {
 		slog.Info("listening", slog.String("addr", server.Addr), slog.String("model", cfg.Model))
 		serverErr <- server.ListenAndServe()
+	}()
+	go func() {
+		slog.Info("admin listening", slog.String("addr", adminServer.Addr))
+		serverErr <- adminServer.ListenAndServe()
 	}()
 
 	select {
@@ -164,7 +177,8 @@ func run() error {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
-		return server.Shutdown(shutdownCtx)
+		adminErr := adminServer.Shutdown(shutdownCtx)
+		return errors.Join(server.Shutdown(shutdownCtx), adminErr)
 	}
 }
 

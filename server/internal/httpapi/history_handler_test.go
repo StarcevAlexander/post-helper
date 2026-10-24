@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 
+	"post-helper/server/internal/accounts"
+	"post-helper/server/internal/auth"
 	"post-helper/server/internal/store"
 )
 
@@ -53,9 +55,15 @@ func (f *fakeStore) Messages(_ context.Context, filter store.MessageFilter) ([]s
 
 func callStore(t *testing.T, history store.Store, method, path, body, password string) *httptest.ResponseRecorder {
 	t.Helper()
-	handler := NewHandler(Options{
-		Password:       testPassword,
+	people := accounts.NewMemory()
+	code, _ := auth.GenerateCode()
+	_, _ = people.CreateMaster(context.Background(), "Анна", auth.HashCode(code))
+	if !isAdminPath(path) {
+		password = code
+	}
+	handler := bothHandlers(Options{
 		AllowedOrigins: []string{testOrigin},
+		Accounts:       people,
 		Store:          history,
 		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
@@ -98,21 +106,6 @@ func TestIngestRejectsBadBodies(t *testing.T) {
 		recorder := callStore(t, &fakeStore{}, http.MethodPost, "/api/ingest", body, testPassword)
 		if recorder.Code != http.StatusBadRequest {
 			t.Errorf("%s: status = %d", name, recorder.Code)
-		}
-	}
-}
-
-func TestHistoryRoutesNeedPassword(t *testing.T) {
-	for _, route := range []struct{ method, path string }{
-		{http.MethodGet, "/api/history"},
-		{http.MethodGet, "/api/events"},
-		{http.MethodGet, "/api/errors"},
-		{http.MethodPost, "/api/ingest"},
-		{http.MethodPost, "/api/client-error"},
-	} {
-		recorder := callStore(t, &fakeStore{}, route.method, route.path, "{}", "")
-		if recorder.Code != http.StatusUnauthorized {
-			t.Errorf("%s %s: status = %d", route.method, route.path, recorder.Code)
 		}
 	}
 }

@@ -24,6 +24,8 @@ type Master struct {
 	CreatedAt  time.Time `json:"createdAt"`
 	LastSeenAt time.Time `json:"lastSeenAt"`
 	Disabled   bool      `json:"disabled"`
+	City       string    `json:"city"`
+	Timezone   string    `json:"timezone"`
 }
 
 type MasterSummary struct {
@@ -101,6 +103,8 @@ type Store interface {
 	FindByCodeHash(ctx context.Context, codeHash string) (Master, error)
 	ListMasters(ctx context.Context, since time.Time) ([]MasterSummary, error)
 	SetDisabled(ctx context.Context, id string, disabled bool) error
+	GetMaster(ctx context.Context, id string) (Master, error)
+	SetLocation(ctx context.Context, id, city, timezone string) error
 	RenameMaster(ctx context.Context, id, name string) error
 	FindByIdentity(ctx context.Context, provider, subject string) (Master, error)
 	RegisterIdentity(ctx context.Context, name, codeHash, provider, subject, email string) (Master, error)

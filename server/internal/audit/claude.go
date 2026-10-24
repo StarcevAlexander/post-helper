@@ -10,8 +10,6 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
-
-	"post-helper/server/internal/strategy"
 )
 
 type Claude struct {
@@ -55,9 +53,7 @@ func (c *Claude) Generate(ctx context.Context, request Request) (Result, error) 
 }
 
 func describeRequest(request Request) string {
-	profile := request.Profile
-	profile.Audit = ""
-	text := fmt.Sprintf("Скриншотов: %d.\n\n%s", len(request.Images), strategy.DescribeProfile(profile))
+	text := fmt.Sprintf("Скриншотов: %d.\n\n%s", len(request.Images), request.About)
 	if extra := strings.TrimSpace(request.Extra); extra != "" {
 		text += "\n" + extra + "\n"
 	}

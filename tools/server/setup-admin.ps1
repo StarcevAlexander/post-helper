@@ -9,7 +9,7 @@ if (-not $admin) {
 }
 
 $text = if (Test-Path $EnvFile) { Get-Content $EnvFile -Raw } else { '' }
-foreach ($key in 'ANTHROPIC_API_KEY', 'ACCESS_PASSWORD', 'DATABASE_URL') {
+foreach ($key in 'ANTHROPIC_API_KEY', 'DATABASE_URL') {
   if ($text -notmatch "(?m)^\s*$key\s*=\s*\S") {
     throw "server\.env has no $key. Run: powershell -File tools\server\env.ps1"
   }

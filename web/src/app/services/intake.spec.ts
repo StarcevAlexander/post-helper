@@ -75,11 +75,12 @@ describe('Intake', () => {
 
     const pending = intake.submit();
     const sent = http.expectOne({ method: 'POST', url: intakeUrl });
-    expect(sent.request.body).toEqual({
+    expect(sent.request.body).toMatchObject({
       links: ['vk.com/anna'],
       references: [],
       goals: ['reach'],
       note: 'Не показывать лицо',
+      city: '',
     });
     sent.flush(request());
 
@@ -124,6 +125,7 @@ describe('Intake', () => {
       references: ['https://vk.com/ref_one', '', '', '', ''],
       goals: ['reach', 'check'],
       note: 'Без танцев',
+      city: '',
     });
 
     intake.cancelEdit();
@@ -173,6 +175,7 @@ describe('Intake', () => {
       references: ['https://vk.com/ref_one', '', '', '', ''],
       goals: ['reach', 'check'],
       note: '',
+      city: '',
     });
   });
 
@@ -270,5 +273,39 @@ describe('Intake', () => {
 
     expect(intake.reviewMode()).toBe(false);
     expect(intake.reviewing()).toBe(false);
+  });
+
+  it('sends the city and the time zone of the device with the request', async () => {
+    fillDraft();
+    intake.setCity('  Иркутск ');
+
+    const pending = intake.submit();
+    const sent = http.expectOne({ method: 'POST', url: intakeUrl });
+
+    expect(sent.request.body).toMatchObject({ city: 'Иркутск' });
+    expect((sent.request.body as { timeZone?: string }).timeZone).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+    );
+    sent.flush(request({ city: 'Иркутск' }));
+    await pending;
+  });
+
+  it('refills the city from the previous request', async () => {
+    vi.spyOn(TestBed.inject(Sync), 'pull').mockResolvedValue();
+    const pending = intake.refresh();
+    http
+      .expectOne({ method: 'GET', url: intakeUrl })
+      .flush(request({ status: 'ready', readyAt: '2026-10-23T10:00:00Z', city: 'Иркутск' }));
+    await pending;
+
+    intake.startNew();
+
+    expect(intake.draft().city).toBe('Иркутск');
+  });
+
+  it('can be sent without a city: the place may be written in the wishes', async () => {
+    fillDraft();
+
+    expect(intake.canSubmit()).toBe(true);
   });
 });

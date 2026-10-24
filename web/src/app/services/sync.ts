@@ -63,7 +63,7 @@ export class Sync {
 
   constructor() {
     effect(() => {
-      if (this.account.role() === 'master') {
+      if (this.account.signedIn()) {
         untracked(() => void this.pull());
       } else {
         untracked(() => this.status.set('off'));
@@ -97,7 +97,7 @@ export class Sync {
   }
 
   async pull(): Promise<void> {
-    if (this.account.role() !== 'master' || this.running) {
+    if (!this.account.signedIn() || this.running) {
       return;
     }
     this.running = true;
@@ -115,7 +115,7 @@ export class Sync {
     clearTimeout(this.timer);
     this.timer = undefined;
     const meta = this.readMeta();
-    if (this.account.role() !== 'master' || !meta?.dirty || this.running) {
+    if (!this.account.signedIn() || !meta?.dirty || this.running) {
       return;
     }
     if (meta.version > 0 && JSON.stringify(this.readBundle()) === this.lastSyncedJson) {
@@ -130,7 +130,7 @@ export class Sync {
     clearTimeout(this.timer);
     this.timer = undefined;
     const meta = this.readMeta();
-    if (this.account.role() !== 'master' || !meta?.dirty) {
+    if (!this.account.signedIn() || !meta?.dirty) {
       return true;
     }
     await this.push(meta.version);
@@ -191,7 +191,7 @@ export class Sync {
   }
 
   private markDirty(): void {
-    if (this.account.role() !== 'master') {
+    if (!this.account.signedIn()) {
       return;
     }
     this.revision += 1;

@@ -3,8 +3,6 @@ package refs
 import (
 	"context"
 	"time"
-
-	"post-helper/server/internal/strategy"
 )
 
 type OrderItem struct {
@@ -69,8 +67,8 @@ type Plan struct {
 }
 
 type Request struct {
-	Profile strategy.Profile
-	Item    Item
+	About string
+	Item  Item
 }
 
 type Generator interface {

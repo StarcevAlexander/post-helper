@@ -52,11 +52,10 @@ type pushFixture struct {
 func newPushFixture(t *testing.T, pusher push.Sender) *pushFixture {
 	t.Helper()
 	fixture := &pushFixture{accounts: accounts.NewMemory(), store: push.NewMemory()}
-	fixture.handler = NewHandler(Options{
+	fixture.handler = bothHandlers(Options{
 		Accounts:       fixture.accounts,
 		PushStore:      fixture.store,
 		Pusher:         pusher,
-		Password:       testPassword,
 		AllowedOrigins: []string{testOrigin},
 		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
@@ -97,7 +96,6 @@ func TestPushKey(t *testing.T) {
 	disabled := off.call(http.MethodGet, "/api/push/key", offCode, "")
 	enabled := on.call(http.MethodGet, "/api/push/key", onCode, "")
 	anonymous := on.call(http.MethodGet, "/api/push/key", "", "")
-	admin := on.call(http.MethodGet, "/api/push/key", testPassword, "")
 
 	if disabled.Code != http.StatusServiceUnavailable {
 		t.Errorf("off = %d", disabled.Code)
@@ -105,8 +103,8 @@ func TestPushKey(t *testing.T) {
 	if enabled.Code != http.StatusOK || !strings.Contains(enabled.Body.String(), `"publicKey":"public-key"`) {
 		t.Errorf("on = %d %s", enabled.Code, enabled.Body)
 	}
-	if anonymous.Code != http.StatusUnauthorized || admin.Code != http.StatusForbidden {
-		t.Errorf("anonymous = %d, admin = %d", anonymous.Code, admin.Code)
+	if anonymous.Code != http.StatusUnauthorized {
+		t.Errorf("anonymous = %d", anonymous.Code)
 	}
 }
 
@@ -156,17 +154,13 @@ func TestPushSubscribeWhenOff(t *testing.T) {
 func TestOwnerSendsPushToMaster(t *testing.T) {
 	pusher := newFakePusher(2)
 	fixture := newPushFixture(t, pusher)
-	code, master := fixture.master(t, "Анна")
+	_, master := fixture.master(t, "Анна")
 	path := "/api/admin/masters/" + master.ID + "/push"
 
-	denied := fixture.call(http.MethodPost, path, code, `{"title":"Привет"}`)
 	empty := fixture.call(http.MethodPost, path, testPassword, `{"title":" "}`)
 	foreignURL := fixture.call(http.MethodPost, path, testPassword, `{"title":"Привет","url":"https://evil.example/"}`)
 	sent := fixture.call(http.MethodPost, path, testPassword, `{"title":"Привет","body":"Текст"}`)
 
-	if denied.Code != http.StatusForbidden {
-		t.Errorf("master = %d", denied.Code)
-	}
 	if empty.Code != http.StatusBadRequest || foreignURL.Code != http.StatusBadRequest {
 		t.Errorf("empty = %d, foreign url = %d", empty.Code, foreignURL.Code)
 	}
@@ -238,14 +232,12 @@ func newRefsPushFixture(t *testing.T) *refsPushFixture {
 		{Prompt: "spine model on a desk", Caption: "Модель позвоночника"},
 		{Prompt: "towel and oil", Caption: "Полотенце и масло"},
 	}}}
-	base.handler = NewHandler(Options{
+	base.handler = bothHandlers(Options{
 		Accounts:       base.accounts,
 		PushStore:      base.store,
 		Pusher:         pusher,
 		Refs:           refs.NewMemory(),
 		RefPlanner:     planner,
-		AgentToken:     agentToken,
-		Password:       testPassword,
 		AllowedOrigins: []string{testOrigin},
 		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})

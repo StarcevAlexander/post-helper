@@ -37,10 +37,10 @@ func (p *Postgres) FindByCodeHash(ctx context.Context, codeHash string) (Master,
 	var master Master
 	var lastSeen *time.Time
 	err := p.pool.QueryRow(ctx,
-		`SELECT id, name, created_at, last_seen_at, disabled FROM masters
+		`SELECT id, name, created_at, last_seen_at, disabled, city, timezone FROM masters
 		WHERE code_hash = $1 OR id IN (SELECT master_id FROM master_tokens WHERE token_hash = $1)
 		LIMIT 1`,
-		codeHash).Scan(&master.ID, &master.Name, &master.CreatedAt, &lastSeen, &master.Disabled)
+		codeHash).Scan(&master.ID, &master.Name, &master.CreatedAt, &lastSeen, &master.Disabled, &master.City, &master.Timezone)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Master{}, ErrNotFound
 	}
@@ -52,7 +52,7 @@ func (p *Postgres) FindByCodeHash(ctx context.Context, codeHash string) (Master,
 
 func (p *Postgres) ListMasters(ctx context.Context, since time.Time) ([]MasterSummary, error) {
 	rows, err := p.pool.Query(ctx, `
-		SELECT m.id, m.name, m.created_at, m.last_seen_at, m.disabled,
+		SELECT m.id, m.name, m.created_at, m.last_seen_at, m.disabled, m.city, m.timezone,
 			COUNT(u.id) FILTER (WHERE u.created_at >= $1),
 			COUNT(u.id)
 		FROM masters m LEFT JOIN usage_log u ON u.master_id = m.id
@@ -65,7 +65,7 @@ func (p *Postgres) ListMasters(ctx context.Context, since time.Time) ([]MasterSu
 	for rows.Next() {
 		var summary MasterSummary
 		var lastSeen *time.Time
-		if err := rows.Scan(&summary.ID, &summary.Name, &summary.CreatedAt, &lastSeen, &summary.Disabled, &summary.UsageToday, &summary.UsageTotal); err != nil {
+		if err := rows.Scan(&summary.ID, &summary.Name, &summary.CreatedAt, &lastSeen, &summary.Disabled, &summary.City, &summary.Timezone, &summary.UsageToday, &summary.UsageTotal); err != nil {
 			return nil, err
 		}
 		if lastSeen != nil {
@@ -74,6 +74,32 @@ func (p *Postgres) ListMasters(ctx context.Context, since time.Time) ([]MasterSu
 		summaries = append(summaries, summary)
 	}
 	return summaries, rows.Err()
+}
+
+func (p *Postgres) GetMaster(ctx context.Context, id string) (Master, error) {
+	var master Master
+	var lastSeen *time.Time
+	err := p.pool.QueryRow(ctx,
+		`SELECT id, name, created_at, last_seen_at, disabled, city, timezone FROM masters WHERE id = $1`, id).
+		Scan(&master.ID, &master.Name, &master.CreatedAt, &lastSeen, &master.Disabled, &master.City, &master.Timezone)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Master{}, ErrNotFound
+	}
+	if lastSeen != nil {
+		master.LastSeenAt = *lastSeen
+	}
+	return master, err
+}
+
+func (p *Postgres) SetLocation(ctx context.Context, id, city, timezone string) error {
+	tag, err := p.pool.Exec(ctx, `UPDATE masters SET city = $2, timezone = $3 WHERE id = $1`, id, city, timezone)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (p *Postgres) SetDisabled(ctx context.Context, id string, disabled bool) error {
@@ -240,8 +266,8 @@ func (p *Postgres) ExportMaster(ctx context.Context, id string) (Export, error) 
 	var export Export
 	var lastSeen *time.Time
 	err := p.pool.QueryRow(ctx,
-		`SELECT id, name, created_at, last_seen_at, disabled FROM masters WHERE id = $1`, id).
-		Scan(&export.Master.ID, &export.Master.Name, &export.Master.CreatedAt, &lastSeen, &export.Master.Disabled)
+		`SELECT id, name, created_at, last_seen_at, disabled, city, timezone FROM masters WHERE id = $1`, id).
+		Scan(&export.Master.ID, &export.Master.Name, &export.Master.CreatedAt, &lastSeen, &export.Master.Disabled, &export.Master.City, &export.Master.Timezone)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Export{}, ErrNotFound
 	}

@@ -80,6 +80,10 @@ export class IntakeScreen {
     this.intake.setReference(index, (event.target as HTMLInputElement).value);
   }
 
+  protected onCityInput(event: Event): void {
+    this.intake.setCity((event.target as HTMLInputElement).value);
+  }
+
   protected onNoteInput(event: Event): void {
     this.intake.setNote((event.target as HTMLTextAreaElement).value);
   }

@@ -57,7 +57,11 @@ func Announcement(request Request, masterName string, updated, review bool) stri
 	} else {
 		text.WriteString("Новая заявка на контент-план\n")
 	}
-	fmt.Fprintf(&text, "Мастер: %s\n\nСоцсети:\n", masterName)
+	fmt.Fprintf(&text, "Мастер: %s\n", masterName)
+	if request.City != "" {
+		fmt.Fprintf(&text, "Населённый пункт: %s\n", request.City)
+	}
+	text.WriteString("\nСоцсети:\n")
 	for _, network := range request.Networks {
 		fmt.Fprintf(&text, "• %s: %s\n", PlatformLabel(network.Platform), network.URL)
 	}

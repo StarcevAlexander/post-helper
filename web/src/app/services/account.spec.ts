@@ -31,7 +31,7 @@ describe('Account', () => {
 
     http.expectNone(meUrl);
     expect(account.info()).toBeUndefined();
-    expect(account.role()).toBeUndefined();
+    expect(account.signedIn()).toBe(false);
   });
 
   it('loads who is signed in as soon as a code is saved', () => {
@@ -41,32 +41,14 @@ describe('Account', () => {
 
     const request = http.expectOne(meUrl);
     expect(request.request.headers.get('Authorization')).toBe('Bearer ABCDE-FGHJK-LMNPQ-RSTUV');
-    request.flush({
-      role: 'master',
-      name: 'Анна',
-      dailyLimit: 80,
-      usageToday: 3,
-      retentionDays: 1095,
-    });
+    request.flush({ name: 'Анна', retentionDays: 1095 });
 
     return vi
-      .waitFor(() => expect(account.role()).toBe('master'))
+      .waitFor(() => expect(account.signedIn()).toBe(true))
       .then(() => {
         expect(account.info()?.name).toBe('Анна');
-        expect(account.info()?.usageToday).toBe(3);
+        expect(account.info()?.retentionDays).toBe(1095);
       });
-  });
-
-  it('recognizes the owner', async () => {
-    const account = TestBed.inject(Account);
-    access.save('owner-secret-1');
-    TestBed.tick();
-
-    http
-      .expectOne(meUrl)
-      .flush({ role: 'admin', name: 'owner', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
-
-    await vi.waitFor(() => expect(account.role()).toBe('admin'));
   });
 
   it('signs out when the server refuses the code', async () => {
@@ -102,10 +84,8 @@ describe('Account', () => {
     const account = TestBed.inject(Account);
     access.save('ABCDE-FGHJK-LMNPQ-RSTUV');
     TestBed.tick();
-    http
-      .expectOne(meUrl)
-      .flush({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
-    await vi.waitFor(() => expect(account.role()).toBe('master'));
+    http.expectOne(meUrl).flush({ name: 'Анна', retentionDays: 1095 });
+    await vi.waitFor(() => expect(account.signedIn()).toBe(true));
 
     const renamed = account.rename('Мария');
     const request = http.expectOne(`${API_DEV_URL}${API_ME_NAME_PATH}`);
@@ -121,10 +101,8 @@ describe('Account', () => {
     const account = TestBed.inject(Account);
     access.save('ABCDE-FGHJK-LMNPQ-RSTUV');
     TestBed.tick();
-    http
-      .expectOne(meUrl)
-      .flush({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
-    await vi.waitFor(() => expect(account.role()).toBe('master'));
+    http.expectOne(meUrl).flush({ name: 'Анна', retentionDays: 1095 });
+    await vi.waitFor(() => expect(account.signedIn()).toBe(true));
 
     const renamed = account.rename('x');
     http
@@ -139,10 +117,8 @@ describe('Account', () => {
     const account = TestBed.inject(Account);
     access.save('ABCDE-FGHJK-LMNPQ-RSTUV');
     TestBed.tick();
-    http
-      .expectOne(meUrl)
-      .flush({ role: 'master', name: 'Анна', dailyLimit: 80, usageToday: 0, retentionDays: 1095 });
-    await vi.waitFor(() => expect(account.role()).toBe('master'));
+    http.expectOne(meUrl).flush({ name: 'Анна', retentionDays: 1095 });
+    await vi.waitFor(() => expect(account.signedIn()).toBe(true));
 
     access.clear();
     TestBed.tick();

@@ -36,14 +36,17 @@ const (
 )
 
 const (
-	MaxBodyBytes  int64 = 25 << 20
-	MaxFormMemory int64 = 8 << 20
-	MaxFiles            = 8
-	AuthFailDelay       = 400 * time.Millisecond
-	CORSMaxAge          = "600"
-	CORSMethods         = "GET, POST, PUT, DELETE, OPTIONS"
-	CORSHeaders         = "Authorization, Content-Type"
-	BearerPrefix        = "Bearer "
+	MaxBodyBytes   int64 = 25 << 20
+	MaxFormMemory  int64 = 8 << 20
+	MaxFiles             = 8
+	AuthFailDelay        = 400 * time.Millisecond
+	journalTimeout       = 5 * time.Second
+	SniffLength          = 512
+	RequestTimeout       = 120 * time.Second
+	CORSMaxAge           = "600"
+	CORSMethods          = "GET, POST, PUT, DELETE, OPTIONS"
+	CORSHeaders          = "Authorization, Content-Type"
+	BearerPrefix         = "Bearer "
 )
 
 const (
@@ -91,15 +94,13 @@ const (
 	AdminMastersRoute             = "GET /api/admin/masters"
 	AdminCreateMasterRoute        = "POST /api/admin/masters"
 	AdminDisableMasterRoute       = "POST /api/admin/masters/{id}/disabled"
+	AdminLocationRoute            = "POST /api/admin/masters/{id}/location"
 	ReviewRoute                   = "POST /api/review"
 	MaxStateBodyBytes       int64 = 3 << 20
 	MaxMasterNameRunes            = 60
 	MaxReviewItems                = 60
 	MaxReviewPillars              = 12
 	MaxReviewFieldRunes           = 600
-	MsgForbidden                  = "Это действие доступно только владельцу"
-	MsgMasterOnly                 = "Это действие доступно только мастеру"
-	MsgQuotaExceeded              = "Дневной лимит обращений к ИИ исчерпан, попробуйте завтра"
 	MsgBadState                   = "Не удалось разобрать сохранённые данные"
 	MsgStateConflict              = "Данные уже изменены с другого устройства"
 	MsgStateFailed                = "Не удалось сохранить данные, попробуйте ещё раз"
@@ -116,6 +117,9 @@ const (
 	MaxYandexCodeBytes            = 4096
 	SignInLimitPerWindow          = 30
 	SignInLimitWindow             = time.Minute
+	MsgMasterNotFound             = "Мастер не найден"
+	MsgBadPlace                   = "Укажите населённый пункт и, если знаете, часовой пояс IANA, например Asia/Irkutsk"
+	MsgPlaceUnknown               = "Не удалось определить часовой пояс по населённому пункту, укажите его явно"
 	MsgMasterFailed               = "Не удалось выполнить действие с мастером"
 	MsgReviewFailed               = "Не удалось подвести итоги, попробуйте ещё раз"
 	MsgReviewRefused              = "Итоги по этим данным подвести не получилось"
@@ -156,27 +160,26 @@ const (
 )
 
 const (
-	AuditJobCreateRoute  = "POST /api/audit/jobs"
-	AuditJobLatestRoute  = "GET /api/audit/jobs/latest"
-	AuditJobCancelRoute  = "POST /api/audit/jobs/{id}/cancel"
-	AgentNextRoute       = "GET /api/agent/jobs/next"
-	AgentResultRoute     = "POST /api/agent/jobs/{id}/result"
-	AgentFailRoute       = "POST /api/agent/jobs/{id}/fail"
-	AdminAuditJobsRoute  = "GET /api/admin/audit-jobs"
-	FieldData            = "data"
-	JobLease             = 20 * time.Minute
-	MaxJobReasonRunes    = 300
-	MsgConsentRequired   = "Нужно согласие на разбор вашего открытого аккаунта"
-	MsgBadHandle         = "Не удалось понять ссылку или ник. Пример: anna_nails или instagram.com/anna_nails* (* Instagram принадлежит Meta, запрещённой в РФ)"
-	MsgJobActive         = "Разбор уже заказан и ещё не закончен"
-	MsgJobFailed         = "Не удалось выполнить действие с заказом на разбор"
-	MsgJobNotFound       = "Заказ на разбор не найден"
-	MsgJobState          = "Заказ в другом состоянии"
-	MsgAgentUnauthorized = "Неверный токен агента"
-	MsgBadCollected      = "Не удалось разобрать данные профиля"
-	UsageAuditJob        = "audit.job"
-	EventJobCreated      = "audit.job.created"
-	EventJobFailed       = "audit.job.failed"
+	AuditJobCreateRoute = "POST /api/audit/jobs"
+	AuditJobLatestRoute = "GET /api/audit/jobs/latest"
+	AuditJobCancelRoute = "POST /api/audit/jobs/{id}/cancel"
+	AgentNextRoute      = "GET /api/agent/jobs/next"
+	AgentResultRoute    = "POST /api/agent/jobs/{id}/result"
+	AgentFailRoute      = "POST /api/agent/jobs/{id}/fail"
+	AdminAuditJobsRoute = "GET /api/admin/audit-jobs"
+	FieldData           = "data"
+	JobLease            = 20 * time.Minute
+	MaxJobReasonRunes   = 300
+	MsgConsentRequired  = "Нужно согласие на разбор вашего открытого аккаунта"
+	MsgBadHandle        = "Не удалось понять ссылку или ник. Пример: anna_nails или instagram.com/anna_nails* (* Instagram принадлежит Meta, запрещённой в РФ)"
+	MsgJobActive        = "Разбор уже заказан и ещё не закончен"
+	MsgJobFailed        = "Не удалось выполнить действие с заказом на разбор"
+	MsgJobNotFound      = "Заказ на разбор не найден"
+	MsgJobState         = "Заказ в другом состоянии"
+	MsgBadCollected     = "Не удалось разобрать данные профиля"
+	UsageAuditJob       = "audit.job"
+	EventJobCreated     = "audit.job.created"
+	EventJobFailed      = "audit.job.failed"
 )
 
 type JobProfile struct {
@@ -218,6 +221,7 @@ const (
 	MsgIntakeNoLinks            = "Добавьте хотя бы одну ссылку на свою соцсеть"
 	MsgIntakeTooManyLinks       = "Слишком много ссылок"
 	MsgIntakeTooManyRefs        = "Слишком много референсов, оставьте самые важные"
+	MsgIntakeBadCity            = "Не удалось понять населённый пункт. Напишите его название коротко, например Иркутск"
 	MsgIntakeBadLink            = "Не удалось понять ссылку. Пример: instagram.com/anna_nails* или t.me/anna_nails (* Instagram принадлежит Meta, запрещённой в РФ)"
 	MsgIntakeBadGoal            = "Неизвестная цель в списке"
 	MsgIntakeNoGoals            = "Отметьте хотя бы одну цель"
@@ -227,12 +231,19 @@ const (
 	MsgRefsNoItem               = "Такой публикации нет в календаре мастера"
 )
 
+type AdminLocationRequest struct {
+	City     string `json:"city"`
+	Timezone string `json:"timezone"`
+}
+
 type IntakeRequest struct {
 	Links      []string `json:"links"`
 	References []string `json:"references"`
 	Goals      []string `json:"goals"`
 	Note       string   `json:"note"`
 	Review     bool     `json:"review"`
+	City       string   `json:"city"`
+	TimeZone   string   `json:"timeZone"`
 }
 
 const (

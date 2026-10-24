@@ -105,8 +105,24 @@
     </fieldset>
 
     <section class="section">
+      <label class="section__heading" for="intake-city">{{ texts.cityTitle }}</label>
+      <p class="screen__hint" id="intake-city-hint">{{ texts.cityHint }}</p>
+      <input
+        id="intake-city"
+        class="field"
+        type="text"
+        autocomplete="address-level2"
+        aria-describedby="intake-city-hint"
+        [placeholder]="texts.cityPlaceholder"
+        [value]="intake.draft().city"
+        (input)="onCityInput($event)"
+      />
+    </section>
+
+    <section class="section">
       <label class="section__heading" for="intake-note">{{ texts.noteTitle }}</label>
       <p class="screen__hint" id="intake-note-hint">{{ texts.noteHint }}</p>
+      <p class="screen__hint">{{ texts.noteLocationHint }}</p>
       <textarea
         id="intake-note"
         class="field field--note"
@@ -194,6 +210,12 @@
         }
       </ul>
     </section>
+    @if (intake.request()?.city; as city) {
+      <section class="section">
+        <h3 class="section__heading">{{ texts.cityLabel }}</h3>
+        <p class="suggestion">{{ city }}</p>
+      </section>
+    }
     @if (intake.request()?.note; as note) {
       <section class="section">
         <h3 class="section__heading">{{ texts.sentWishes }}</h3>

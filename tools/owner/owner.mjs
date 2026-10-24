@@ -23,18 +23,20 @@ const HELP = `Управление «Помощником» из консоли 
                                                       залить до 3 фото-референсов к публикации календаря (подпись = подробное описание кадра)
   node tools/owner/owner.mjs review <id> [--json]      выполнение плана: проценты по неделям, форматам, рубрикам, просрочки, итоги недели
   node tools/owner/owner.mjs refs-clear <id>          удалить референсы мастера целиком (по всем публикациям)
+  node tools/owner/owner.mjs location <id> "Город" [зона IANA]
+                                                      записать населённый пункт мастера и часовой пояс (без зоны её определит нейросеть)
   node tools/owner/owner.mjs push <id> "Заголовок" ["Текст"] [--url "./?screen=today"]
                                                       отправить мастеру уведомление на телефон (если он включил их в настройках)
 
-Настройка: OWNER_SERVER и OWNER_PASSWORD в окружении или в tools/owner/.env`;
+Настройка: сервер по умолчанию http://127.0.0.1:8081 (локальный админский порт), другой адрес задаётся OWNER_SERVER в окружении или в tools/owner/.env`;
+
+const DEFAULT_SERVER = 'http://127.0.0.1:8081';
 
 const MEDIA_TYPES = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
-  '.mp4': 'video/mp4',
-  '.webm': 'video/webm',
 };
 
 function readEnv() {
@@ -55,12 +57,12 @@ function readEnv() {
 
 async function call(method, path, body) {
   const env = readEnv();
-  const server = (env.OWNER_SERVER ?? '').replace(/\/+$/, '');
-  if (!/^https?:\/\//.test(server) || !env.OWNER_PASSWORD) {
-    throw new Error('Задайте OWNER_SERVER (адрес сервера) и OWNER_PASSWORD в tools/owner/.env');
+  const server = (env.OWNER_SERVER ?? DEFAULT_SERVER).replace(/\/+$/, '');
+  if (!/^https?:\/\//.test(server)) {
+    throw new Error('OWNER_SERVER должен начинаться с http:// или https://');
   }
   const form = body instanceof FormData;
-  const headers = { Authorization: `Bearer ${env.OWNER_PASSWORD}` };
+  const headers = {};
   if (!form) {
     headers['Content-Type'] = 'application/json';
   }
@@ -87,6 +89,7 @@ function describeIntake(request) {
   const lines = [
     `${request.review ? 'ПРОСЬБА ОБ ИТОГАХ МЕСЯЦА (/content-review)' : 'Заявка'} ${request.id} · ${request.status === 'ready' ? 'готова' : 'новая'} · ${request.createdAt}`,
     `Мастер: ${request.masterName || '?'} (id ${request.masterId})`,
+    `Населённый пункт: ${request.city || 'не указан (поищите в пожеланиях и на страницах мастера)'} · часовой пояс: ${request.masterTimezone || 'не определён'}`,
     'Соцсети:',
     ...request.networks.map((network) => `  • ${network.platform}: ${network.url}`),
     ...(request.references?.length
@@ -185,6 +188,13 @@ async function main([command, id, extra, ...rest]) {
       }
       const plan = JSON.parse(readFileSync(extra, 'utf8'));
       return console.log(await call('POST', `${MASTERS}/${id}/plan`, plan));
+    }
+    case 'location': {
+      if (!id || !extra) {
+        throw new Error('Нужно: location <id мастера> "Город" [зона IANA, например Asia/Irkutsk]');
+      }
+      const placed = await call('POST', `${MASTERS}/${id}/location`, { city: extra, timezone: rest[0] ?? '' });
+      return console.log(`Записано: ${placed.city}, часовой пояс ${placed.timezone}`);
     }
     case 'push': {
       if (!id || !extra) {

@@ -2,8 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -15,12 +13,13 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/audit"
 	"post-helper/server/internal/auth"
-	"post-helper/server/internal/chat"
-	"post-helper/server/internal/strategy"
+	"post-helper/server/internal/intake"
 )
 
 type auditJobsHandler struct {
 	accounts accounts.Store
+	intakes  intake.Store
+	keeper   *placeKeeper
 	logger   *slog.Logger
 }
 
@@ -107,24 +106,6 @@ func (h *auditJobsHandler) recordEvent(ctx context.Context, masterID, kind strin
 	}
 }
 
-func (h *auditJobsHandler) profileOf(ctx context.Context, masterID string) strategy.Profile {
-	state, err := h.accounts.LoadState(ctx, masterID)
-	if err != nil {
-		return strategy.Profile{}
-	}
-	var stored struct {
-		Onboarding struct {
-			Answers strategy.Profile `json:"answers"`
-		} `json:"onboarding"`
-	}
-	if err := json.Unmarshal(state.Data, &stored); err != nil {
-		return strategy.Profile{}
-	}
-	profile := stored.Onboarding.Answers
-	profile.Audit = ""
-	return profile
-}
-
 type agentHandler struct {
 	auditJobsHandler
 	generator audit.Generator
@@ -139,12 +120,12 @@ func (h *agentHandler) next(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("claim audit job failed", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, MsgJobFailed)
 	default:
-		profile := h.profileOf(r.Context(), job.MasterID)
+		master, _ := h.accounts.GetMaster(r.Context(), job.MasterID)
 		writeJSON(w, http.StatusOK, AgentJob{
 			ID:       job.ID,
 			Handle:   job.Handle,
 			Attempts: job.Attempts,
-			Profile:  JobProfile{Name: profile.Name, Specialty: profile.Specialty, City: profile.City},
+			Profile:  JobProfile{Name: master.Name, City: master.City},
 		})
 	}
 }
@@ -234,12 +215,12 @@ func (h *agentHandler) result(w http.ResponseWriter, r *http.Request) {
 		collected.Handle = job.Handle
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), chat.RequestTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), RequestTimeout)
 	defer cancel()
 	result, err := h.generator.Generate(ctx, audit.Request{
-		Profile: h.profileOf(r.Context(), job.MasterID),
-		Images:  images,
-		Extra:   audit.DescribeCollected(collected),
+		About:  aboutMaster(r.Context(), h.accounts, h.intakes, job.MasterID),
+		Images: images,
+		Extra:  audit.DescribeCollected(collected),
 	})
 	var unreadable *audit.UnreadableError
 	switch {
@@ -278,21 +259,6 @@ func (h *agentHandler) result(w http.ResponseWriter, r *http.Request) {
 		"source": "agent",
 		"result": result,
 	})
+	h.keeper.learnFromSocial(r.Context(), job.MasterID, collected)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
-}
-
-func withAgentToken(token string, next http.Handler) http.Handler {
-	expected := sha256.Sum256([]byte(token))
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		provided := sha256.Sum256([]byte(bearerToken(r)))
-		if subtle.ConstantTimeCompare(provided[:], expected[:]) != 1 {
-			select {
-			case <-time.After(AuthFailDelay):
-			case <-r.Context().Done():
-			}
-			writeError(w, http.StatusUnauthorized, MsgAgentUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }

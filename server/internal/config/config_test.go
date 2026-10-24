@@ -10,7 +10,6 @@ import (
 func TestLoad(t *testing.T) {
 	t.Run("defaults", func(t *testing.T) {
 		t.Setenv(EnvAPIKey, "key")
-		t.Setenv(EnvAccessPassword, "long-enough-pass")
 		t.Setenv(EnvPort, "")
 		t.Setenv(EnvAllowedOrigins, "")
 		t.Setenv(EnvModel, "")
@@ -29,7 +28,6 @@ func TestLoad(t *testing.T) {
 
 	t.Run("custom origins", func(t *testing.T) {
 		t.Setenv(EnvAPIKey, "key")
-		t.Setenv(EnvAccessPassword, "long-enough-pass")
 		t.Setenv(EnvAllowedOrigins, " https://a.example , https://b.example ")
 
 		cfg, err := Load()
@@ -41,9 +39,8 @@ func TestLoad(t *testing.T) {
 		}
 	})
 
-	t.Run("missing secrets", func(t *testing.T) {
+	t.Run("missing key", func(t *testing.T) {
 		t.Setenv(EnvAPIKey, "")
-		t.Setenv(EnvAccessPassword, "short")
 
 		if _, err := Load(); err == nil {
 			t.Fatal("expected error")
@@ -87,38 +84,8 @@ func TestLoadDotEnvMissingFile(t *testing.T) {
 	}
 }
 
-func TestDailyAILimit(t *testing.T) {
-	tests := []struct {
-		raw  string
-		want int
-	}{
-		{raw: "", want: DefaultDailyLimit},
-		{raw: "abc", want: DefaultDailyLimit},
-		{raw: "-5", want: DefaultDailyLimit},
-		{raw: "25", want: 25},
-		{raw: " 40 ", want: 40},
-		{raw: "0", want: 0},
-	}
-	for _, tt := range tests {
-		t.Run(tt.raw, func(t *testing.T) {
-			t.Setenv(EnvAPIKey, "key")
-			t.Setenv(EnvAccessPassword, "long-enough-pass")
-			t.Setenv(EnvDailyAILimit, tt.raw)
-
-			cfg, err := Load()
-			if err != nil {
-				t.Fatalf("Load: %v", err)
-			}
-			if cfg.DailyAILimit != tt.want {
-				t.Errorf("limit = %d, want %d", cfg.DailyAILimit, tt.want)
-			}
-		})
-	}
-}
-
 func TestRetentionAndHistorySettings(t *testing.T) {
 	t.Setenv(EnvAPIKey, "key")
-	t.Setenv(EnvAccessPassword, "long-enough-pass")
 
 	t.Run("defaults keep data for three years and 200 versions", func(t *testing.T) {
 		t.Setenv(EnvRetentionDays, "")
@@ -156,28 +123,21 @@ func TestRetentionAndHistorySettings(t *testing.T) {
 	})
 }
 
-func TestAgentToken(t *testing.T) {
+func TestAdminPort(t *testing.T) {
 	t.Setenv(EnvAPIKey, "key")
-	t.Setenv(EnvAccessPassword, "long-enough-pass")
 
-	t.Run("not set means the agent is off", func(t *testing.T) {
-		t.Setenv(EnvAgentToken, "")
+	t.Run("defaults to a local port", func(t *testing.T) {
+		t.Setenv(EnvAdminPort, "")
 		cfg, err := Load()
-		if err != nil || cfg.AgentToken != "" {
+		if err != nil || cfg.AdminPort != DefaultAdminPort {
 			t.Fatalf("cfg = %+v, err = %v", cfg, err)
 		}
 	})
-	t.Run("a long token is accepted and trimmed", func(t *testing.T) {
-		t.Setenv(EnvAgentToken, "  0123456789abcdef0123456789abcdef  ")
+	t.Run("can be moved", func(t *testing.T) {
+		t.Setenv(EnvAdminPort, " 9090 ")
 		cfg, err := Load()
-		if err != nil || cfg.AgentToken != "0123456789abcdef0123456789abcdef" {
+		if err != nil || cfg.AdminPort != "9090" {
 			t.Fatalf("cfg = %+v, err = %v", cfg, err)
-		}
-	})
-	t.Run("a short token is refused", func(t *testing.T) {
-		t.Setenv(EnvAgentToken, "short")
-		if _, err := Load(); err == nil {
-			t.Fatal("a weak agent token must stop the server from starting")
 		}
 	})
 }

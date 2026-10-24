@@ -69,14 +69,11 @@ async function request(config, method, path, body, headers = {}) {
   try {
     response = await fetch(`${config.server}${path}`, {
       method,
-      headers: { Authorization: `Bearer ${config.token}`, ...headers },
+      headers,
       body,
     });
   } catch (error) {
     throw new AgentError(`Сервер недоступен (${config.server}): ${error.message}`, 4);
-  }
-  if (response.status === 401) {
-    throw new AgentError('Токен агента не подошёл, проверьте AGENT_TOKEN', 5);
   }
   if (response.status === 204) {
     return undefined;

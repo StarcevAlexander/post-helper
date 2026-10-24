@@ -14,9 +14,29 @@ const (
 	testOrigin   = "https://starcevalexander.github.io"
 )
 
+func isAdminPath(path string) bool {
+	for _, prefix := range []string{"/api/admin/", "/api/agent/", "/api/history", "/api/events", "/api/errors", "/api/ingest"} {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func bothHandlers(options Options) http.Handler {
+	public := NewHandler(options)
+	admin := NewAdminHandler(options)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isAdminPath(r.URL.Path) {
+			admin.ServeHTTP(w, r)
+			return
+		}
+		public.ServeHTTP(w, r)
+	})
+}
+
 func newTestHandler() http.Handler {
-	return NewHandler(Options{
-		Password:       testPassword,
+	return bothHandlers(Options{
 		AllowedOrigins: []string{testOrigin},
 		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})

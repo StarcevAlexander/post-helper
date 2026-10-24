@@ -12,6 +12,7 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
 	"post-helper/server/internal/intake"
+	"post-helper/server/internal/places"
 	"post-helper/server/internal/plan"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
@@ -24,6 +25,8 @@ type intakeHandler struct {
 	notifier intake.Notifier
 	pushes   *pushHandler
 	refsOn   bool
+	places   places.Resolver
+	keeper   *placeKeeper
 	logger   *slog.Logger
 }
 
@@ -41,6 +44,16 @@ func (h *intakeHandler) submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	city := ""
+	if strings.TrimSpace(body.City) != "" {
+		cleaned, ok := places.CleanCity(body.City)
+		if !ok {
+			writeError(w, http.StatusBadRequest, MsgIntakeBadCity)
+			return
+		}
+		city = cleaned
+	}
+	draft.City = city
 	draft.Review = body.Review
 
 	request, updated, err := h.intake.Submit(r.Context(), identity.MasterID, draft, time.Now())
@@ -49,8 +62,53 @@ func (h *intakeHandler) submit(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, MsgIntakeFailed)
 		return
 	}
+	h.locate(r.Context(), identity.MasterID, city, draft.Note, body.TimeZone)
 	h.announce(r.Context(), request, identity.Name, updated, body.Review)
 	writeJSON(w, http.StatusOK, request)
+}
+
+func (h *intakeHandler) locate(ctx context.Context, masterID, city, note, browserZone string) {
+	master, err := h.accounts.GetMaster(ctx, masterID)
+	if err != nil {
+		h.logger.Error("load master for location failed", slog.Any("error", err))
+		return
+	}
+	storedCity := master.City
+	if city != "" {
+		storedCity = city
+	}
+	zone := master.Timezone
+	if zone == "" && places.ValidZone(browserZone) {
+		zone = browserZone
+	}
+	if storedCity != master.City || zone != master.Timezone {
+		if err := h.accounts.SetLocation(ctx, masterID, storedCity, zone); err != nil {
+			h.logger.Error("save location failed", slog.Any("error", err))
+			return
+		}
+	}
+	wanted := (city != "" && (city != master.City || master.Timezone == "")) ||
+		(city == "" && strings.TrimSpace(note) != "" && (master.City == "" || master.Timezone == ""))
+	if !wanted || h.places == nil {
+		return
+	}
+	detached := context.WithoutCancel(ctx)
+	go func() {
+		lookupCtx, cancel := context.WithTimeout(detached, places.RequestTimeout)
+		defer cancel()
+		found, err := h.places.Locate(lookupCtx, places.Query{City: city, Note: note})
+		if err != nil {
+			h.logger.Warn("place of the master is unknown", slog.String("city", city), slog.Any("error", err))
+			return
+		}
+		finalCity := storedCity
+		if finalCity == "" {
+			finalCity = found.City
+		}
+		if err := h.accounts.SetLocation(lookupCtx, masterID, finalCity, found.Zone); err != nil {
+			h.logger.Error("save found place failed", slog.Any("error", err))
+		}
+	}()
 }
 
 func (h *intakeHandler) announce(ctx context.Context, request intake.Request, masterName string, updated, review bool) {
@@ -95,13 +153,16 @@ func (h *intakeHandler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	names := map[string]string{}
+	zones := map[string]string{}
 	if masters, err := h.accounts.ListMasters(r.Context(), time.Now()); err == nil {
 		for _, master := range masters {
 			names[master.ID] = master.Name
+			zones[master.ID] = master.Timezone
 		}
 	}
 	for index := range requests {
 		requests[index].MasterName = names[requests[index].MasterID]
+		requests[index].MasterTimezone = zones[requests[index].MasterID]
 		for _, goal := range requests[index].Goals {
 			requests[index].GoalTitles = append(requests[index].GoalTitles, intake.GoalLabel(goal))
 		}
@@ -116,6 +177,13 @@ func (h *intakeHandler) deliverPlan(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&submission); err != nil {
 		writeError(w, http.StatusBadRequest, MsgBadPlan)
 		return
+	}
+
+	if place := submission.Location; place != nil {
+		if _, ok := places.CleanCity(place.City); !ok || (strings.TrimSpace(place.Timezone) != "" && !places.ValidZone(strings.TrimSpace(place.Timezone))) {
+			writeError(w, http.StatusBadRequest, "location: "+MsgBadPlace)
+			return
+		}
 	}
 
 	current, err := h.accounts.LoadState(r.Context(), id)
@@ -138,6 +206,12 @@ func (h *intakeHandler) deliverPlan(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("save plan failed", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, MsgPlanFailed)
 		return
+	}
+
+	if place := submission.Location; place != nil {
+		if _, status, message := h.keeper.set(r.Context(), id, place.City, place.Timezone); message != "" {
+			h.logger.Warn("place from the plan was not saved", slog.Int("status", status), slog.String("reason", message))
+		}
 	}
 
 	note := strings.TrimSpace(submission.Note)

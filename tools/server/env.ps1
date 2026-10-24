@@ -1,11 +1,8 @@
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $EnvFile = Join-Path $Repo 'server\.env'
-$OwnerEnvFile = Join-Path $Repo 'tools\owner\.env'
 $DbUrlFile = 'C:\post-helper-db\database-url.txt'
 $Keys = @(
   @{ Name = 'ANTHROPIC_API_KEY'; Secret = $true; Generate = 0 },
-  @{ Name = 'ACCESS_PASSWORD'; Secret = $true; Generate = 28 },
-  @{ Name = 'AGENT_TOKEN'; Secret = $true; Generate = 32 },
   @{ Name = 'TELEGRAM_BOT_TOKEN'; Secret = $true; Generate = 0 },
   @{ Name = 'TELEGRAM_CHAT_ID'; Secret = $false; Generate = 0 }
 )
@@ -53,11 +50,6 @@ foreach ($key in $Keys) {
 
 $lines = $values.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }
 Set-Content -Path $EnvFile -Value $lines -Encoding ascii
-
-if ($values['ACCESS_PASSWORD'] -and -not (Test-Path $OwnerEnvFile)) {
-  Set-Content -Path $OwnerEnvFile -Value @('OWNER_SERVER=http://127.0.0.1:8080', "OWNER_PASSWORD=$($values['ACCESS_PASSWORD'])") -Encoding ascii
-  Write-Output "Created $OwnerEnvFile for the owner commands"
-}
 
 Write-Output "Saved $EnvFile with $($values.Count) values:"
 $values.GetEnumerator() | ForEach-Object { Write-Output "  $($_.Key): $($_.Value.Length) chars" }

@@ -14,7 +14,7 @@ const HELP = `Воркер референсов «Помощника»: на в�
   --once     взять один пункт и выйти (код 3, если очередь пуста)
   --sample   проверка без сервера: сделать один референс по промпту и сохранить в папку
 
-Настройка: AGENT_SERVER и AGENT_TOKEN в tools/agent/.env, ComfyUI по умолчанию в ${COMFY_DEFAULTS.dir}
+Настройка: сервер по умолчанию http://127.0.0.1:8081 (AGENT_SERVER в tools/agent/.env переопределяет), ComfyUI по умолчанию в ${COMFY_DEFAULTS.dir}
 (переменные COMFY_DIR и COMFY_URL).`;
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -89,9 +89,6 @@ async function main(argv) {
     try {
       item = await nextRef(config);
     } catch (error) {
-      if (error instanceof AgentError && error.code === 5) {
-        throw error;
-      }
       log(`очередь недоступна: ${error.message}`);
     }
     if (item) {

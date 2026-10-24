@@ -81,9 +81,9 @@
         <section class="account">
           <p class="account__line">
             {{ accountLabels.signedInAs }}
-            <strong>{{ info.role === 'admin' ? accountLabels.owner : info.name }}</strong>
+            <strong>{{ info.name }}</strong>
           </p>
-          @if (info.role === 'master' && info.retentionDays >= 0) {
+          @if (info.retentionDays >= 0) {
             <p class="account__hint">{{ retentionNote }} {{ retention() }}.</p>
           }
           @if (syncText()) {
@@ -93,7 +93,7 @@
             <p class="account__hint">{{ yandexTexts.linked }}</p>
           }
         </section>
-        @if (info.role === 'master' && yandex.available() && !yandex.linked()) {
+        @if (yandex.available() && !yandex.linked()) {
           <button
             type="button"
             class="panel__item"
@@ -106,7 +106,7 @@
         @if (yandex.notice()) {
           <p class="panel__hint" role="status">{{ yandex.notice() }}</p>
         }
-        @if (info.role === 'master') {
+        @if (account.signedIn()) {
           <a class="panel__item" routerLink="/settings/name">
             {{ accountTexts.rename }}
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
@@ -135,7 +135,7 @@
           />
         </svg>
       </a>
-      @if (account.role() === 'master') {
+      @if (account.signedIn()) {
         <label class="panel__toggle">
           <input
             type="checkbox"
@@ -189,7 +189,7 @@
         >
           {{ logoutLabel() }}
         </button>
-        @if (account.role() === 'master') {
+        @if (account.signedIn()) {
           <p class="panel__hint">{{ logoutHint() }}</p>
         }
         @if (logoutError()) {

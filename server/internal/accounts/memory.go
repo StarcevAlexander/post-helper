@@ -113,6 +113,27 @@ func (m *Memory) ListMasters(_ context.Context, since time.Time) ([]MasterSummar
 	return summaries, nil
 }
 
+func (m *Memory) GetMaster(_ context.Context, id string) (Master, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	master, ok := m.masters[id]
+	if !ok {
+		return Master{}, ErrNotFound
+	}
+	return master.Master, nil
+}
+
+func (m *Memory) SetLocation(_ context.Context, id, city, timezone string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	master, ok := m.masters[id]
+	if !ok {
+		return ErrNotFound
+	}
+	master.City, master.Timezone = city, timezone
+	return nil
+}
+
 func (m *Memory) SetDisabled(_ context.Context, id string, disabled bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

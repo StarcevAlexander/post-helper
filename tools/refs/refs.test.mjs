@@ -13,8 +13,6 @@ import {
   workflowFor,
 } from './lib.mjs';
 
-const TOKEN = 'agent-token-0123456789abcdef';
-
 describe('workflows', () => {
   it('puts the prompt and the seed into the photo graph', () => {
     const graph = photoWorkflow('a cup of tea', 42, 'ph_ref_42');
@@ -49,12 +47,7 @@ describe('talking to the server', () => {
       const chunks = [];
       request.on('data', (chunk) => chunks.push(chunk));
       request.on('end', () => {
-        calls.push({ method: request.method, url: request.url, auth: request.headers.authorization, type: request.headers['content-type'], body: Buffer.concat(chunks) });
-        if (request.headers.authorization !== `Bearer ${TOKEN}`) {
-          response.writeHead(401, { 'Content-Type': 'application/json' });
-          response.end('{"error":"no"}');
-          return;
-        }
+        calls.push({ method: request.method, url: request.url, type: request.headers['content-type'], body: Buffer.concat(chunks) });
         if (request.url === '/api/agent/refs/next') {
           if (calls.filter((call) => call.url === request.url).length === 1) {
             response.writeHead(204);
@@ -70,7 +63,7 @@ describe('talking to the server', () => {
       });
     });
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-    config = { server: `http://127.0.0.1:${server.address().port}`, token: TOKEN };
+    config = { server: `http://127.0.0.1:${server.address().port}` };
   });
 
   after(() => server.close());
@@ -80,7 +73,6 @@ describe('talking to the server', () => {
     const item = await nextRef(config);
 
     assert.equal(item.key, 'w1-mon');
-    assert.equal(calls.at(-1).auth, `Bearer ${TOKEN}`);
   });
 
   it('uploads the files with their captions', async () => {
@@ -105,9 +97,8 @@ describe('talking to the server', () => {
     assert.deepEqual(JSON.parse(call.body.toString()), { reason: 'нет GPU', final: true });
   });
 
-  it('knows a wrong token and an unreachable server', async () => {
-    await assert.rejects(() => nextRef({ ...config, token: 'x'.repeat(30) }), (error) => error.code === 5);
-    await assert.rejects(() => nextRef({ server: 'http://127.0.0.1:1', token: TOKEN }), (error) => error.code === 4);
+  it('knows an unreachable server', async () => {
+    await assert.rejects(() => nextRef({ server: 'http://127.0.0.1:1' }), (error) => error.code === 4);
   });
 });
 

@@ -45,63 +45,29 @@ describe('SettingsPanel account block', () => {
   });
 
   it('shows the master name and how long the data is kept', async () => {
-    const element = await render({
-      role: 'master',
-      name: 'Анна',
-      dailyLimit: 80,
-      usageToday: 3,
-      retentionDays: 1095,
-    });
+    const element = await render({ name: 'Анна', retentionDays: 1095 });
 
     expect(element.querySelector('.account')?.textContent).toContain('Анна');
-    expect(element.querySelector('.account')?.textContent).not.toContain('из 80');
     expect(element.querySelector('.account')?.textContent).toContain('хранятся 3 года');
     expect(element.textContent).not.toContain('Мастера и расходы');
   });
 
-  it('shows the owner without the limit line and without the masters screen', async () => {
-    const element = await render({
-      role: 'admin',
-      name: 'owner',
-      dailyLimit: 80,
-      usageToday: 0,
-      retentionDays: 1095,
-    });
-
-    expect(element.querySelector('.account')?.textContent).toContain('владелец');
-    expect(element.querySelector('.account')?.textContent).not.toContain('из 80');
-    expect(element.querySelector('.account')?.textContent).not.toContain('хранится');
-    expect(element.textContent).not.toContain('Мастера и расходы');
-  });
-
-  it('refreshes the daily use of the AI each time the screen is opened', async () => {
+  it('refreshes the account data each time the screen is opened', async () => {
     TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
     const http = TestBed.inject(HttpTestingController);
     TestBed.inject(Account);
     TestBed.tick();
-    http.match(`${API_DEV_URL}${API_ME_PATH}`).forEach((request) =>
-      request.flush({
-        role: 'master',
-        name: 'Анна',
-        dailyLimit: 80,
-        usageToday: 1,
-        retentionDays: 1095,
-      }),
-    );
-    await vi.waitFor(() => expect(TestBed.inject(Account).info()?.usageToday).toBe(1));
+    http
+      .match(`${API_DEV_URL}${API_ME_PATH}`)
+      .forEach((request) => request.flush({ name: 'Анна', retentionDays: 1 }));
+    await vi.waitFor(() => expect(TestBed.inject(Account).info()?.retentionDays).toBe(1));
 
     const fixture = TestBed.createComponent(SettingsPanel);
     await fixture.whenStable();
 
     const requests = http.match(`${API_DEV_URL}${API_ME_PATH}`);
     expect(requests.length).toBe(1);
-    requests[0].flush({
-      role: 'master',
-      name: 'Анна',
-      dailyLimit: 80,
-      usageToday: 7,
-      retentionDays: 1095,
-    });
-    await vi.waitFor(() => expect(TestBed.inject(Account).info()?.usageToday).toBe(7));
+    requests[0].flush({ name: 'Анна', retentionDays: 7 });
+    await vi.waitFor(() => expect(TestBed.inject(Account).info()?.retentionDays).toBe(7));
   });
 });
