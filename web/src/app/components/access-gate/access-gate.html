@@ -1,11 +1,11 @@
 <form class="gate" (submit)="$event.preventDefault(); submit()">
-  <label class="gate__label" for="access-password">Код доступа</label>
+  <label class="gate__label" for="access-password">Пароль</label>
   <div class="gate__row">
     <input
       id="access-password"
       class="gate__input"
-      type="text"
-      autocomplete="off"
+      type="password"
+      autocomplete="current-password"
       autocapitalize="off"
       spellcheck="false"
       enterkeyhint="go"
@@ -13,4 +13,7 @@
     />
     <button type="submit" class="gate__button" [disabled]="!canSubmit()">Войти</button>
   </div>
+  @if (access.rejected()) {
+    <p class="gate__error" role="alert">{{ rejectedText }}</p>
+  }
 </form>

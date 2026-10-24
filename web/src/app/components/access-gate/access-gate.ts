@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { form, FormField } from '@angular/forms/signals';
+import { ACCOUNT_TEXTS } from '../../constants';
 import { Access } from '../../services/access';
 
 @Component({
@@ -9,7 +10,8 @@ import { Access } from '../../services/access';
   templateUrl: './access-gate.html',
 })
 export class AccessGate {
-  private readonly access = inject(Access);
+  protected readonly access = inject(Access);
+  protected readonly rejectedText = ACCOUNT_TEXTS.rejected;
 
   protected readonly model = signal({ password: '' });
   protected readonly gateForm = form(this.model);

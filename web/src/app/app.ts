@@ -25,8 +25,6 @@ import { StrategyScreen } from './components/strategy-screen/strategy-screen';
 import { TodayScreen } from './components/today-screen/today-screen';
 import {
   HISTORY_CONTEXT_LABEL,
-  NOTIFY_BUTTON_LABEL,
-  NOTIFY_WAITING_LABEL,
   CALENDAR_OPEN_LABEL,
   INTAKE_TEXTS,
   SETTINGS_OPEN_LABEL,
@@ -52,7 +50,6 @@ import { Sync } from './services/sync';
 import { Speech } from './services/speech';
 import { Today } from './services/today';
 import { PushNotifications } from './services/push-notifications';
-import { TestNotification } from './services/test-notification';
 import { APP_VERSION } from './version';
 
 @Component({
@@ -92,10 +89,7 @@ export class App {
   protected readonly refs = inject(Refs);
   private readonly auditJobs = inject(AuditJobs);
   protected readonly appUpdate = inject(AppUpdate);
-  protected readonly testNotification = inject(TestNotification);
   protected readonly pushNotifications = inject(PushNotifications);
-  protected readonly notifyLabel = NOTIFY_BUTTON_LABEL;
-  protected readonly notifyWaitingLabel = NOTIFY_WAITING_LABEL;
   protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;
   protected readonly strategyOpenLabel = STRATEGY_OPEN_LABEL;
   protected readonly calendarOpenLabel = CALENDAR_OPEN_LABEL;

@@ -85,6 +85,17 @@ func (p *Postgres) SetDisabled(ctx context.Context, id string, disabled bool) er
 	return nil
 }
 
+func (p *Postgres) RenameMaster(ctx context.Context, id, name string) error {
+	tag, err := p.pool.Exec(ctx, `UPDATE masters SET name = $2 WHERE id = $1`, id, name)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (p *Postgres) Touch(ctx context.Context, id string, at time.Time) error {
 	_, err := p.pool.Exec(ctx, `UPDATE masters SET last_seen_at = $2 WHERE id = $1`, id, at)
 	return err

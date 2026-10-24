@@ -84,6 +84,24 @@
           </div>
         </fieldset>
       }
+      @case ('name') {
+        <form class="name" (submit)="$event.preventDefault(); onRenameSubmitted()">
+          <label class="panel__hint" for="master-name">{{ accountTexts.nameLabel }}</label>
+          <input
+            id="master-name"
+            class="name__input"
+            type="text"
+            autocomplete="name"
+            [formField]="nameForm.name"
+          />
+          @if (nameError()) {
+            <p class="panel__hint panel__hint--error" role="alert">{{ nameError() }}</p>
+          }
+          <button type="submit" class="name__button" [disabled]="renaming()">
+            {{ accountTexts.save }}
+          </button>
+        </form>
+      }
       @case ('errors') {
         <app-error-log />
       }
@@ -126,6 +144,21 @@
               <p class="account__hint" role="status">{{ syncText() }}</p>
             }
           </section>
+          @if (info.role === 'master') {
+            <button type="button" class="panel__item" (click)="onRenameOpened()">
+              {{ accountTexts.rename }}
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+                <path
+                  d="M9 5l7 7-7 7"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          }
         }
         <button type="button" class="panel__item" (click)="screen.set('appearance')">
           {{ appearanceTitle }}
@@ -160,11 +193,26 @@
             />
             {{ pushTexts.label }}
           </label>
-          @if (!pushNotifications.supported) {
+          @if (pushNotifications.supported) {
+            <p class="panel__hint">{{ pushTexts.hint }}</p>
+          } @else {
             <p class="panel__hint">{{ pushTexts.unsupported }}</p>
+          }
+          @if (pushNotifications.subscribed()) {
+            <button
+              type="button"
+              class="panel__item"
+              [disabled]="testNotification.waiting()"
+              (click)="testNotification.schedule()"
+            >
+              {{ pushTexts.testLabel }}
+            </button>
           }
           @if (pushNotifications.notice()) {
             <p class="panel__hint" role="status">{{ pushNotifications.notice() }}</p>
+          }
+          @if (testNotification.notice()) {
+            <p class="panel__hint" role="status">{{ testNotification.notice() }}</p>
           }
         }
         <button type="button" class="panel__item" (click)="screen.set('errors')">
@@ -193,6 +241,22 @@
             />
           </svg>
         </button>
+        @if (account.info()) {
+          <button
+            type="button"
+            class="panel__item panel__item--danger"
+            [disabled]="loggingOut()"
+            (click)="onLogoutClicked()"
+          >
+            {{ logoutLabel() }}
+          </button>
+          @if (account.role() === 'master') {
+            <p class="panel__hint">{{ accountTexts.logoutHint }}</p>
+          }
+          @if (logoutError()) {
+            <p class="panel__hint panel__hint--error" role="alert">{{ logoutError() }}</p>
+          }
+        }
       }
     }
   </div>

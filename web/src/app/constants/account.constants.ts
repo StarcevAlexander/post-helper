@@ -21,6 +21,24 @@ export const ACCOUNT_LABELS = {
   owner: 'владелец',
 } as const;
 
+export const ACCOUNT_TEXTS = {
+  rename: 'Изменить имя',
+  nameLabel: 'Ваше имя',
+  save: 'Сохранить',
+  emptyName: 'Введите имя',
+  nameTooLong: 'Имя слишком длинное',
+  renameFailed: 'Не удалось сменить имя. Попробуйте ещё раз',
+  logout: 'Выйти',
+  logoutConfirm: 'Точно выйти?',
+  logoutHint: 'Ваши данные сохранены на сервере. Чтобы вернуться, понадобится ваш пароль.',
+  logoutUnsaved: 'Не удалось сохранить данные на сервере, поэтому выход отменён. Проверьте связь',
+  rejected: 'Пароль не подошёл или доступ отключён',
+} as const;
+
+export const MAX_NAME_LENGTH = 60;
+
+export const STORAGE_PREFIX = 'helper.';
+
 export const REVIEW_TEXTS = {
   title: 'Итоги недели',
   closeLabel: 'Закрыть итоги',

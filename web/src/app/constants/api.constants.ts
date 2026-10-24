@@ -10,6 +10,8 @@ export const API_KIT_PATH = '/api/kit';
 
 export const API_ME_PATH = '/api/me';
 
+export const API_ME_NAME_PATH = '/api/me/name';
+
 export const API_STATE_PATH = '/api/state';
 
 export const API_REVIEW_PATH = '/api/review';

@@ -48,6 +48,7 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(ClientErrorRoute, protected(&clientErrorHandler{recorder: history}))
 
 	mux.Handle(MeRoute, protected(&meHandler{accounts: accountStore, dailyLimit: options.DailyAILimit, retentionDays: options.RetentionDays, logger: logger}))
+	mux.Handle(MeRenameRoute, protected(requireMaster(&renameHandler{accounts: accountStore, logger: logger})))
 	mux.Handle(StateGetRoute, protected(requireMaster(http.HandlerFunc(state.get))))
 	mux.Handle(StatePutRoute, protected(requireMaster(http.HandlerFunc(state.put))))
 	mux.Handle(AdminMastersRoute, protected(requireAdmin(http.HandlerFunc(admin.list))))

@@ -52,6 +52,15 @@ func TestPostgresMastersStateAndUsage(t *testing.T) {
 	if err := db.SetDisabled(ctx, "missing", true); !errors.Is(err, accounts.ErrNotFound) {
 		t.Errorf("err = %v", err)
 	}
+	if err := db.RenameMaster(ctx, master.ID, "Тест 2"); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if err := db.RenameMaster(ctx, "missing", "Тест 2"); !errors.Is(err, accounts.ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+	if renamed, err := db.FindByCodeHash(ctx, hash); err != nil || renamed.Name != "Тест 2" {
+		t.Errorf("renamed = %+v, %v", renamed, err)
+	}
 
 	if _, err := db.LoadState(ctx, master.ID); !errors.Is(err, accounts.ErrNotFound) {
 		t.Fatalf("err = %v", err)

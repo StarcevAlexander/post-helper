@@ -82,6 +82,16 @@ func TestMemoryMasters(t *testing.T) {
 	if !found.Disabled {
 		t.Error("master must be disabled")
 	}
+	if err := store.RenameMaster(ctx, "missing", "Мария"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v", err)
+	}
+	if err := store.RenameMaster(ctx, master.ID, "Мария"); err != nil {
+		t.Fatal(err)
+	}
+	found, _ = store.FindByCodeHash(ctx, "hash")
+	if found.Name != "Мария" {
+		t.Errorf("name = %q", found.Name)
+	}
 }
 
 func TestMemoryStateHistoryKeepsTheLastVersionsOnly(t *testing.T) {

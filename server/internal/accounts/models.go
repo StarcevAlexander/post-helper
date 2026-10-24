@@ -95,6 +95,7 @@ type Store interface {
 	FindByCodeHash(ctx context.Context, codeHash string) (Master, error)
 	ListMasters(ctx context.Context, since time.Time) ([]MasterSummary, error)
 	SetDisabled(ctx context.Context, id string, disabled bool) error
+	RenameMaster(ctx context.Context, id, name string) error
 	Touch(ctx context.Context, id string, at time.Time) error
 	LoadState(ctx context.Context, id string) (State, error)
 	SaveState(ctx context.Context, id string, baseVersion int, data json.RawMessage, at time.Time) (State, error)

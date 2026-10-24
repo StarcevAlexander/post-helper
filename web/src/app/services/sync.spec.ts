@@ -193,6 +193,48 @@ describe('Sync', () => {
     http.expectNone({ method: 'PUT', url: stateUrl });
   });
 
+  it('settles at once when nothing is waiting to be saved', async () => {
+    await signIn();
+    http.expectOne(stateUrl).flush({ version: 0, data: null, updatedAt: '' });
+    await vi.waitFor(() => expect(sync.status()).toBe('ok'));
+
+    await expect(sync.settle()).resolves.toBe(true);
+    http.expectNone({ method: 'PUT', url: stateUrl });
+  });
+
+  it('settles by saving the unsaved changes first', async () => {
+    await signIn();
+    http.expectOne(stateUrl).flush({ version: 0, data: null, updatedAt: '' });
+    await vi.waitFor(() => expect(sync.status()).toBe('ok'));
+    TestBed.inject(Onboarding).answer('Анна');
+    TestBed.tick();
+    expect(meta()?.dirty).toBe(true);
+
+    const settled = sync.settle();
+    http
+      .expectOne({ method: 'PUT', url: stateUrl })
+      .flush({ version: 1, data: {}, updatedAt: '2026-10-19T10:00:00Z' });
+
+    await expect(settled).resolves.toBe(true);
+    expect(meta()).toEqual({ version: 1, dirty: false });
+  });
+
+  it('reports a failure when the unsaved changes could not be saved', async () => {
+    await signIn();
+    http.expectOne(stateUrl).flush({ version: 0, data: null, updatedAt: '' });
+    await vi.waitFor(() => expect(sync.status()).toBe('ok'));
+    TestBed.inject(Onboarding).answer('Анна');
+    TestBed.tick();
+
+    const settled = sync.settle();
+    http
+      .expectOne({ method: 'PUT', url: stateUrl })
+      .flush({ error: 'сбой' }, { status: 500, statusText: 'Server Error' });
+
+    await expect(settled).resolves.toBe(false);
+    expect(meta()?.dirty).toBe(true);
+  });
+
   it('saves a change after a short pause and remembers the new version', async () => {
     await signIn();
     http.expectOne(stateUrl).flush({ version: 0, data: null, updatedAt: '' });

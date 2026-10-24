@@ -112,6 +112,10 @@ type CreateMasterResponse struct {
 	Code   string          `json:"code"`
 }
 
+type RenameRequest struct {
+	Name string `json:"name"`
+}
+
 type DisabledRequest struct {
 	Disabled bool `json:"disabled"`
 }

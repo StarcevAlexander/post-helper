@@ -101,6 +101,41 @@ func TestMe(t *testing.T) {
 	}
 }
 
+func TestRenameMaster(t *testing.T) {
+	fixture := newAccountFixture(t, 5)
+	code, _ := fixture.master(t, "Анна")
+
+	response := fixture.call(http.MethodPost, "/api/me/name", code, `{"name":"  Мария  "}`)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"name":"Мария"`) {
+		t.Fatalf("rename = %d %s", response.Code, response.Body)
+	}
+	if me := fixture.call(http.MethodGet, "/api/me", code, ""); !strings.Contains(me.Body.String(), `"name":"Мария"`) {
+		t.Errorf("me after rename = %s", me.Body)
+	}
+}
+
+func TestRenameMasterRefusals(t *testing.T) {
+	fixture := newAccountFixture(t, 5)
+	code, _ := fixture.master(t, "Анна")
+	tooLong := `{"name":"` + strings.Repeat("я", MaxMasterNameRunes+1) + `"}`
+
+	cases := map[string]struct {
+		token, body string
+		want        int
+	}{
+		"empty name": {code, `{"name":"   "}`, http.StatusBadRequest},
+		"too long":   {code, tooLong, http.StatusBadRequest},
+		"bad json":   {code, `{`, http.StatusBadRequest},
+		"no token":   {"", `{"name":"Мария"}`, http.StatusUnauthorized},
+		"owner":      {testPassword, `{"name":"Мария"}`, http.StatusForbidden},
+	}
+	for name, tc := range cases {
+		if got := fixture.call(http.MethodPost, "/api/me/name", tc.token, tc.body).Code; got != tc.want {
+			t.Errorf("%s: status = %d, want %d", name, got, tc.want)
+		}
+	}
+}
+
 func TestAuthRefusals(t *testing.T) {
 	fixture := newAccountFixture(t, 5)
 	code, master := fixture.master(t, "Анна")

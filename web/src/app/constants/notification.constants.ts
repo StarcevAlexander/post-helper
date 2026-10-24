@@ -8,10 +8,6 @@ export const TEST_NOTIFICATION_BODY = 'Это тестовое уведомле�
 
 export const TEST_NOTIFICATION_ICON = 'icons/icon-192x192.png';
 
-export const NOTIFY_BUTTON_LABEL = 'Тестовое уведомление через 5 секунд';
-
-export const NOTIFY_WAITING_LABEL = 'Ожидание уведомления';
-
 export const NOTIFY_SCHEDULED_TEXT = 'Уведомление придёт через 5 секунд';
 
 export const NOTIFY_UNSUPPORTED_TEXT = 'Этот браузер не поддерживает уведомления';
@@ -22,7 +18,9 @@ export const NOTIFY_DENIED_TEXT =
 export const NOTIFY_FAILED_TEXT = 'Не удалось показать уведомление';
 
 export const PUSH_TEXTS = {
-  label: 'Уведомления о готовности плана',
+  label: 'Уведомления',
+  hint: 'Сообщим, когда будут готовы план и референсы',
+  testLabel: 'Проверить уведомление',
   unsupported:
     'Здесь уведомления недоступны. На iPhone добавьте приложение на экран «Домой» и откройте его оттуда',
   denied: 'Разрешение на уведомления не дано. Разрешите их в настройках браузера',

@@ -26,8 +26,13 @@ export class Account {
       this.info.set(await this.api.me());
     } catch (error) {
       if (error instanceof ChatApiError && error.unauthorized) {
-        this.access.clear();
+        this.access.reject();
       }
     }
+  }
+
+  async rename(name: string): Promise<void> {
+    const saved = await this.api.rename(name);
+    this.info.update((info) => info && { ...info, name: saved.name });
   }
 }

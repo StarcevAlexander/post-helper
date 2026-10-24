@@ -115,6 +115,17 @@ func (m *Memory) SetDisabled(_ context.Context, id string, disabled bool) error 
 	return nil
 }
 
+func (m *Memory) RenameMaster(_ context.Context, id, name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	master, ok := m.masters[id]
+	if !ok {
+		return ErrNotFound
+	}
+	master.Name = name
+	return nil
+}
+
 func (m *Memory) Touch(_ context.Context, id string, at time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

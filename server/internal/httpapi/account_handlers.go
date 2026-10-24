@@ -41,6 +41,39 @@ func (h *meHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, response)
 }
 
+type renameHandler struct {
+	accounts accounts.Store
+	logger   *slog.Logger
+}
+
+func (h *renameHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	identity, _ := auth.FromContext(r.Context())
+	r.Body = http.MaxBytesReader(w, r.Body, MaxAdminBodyBytes)
+	var body RenameRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, MsgBadRequest)
+		return
+	}
+	name := strings.TrimSpace(body.Name)
+	switch {
+	case name == "":
+		writeError(w, http.StatusBadRequest, MsgNoMasterName)
+		return
+	case utf8.RuneCountInString(name) > MaxMasterNameRunes:
+		writeError(w, http.StatusBadRequest, MsgMasterNameTooLong)
+		return
+	}
+	switch err := h.accounts.RenameMaster(r.Context(), identity.MasterID, name); {
+	case errors.Is(err, accounts.ErrNotFound):
+		writeError(w, http.StatusNotFound, MsgRenameFailed)
+	case err != nil:
+		h.logger.Error("rename master failed", slog.Any("error", err))
+		writeError(w, http.StatusInternalServerError, MsgRenameFailed)
+	default:
+		writeJSON(w, http.StatusOK, RenameRequest{Name: name})
+	}
+}
+
 type stateHandler struct {
 	accounts accounts.Store
 	logger   *slog.Logger

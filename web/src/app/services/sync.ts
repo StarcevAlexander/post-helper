@@ -134,6 +134,17 @@ export class Sync {
     void this.push(meta.version);
   }
 
+  async settle(): Promise<boolean> {
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    const meta = this.readMeta();
+    if (this.account.role() !== 'master' || !meta?.dirty) {
+      return true;
+    }
+    await this.push(meta.version);
+    return this.readMeta()?.dirty !== true;
+  }
+
   private async reconcile(server: ServerState): Promise<void> {
     const meta = this.readMeta();
     const local = this.readBundle();

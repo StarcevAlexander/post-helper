@@ -16,6 +16,7 @@ import {
   API_AUDIT_PATH,
   API_DEV_URL,
   API_KIT_PATH,
+  API_ME_NAME_PATH,
   API_ME_PATH,
   API_MESSAGES,
   API_PRODUCTION_URL,
@@ -197,6 +198,10 @@ export class ChatApi {
 
   me(): Promise<AccountInfo> {
     return this.send<AccountInfo>('GET', API_ME_PATH);
+  }
+
+  rename(name: string): Promise<{ name: string }> {
+    return this.send<{ name: string }>('POST', API_ME_NAME_PATH, { name });
   }
 
   loadState(): Promise<ServerState> {

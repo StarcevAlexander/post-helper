@@ -80,6 +80,7 @@ const (
 
 const (
 	MeRoute                       = "GET /api/me"
+	MeRenameRoute                 = "POST /api/me/name"
 	StateGetRoute                 = "GET /api/state"
 	StatePutRoute                 = "PUT /api/state"
 	AdminMastersRoute             = "GET /api/admin/masters"
@@ -99,6 +100,7 @@ const (
 	MsgStateFailed                = "Не удалось сохранить данные, попробуйте ещё раз"
 	MsgNoMasterName               = "Укажите имя мастера"
 	MsgMasterNameTooLong          = "Имя мастера слишком длинное"
+	MsgRenameFailed               = "Не удалось сменить имя"
 	MsgMasterFailed               = "Не удалось выполнить действие с мастером"
 	MsgReviewFailed               = "Не удалось подвести итоги, попробуйте ещё раз"
 	MsgReviewRefused              = "Итоги по этим данным подвести не получилось"
