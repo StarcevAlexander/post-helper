@@ -200,3 +200,56 @@ func TestAMasterInAnotherZoneIsMeasuredByHerOwnDay(t *testing.T) {
 		t.Errorf("in Kaliningrad it is still the 25th, row = %+v", row)
 	}
 }
+
+func TestAWaitingRequestIsNudgedOncePerDayUntilAnswered(t *testing.T) {
+	now := moment("2026-10-25", "17:00")
+	scheduler, store, _, intakes, notifier := newScheduler(now)
+	scheduler.Now = func() time.Time { return now }
+	master, err := store.CreateMaster(context.Background(), "Евгения", "hash-e")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = store.SetLocation(context.Background(), master.ID, "Иркутск", "Asia/Irkutsk")
+	if _, _, err := intakes.Submit(context.Background(), master.ID, intake.Draft{Goals: []string{"reach"}}, moment("2026-10-25", "15:07")); err != nil {
+		t.Fatal(err)
+	}
+
+	scheduler.Tick(context.Background())
+	if notifier.count() != 0 {
+		t.Fatal("a request younger than three hours must not be nudged")
+	}
+	now = moment("2026-10-25", "18:30")
+	scheduler.Tick(context.Background())
+	scheduler.Tick(context.Background())
+	if notifier.count() != 1 {
+		t.Fatalf("sent %d, want one nudge for the day", notifier.count())
+	}
+	text := notifier.sent[0]
+	for _, want := range []string{TitleWaiting, "Евгения (Иркутск): план с 25 окт 15:07, ждёт 3 ч", master.ID, LineHowToHandle} {
+		if !strings.Contains(text, want) {
+			t.Errorf("nudge lacks %q:\n%s", want, text)
+		}
+	}
+
+	now = moment("2026-10-25", "23:00")
+	scheduler.Tick(context.Background())
+	now = moment("2026-10-26", "08:30")
+	scheduler.Tick(context.Background())
+	if notifier.count() != 1 {
+		t.Fatal("night and early morning must stay quiet")
+	}
+	now = moment("2026-10-27", "10:00")
+	scheduler.Tick(context.Background())
+	if notifier.count() != 2 || !strings.Contains(notifier.sent[1], "ждёт 1 дн.") {
+		t.Fatalf("want a second nudge counting days, got %d: %v", notifier.count(), notifier.sent)
+	}
+
+	if err := intakes.Ready(context.Background(), master.ID, "", now); err != nil {
+		t.Fatal(err)
+	}
+	now = moment("2026-10-28", "10:00")
+	scheduler.Tick(context.Background())
+	if notifier.count() != 2 {
+		t.Fatal("an answered request must not be nudged")
+	}
+}

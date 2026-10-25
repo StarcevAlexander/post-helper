@@ -54,3 +54,19 @@ var monthNames = map[time.Month]string{
 	time.November:  "ноя",
 	time.December:  "дек",
 }
+
+const (
+	RemindFromHour = 9
+	RemindToHour   = 22
+	RemindAfter    = 3 * time.Hour
+	RemindPrefix   = "wait"
+	HoursPerDay    = 24
+
+	TitleWaiting      = "Заявки ждут ответа"
+	LineWaitingRow    = "• %s: %s с %s, ждёт %s\n  id мастера: %s"
+	WaitingKindPlan   = "план"
+	WaitingKindReview = "итоги месяца"
+	LineAgeHours      = "%d ч"
+	LineAgeDays       = "%d дн."
+	LineHowToHandle   = "Посмотреть заявки: node tools/owner/owner.mjs intakes"
+)

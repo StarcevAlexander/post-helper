@@ -18,3 +18,5 @@ tools/intake-agent/state.json
 tools/intake-agent/reports/
 tools/intake-agent/agent.log
 web/ng-serve.log
+tools/browser/bridge.log
+tools/browser/state.json

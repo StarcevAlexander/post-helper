@@ -39,3 +39,12 @@ type Report struct {
 	Masters  []MasterRow
 	WithPlan int
 }
+
+type WaitingRow struct {
+	MasterID string
+	Name     string
+	City     string
+	Review   bool
+	Since    time.Time
+	Age      time.Duration
+}

@@ -122,3 +122,38 @@ func weekKey(now time.Time) string {
 	monday := startOfDay(now).AddDate(0, 0, -offset)
 	return KeyPrefix + ":" + monday.Format(DateLayout)
 }
+
+func RenderWaiting(rows []WaitingRow, now time.Time) string {
+	var text strings.Builder
+	fmt.Fprintf(&text, "%s, %s\n", TitleWaiting, headerDate(now))
+	for _, row := range rows {
+		kind := WaitingKindPlan
+		if row.Review {
+			kind = WaitingKindReview
+		}
+		name := row.Name
+		if row.City != "" {
+			name += fmt.Sprintf(" (%s)", row.City)
+		}
+		text.WriteString("\n")
+		fmt.Fprintf(&text, LineWaitingRow, name, kind, humanMoment(row.Since), humanAge(row.Age), row.MasterID)
+	}
+	text.WriteString("\n\n" + LineHowToHandle)
+	return text.String()
+}
+
+func humanMoment(moment time.Time) string {
+	return fmt.Sprintf("%d %s %s", moment.Day(), monthNames[moment.Month()], moment.Format("15:04"))
+}
+
+func humanAge(age time.Duration) string {
+	hours := int(age.Hours())
+	if hours >= HoursPerDay {
+		return fmt.Sprintf(LineAgeDays, hours/HoursPerDay)
+	}
+	return fmt.Sprintf(LineAgeHours, hours)
+}
+
+func dayKey(now time.Time) string {
+	return RemindPrefix + ":" + startOfDay(now).Format(DateLayout)
+}

@@ -37,6 +37,7 @@ func (s *Scheduler) Run(ctx context.Context) {
 
 func (s *Scheduler) Tick(ctx context.Context) {
 	now := s.now()
+	s.remind(ctx, now)
 	if now.Weekday() != Weekday || now.Hour() < Hour {
 		return
 	}
@@ -147,4 +148,64 @@ func (s *Scheduler) now() time.Time {
 		return s.Now().In(s.location())
 	}
 	return time.Now().In(s.location())
+}
+
+func (s *Scheduler) remind(ctx context.Context, now time.Time) {
+	if s.Intakes == nil || now.Hour() < RemindFromHour || now.Hour() >= RemindToHour {
+		return
+	}
+	key := dayKey(now)
+	already, err := s.Sent.Has(ctx, key)
+	if err != nil {
+		s.Logger.Error("waiting requests: check failed", slog.Any("error", err))
+		return
+	}
+	if already {
+		return
+	}
+	waiting, err := s.Waiting(ctx, now)
+	if err != nil {
+		s.Logger.Error("waiting requests: list failed", slog.Any("error", err))
+		return
+	}
+	if len(waiting) == 0 {
+		return
+	}
+	sendCtx, cancel := context.WithTimeout(ctx, SendTimeout)
+	defer cancel()
+	if err := s.Notifier.Notify(sendCtx, RenderWaiting(waiting, now)); err != nil {
+		s.Logger.Error("waiting requests: send failed", slog.Any("error", err))
+		return
+	}
+	s.Logger.Info("waiting requests reminder sent", slog.Int("requests", len(waiting)))
+	if err := s.Sent.Mark(ctx, key, now); err != nil {
+		s.Logger.Error("waiting requests: mark failed", slog.Any("error", err))
+	}
+}
+
+func (s *Scheduler) Waiting(ctx context.Context, now time.Time) ([]WaitingRow, error) {
+	requests, err := s.Intakes.List(ctx, intake.StatusNew, MaxMasters)
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]WaitingRow, 0, len(requests))
+	for _, request := range requests {
+		age := now.Sub(request.UpdatedAt)
+		if age < RemindAfter {
+			continue
+		}
+		master, err := s.Accounts.GetMaster(ctx, request.MasterID)
+		if err != nil {
+			s.Logger.Warn("waiting requests: master lookup failed", slog.String("master", request.MasterID), slog.Any("error", err))
+			continue
+		}
+		if master.Disabled {
+			continue
+		}
+		rows = append(rows, WaitingRow{
+			MasterID: master.ID, Name: master.Name, City: master.City, Review: request.Review,
+			Since: request.UpdatedAt.In(s.locationOf(master)), Age: age,
+		})
+	}
+	return rows, nil
 }
