@@ -120,6 +120,11 @@ func (c *Calendar) Validate() error {
 		if _, err := time.Parse(DateLayout, item.Date); err != nil {
 			return fmt.Errorf("calendar.items[%d].date: нужна дата ГГГГ-ММ-ДД", index)
 		}
+		if item.MovedFrom != "" {
+			if _, err := time.Parse(DateLayout, item.MovedFrom); err != nil || item.MovedFrom == item.Date {
+				return fmt.Errorf("calendar.items[%d].movedFrom: нужна другая дата ГГГГ-ММ-ДД", index)
+			}
+		}
 		if !timePattern.MatchString(item.Time) {
 			return fmt.Errorf("calendar.items[%d].time: нужно время ЧЧ:ММ", index)
 		}

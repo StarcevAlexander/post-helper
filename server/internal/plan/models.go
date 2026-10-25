@@ -35,13 +35,14 @@ type Schedule struct {
 }
 
 type Item struct {
-	ID     string `json:"id"`
-	Date   string `json:"date"`
-	Time   string `json:"time"`
-	Format string `json:"format"`
-	Pillar string `json:"pillar"`
-	Idea   string `json:"idea"`
-	Done   bool   `json:"done"`
+	ID        string `json:"id"`
+	Date      string `json:"date"`
+	MovedFrom string `json:"movedFrom,omitempty"`
+	Time      string `json:"time"`
+	Format    string `json:"format"`
+	Pillar    string `json:"pillar"`
+	Idea      string `json:"idea"`
+	Done      bool   `json:"done"`
 }
 
 type Calendar struct {

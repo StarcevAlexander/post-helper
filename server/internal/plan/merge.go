@@ -104,12 +104,21 @@ func resolveCalendar(data map[string]json.RawMessage, submitted *Calendar) (*Cal
 		return nil, err
 	}
 	if previous != nil {
-		done := make(map[string]bool, len(previous.Items))
+		stored := make(map[string]Item, len(previous.Items))
 		for _, item := range previous.Items {
-			done[item.ID] = item.Done
+			stored[item.ID] = item
 		}
 		for index := range submitted.Items {
-			submitted.Items[index].Done = submitted.Items[index].Done || done[submitted.Items[index].ID]
+			item := &submitted.Items[index]
+			before, known := stored[item.ID]
+			if !known {
+				continue
+			}
+			item.Done = item.Done || before.Done
+			if item.MovedFrom == "" && before.MovedFrom != "" && item.Date == before.MovedFrom {
+				item.Date = before.Date
+				item.MovedFrom = before.MovedFrom
+			}
 		}
 	}
 	return submitted, nil

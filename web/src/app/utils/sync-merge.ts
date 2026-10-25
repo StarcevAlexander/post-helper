@@ -1,7 +1,7 @@
 import { SYNC_MASTER_KEYS } from '../constants';
 import { JsonValue, SyncBundle, SyncKey } from '../models';
 
-type JsonObject = { [key: string]: JsonValue };
+type JsonObject = Record<string, JsonValue>;
 
 interface DoneRecord extends JsonObject {
   id: string;

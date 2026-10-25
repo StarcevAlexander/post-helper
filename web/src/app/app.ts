@@ -2,7 +2,6 @@ import { Component, DestroyRef, afterNextRender, effect, inject, untracked } fro
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AccessGate } from './components/access-gate/access-gate';
 import {
-  LEGACY_STORAGE_KEYS,
   NAV_TABS,
   NAV_TEXTS,
   PLAN_READY_BANNER,

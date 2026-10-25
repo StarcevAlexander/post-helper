@@ -9,7 +9,6 @@ import { CalendarPlan } from '../../services/calendar-plan';
 import { IdeaRequests } from '../../services/idea-requests';
 import { Kits } from '../../services/kits';
 import { PushNotifications } from '../../services/push-notifications';
-import { Today } from '../../services/today';
 import { TodayScreen } from './today-screen';
 
 const kit: PublicationKit = {
@@ -23,7 +22,6 @@ const kit: PublicationKit = {
 describe('TodayScreen', () => {
   let plan: CalendarPlan;
   let kits: Kits;
-  let today: Today;
 
   beforeEach(() => {
     HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
@@ -39,7 +37,6 @@ describe('TodayScreen', () => {
     });
     plan = TestBed.inject(CalendarPlan);
     kits = TestBed.inject(Kits);
-    today = TestBed.inject(Today);
   });
 
   afterEach(() => {

@@ -347,3 +347,57 @@ func TestSubmissionCarriesPlan(t *testing.T) {
 		})
 	}
 }
+
+func storedCalendar(t *testing.T, calendar Calendar) json.RawMessage {
+	t.Helper()
+	raw, err := json.Marshal(map[string]any{"calendar": calendar})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+func TestMergeKeepsMasterMoveWhenOwnerDateUnchanged(t *testing.T) {
+	moved := *sampleCalendar()
+	moved.Items[0].Date = "2026-10-29"
+	moved.Items[0].MovedFrom = "2026-10-26"
+
+	merged, err := Merge(storedCalendar(t, moved), Submission{Calendar: sampleCalendar()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if merged.Items[0].Date != "2026-10-29" || merged.Items[0].MovedFrom != "2026-10-26" {
+		t.Errorf("item = %+v, want the master's move kept", merged.Items[0])
+	}
+	if merged.Items[1].Date != "2026-10-28" || merged.Items[1].MovedFrom != "" {
+		t.Errorf("untouched item = %+v", merged.Items[1])
+	}
+}
+
+func TestMergeDropsMasterMoveWhenOwnerChangedDate(t *testing.T) {
+	moved := *sampleCalendar()
+	moved.Items[0].Date = "2026-10-29"
+	moved.Items[0].MovedFrom = "2026-10-26"
+
+	next := sampleCalendar()
+	next.Items[0].Date = "2026-10-27"
+	merged, err := Merge(storedCalendar(t, moved), Submission{Calendar: next})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if merged.Items[0].Date != "2026-10-27" || merged.Items[0].MovedFrom != "" {
+		t.Errorf("item = %+v, want the owner's new date", merged.Items[0])
+	}
+}
+
+func TestCalendarValidateRejectsBadMovedFrom(t *testing.T) {
+	for _, origin := range []string{"вчера", "2026-10-26"} {
+		calendar := sampleCalendar()
+		calendar.Items[0].MovedFrom = origin
+		if err := calendar.Validate(); err == nil || !strings.Contains(err.Error(), "movedFrom") {
+			t.Errorf("movedFrom %q: err = %v", origin, err)
+		}
+	}
+}
