@@ -27,7 +27,12 @@ func New(store Store, publicKey, privateKey, subject string) *Service {
 		publicKey:  publicKey,
 		privateKey: privateKey,
 		subject:    subject,
-		client:     &http.Client{Timeout: SendTimeout},
+		client: &http.Client{
+			Timeout: SendTimeout,
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 	}
 }
 

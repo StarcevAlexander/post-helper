@@ -20,7 +20,7 @@ export type SyncBundle = Partial<Record<SyncKey, JsonValue>>;
 
 export interface ServerState {
   version: number;
-  data: SyncBundle | null;
+  data?: SyncBundle;
   updatedAt: string;
 }
 

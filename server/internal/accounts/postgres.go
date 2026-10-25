@@ -193,13 +193,6 @@ func (p *Postgres) historyKeep() int {
 	}
 	return DefaultHistoryKeep
 }
-func (p *Postgres) CountUsage(ctx context.Context, id string, since time.Time) (int, error) {
-	var count int
-	err := p.pool.QueryRow(ctx,
-		`SELECT COUNT(*) FROM usage_log WHERE master_id = $1 AND created_at >= $2`, id, since).Scan(&count)
-	return count, err
-}
-
 func (p *Postgres) RecordUsage(ctx context.Context, id, kind string, at time.Time) error {
 	_, err := p.pool.Exec(ctx,
 		`INSERT INTO usage_log (master_id, kind, created_at) VALUES ($1, $2, $3)`, id, kind, at)

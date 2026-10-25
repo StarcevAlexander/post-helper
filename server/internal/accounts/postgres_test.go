@@ -89,10 +89,6 @@ func TestPostgresMastersStateAndUsage(t *testing.T) {
 	if err := db.RecordUsage(ctx, master.ID, "kit", time.Now()); err != nil {
 		t.Fatalf("usage: %v", err)
 	}
-	count, err := db.CountUsage(ctx, master.ID, day)
-	if err != nil || count != 1 {
-		t.Errorf("count = %d, %v", count, err)
-	}
 	list, err := db.ListMasters(ctx, day)
 	if err != nil {
 		t.Fatalf("list: %v", err)

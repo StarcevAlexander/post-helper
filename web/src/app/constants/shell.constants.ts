@@ -24,6 +24,24 @@ export const UPDATE_ATTEMPTS_KEY = 'helper.update-attempts';
 
 export const UPDATE_MAX_ATTEMPTS = 3;
 
+export const LEGACY_STORAGE_KEYS: readonly string[] = [
+  'helper.chat-history',
+  'helper.onboarding',
+  'helper.request-log',
+  'helper.conversation-id',
+  'helper.error-log',
+];
+
+export const SPLASH_ID = 'splash';
+
+export const SPLASH_TEXT_ID = 'splash-text';
+
+export const PLAN_READY_BANNER = {
+  text: 'План готов: откройте заявку, там записка от меня',
+  open: 'Открыть',
+  close: 'Скрыть',
+} as const;
+
 export const UPDATE_TEXTS = {
   loading: 'Загружаем приложение',
   spinner: 'Обновляем приложение',

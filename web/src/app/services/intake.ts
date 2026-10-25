@@ -9,20 +9,20 @@ import {
   INTAKE_SEEN_STORAGE_KEY,
   INTAKE_TEXTS,
 } from '../constants';
-import { ChatApiError, IntakeDraft, IntakeGoalId, IntakeRequest } from '../models';
-import { Access } from './access';
+import { IntakeDraft, IntakeGoalId, IntakeRequest } from '../models';
+import { browserTimeZone } from '../utils/time-zone';
 import { Account } from './account';
-import { APP_VERSION } from '../version';
-import { ChatApi } from './chat-api';
+import { ApiClient } from './api-client';
+import { ClientErrors } from './client-errors';
 import { Sync } from './sync';
 
 function referenceSlots(urls: readonly string[]): string[] {
   return [...urls, ...Array<string>(Math.max(INTAKE_MIN_REFERENCES - urls.length, 0)).fill('')];
 }
 
-function browserTimeZone(): string | undefined {
+function readSeenReadyAt(): string | undefined {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+    return localStorage.getItem(INTAKE_SEEN_STORAGE_KEY) ?? undefined;
   } catch {
     return undefined;
   }
@@ -44,13 +44,14 @@ function draftOf(request: IntakeRequest, withNote: boolean): IntakeDraft {
 
 @Service()
 export class Intake {
-  private readonly api = inject(ChatApi);
-  private readonly access = inject(Access);
+  private readonly api = inject(ApiClient);
+  private readonly clientErrors = inject(ClientErrors);
   private readonly account = inject(Account);
   private readonly sync = inject(Sync);
   private readonly router = inject(Router);
 
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private readonly seenReadyAt = signal(readSeenReadyAt());
 
   readonly request = signal<IntakeRequest | undefined>(undefined);
   readonly loaded = signal(false);
@@ -62,6 +63,10 @@ export class Intake {
 
   readonly pending = computed(() => this.request()?.status === 'new');
   readonly ready = computed(() => this.request()?.status === 'ready');
+  readonly readyUnseen = computed(() => {
+    const readyAt = this.request()?.readyAt;
+    return this.ready() && readyAt !== undefined && readyAt !== this.seenReadyAt();
+  });
   readonly reviewWaiting = computed(() => this.request()?.review === true && this.pending());
   readonly showForm = computed(() => this.request() === undefined || this.editing());
   readonly reviewing = computed(() =>
@@ -230,6 +235,7 @@ export class Intake {
     if (!readyAt) {
       return;
     }
+    this.seenReadyAt.set(readyAt);
     try {
       localStorage.setItem(INTAKE_SEEN_STORAGE_KEY, readyAt);
     } catch {
@@ -255,7 +261,6 @@ export class Intake {
       this.draft.set(draftOf(latest, true));
     }
     if (latest.status === 'ready' && latest.readyAt && latest.readyAt !== this.seenReadyAt()) {
-      void this.router.navigateByUrl('/intake');
       void this.sync.pull();
     }
   }
@@ -271,14 +276,6 @@ export class Intake {
     );
   }
 
-  private seenReadyAt(): string | undefined {
-    try {
-      return localStorage.getItem(INTAKE_SEEN_STORAGE_KEY) ?? undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
   private schedule(): void {
     this.stop();
     if (this.pending()) {
@@ -287,16 +284,6 @@ export class Intake {
   }
 
   private handleFailure(error: unknown, fallback: string): void {
-    if (error instanceof ChatApiError && error.unauthorized) {
-      this.access.clear();
-    }
-    const message = error instanceof ChatApiError ? error.message : String(error);
-    void this.api.reportClientError({
-      message,
-      where: 'intake',
-      stack: '',
-      version: APP_VERSION,
-    });
-    this.error.set(message || fallback);
+    this.error.set(this.clientErrors.report(error, 'intake', fallback));
   }
 }

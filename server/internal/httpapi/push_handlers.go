@@ -6,10 +6,12 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
+	"post-helper/server/internal/places"
 	"post-helper/server/internal/push"
 )
 
@@ -50,7 +52,26 @@ func (h *pushHandler) subscribe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, MsgPushFailed)
 		return
 	}
+	h.adoptZone(r.Context(), identity.MasterID, body.TimeZone)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *pushHandler) adoptZone(ctx context.Context, masterID, zone string) {
+	zone = strings.TrimSpace(zone)
+	if !places.ValidZone(zone) {
+		return
+	}
+	master, err := h.accounts.GetMaster(ctx, masterID)
+	if err != nil {
+		h.logger.Error("load master for time zone failed", slog.Any("error", err))
+		return
+	}
+	if master.Timezone != "" {
+		return
+	}
+	if err := h.accounts.SetLocation(ctx, masterID, master.City, zone); err != nil {
+		h.logger.Error("save time zone from the push subscription failed", slog.Any("error", err))
+	}
 }
 
 func (h *pushHandler) unsubscribe(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +129,7 @@ func (h *pushHandler) notify(ctx context.Context, masterID string, message push.
 		return
 	}
 	detached := context.WithoutCancel(ctx)
-	go func() {
+	safeGo(h.logger, "push notify", func() {
 		sendCtx, cancel := context.WithTimeout(detached, push.SendTimeout*2)
 		defer cancel()
 		sent, err := h.sender.Send(sendCtx, masterID, message)
@@ -117,5 +138,5 @@ func (h *pushHandler) notify(ctx context.Context, masterID string, message push.
 			return
 		}
 		h.record(sendCtx, masterID, sent, message.Title)
-	}()
+	})
 }

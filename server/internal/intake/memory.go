@@ -78,6 +78,9 @@ func (m *Memory) Ready(_ context.Context, masterID, replyNote string, now time.T
 	if current == nil {
 		return ErrNotFound
 	}
+	if current.Status != StatusNew {
+		return nil
+	}
 	current.Status, current.ReplyNote, current.UpdatedAt, current.ReadyAt = StatusReady, replyNote, now, now
 	return nil
 }

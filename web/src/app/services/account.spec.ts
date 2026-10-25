@@ -64,6 +64,20 @@ describe('Account', () => {
     expect(access.rejected()).toBe(true);
   });
 
+  it('asks again who is signed in when the connection comes back', async () => {
+    const account = TestBed.inject(Account);
+    access.save('ABCDE-FGHJK-LMNPQ-RSTUV');
+    TestBed.tick();
+    http.expectOne(meUrl).flush({ error: 'нет связи' }, { status: 0, statusText: 'offline' });
+    await vi.waitFor(() => expect(access.granted()).toBe(true));
+    expect(account.signedIn()).toBe(false);
+
+    window.dispatchEvent(new Event('online'));
+
+    http.expectOne(meUrl).flush({ name: 'Анна', retentionDays: 1095 });
+    await vi.waitFor(() => expect(account.signedIn()).toBe(true));
+  });
+
   it('forgets the refusal when a new password is entered', async () => {
     TestBed.inject(Account);
     access.save('wrong');

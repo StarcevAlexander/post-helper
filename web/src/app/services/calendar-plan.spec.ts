@@ -1,31 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { CALENDAR_STORAGE_KEY } from '../constants';
-import { ScheduleDraft, Strategy } from '../models';
-import { toDateKey } from '../utils/date-utils';
+import { samplePlan } from '../testing/plan-fixture';
 import { CalendarPlan } from './calendar-plan';
 
 const TODAY = new Date(2026, 9, 19, 10, 0);
-
-const strategy: Strategy = {
-  summary: 'Ок',
-  positioning: '',
-  profileFixes: [],
-  pillars: [
-    { title: 'До и после', description: '', ideas: ['Кадр до'] },
-    { title: 'Процесс', description: '', ideas: ['Видео'] },
-    { title: 'Окошки', description: '', ideas: ['Свободно в пятницу'] },
-  ],
-  cadence: { reels: 2, posts: 2, stories: 5, note: '' },
-  firstSteps: [],
-};
-
-const draft: ScheduleDraft = {
-  weekday1: '3',
-  time1: '18:00',
-  weekday2: '',
-  time2: '18:00',
-  publishTime: '19:00',
-};
 
 describe('CalendarPlan', () => {
   let plan: CalendarPlan;
@@ -39,25 +17,34 @@ describe('CalendarPlan', () => {
     localStorage.clear();
   });
 
-  it('starts empty with a default draft', () => {
+  it('starts empty', () => {
     expect(plan.hasPlan()).toBe(false);
     expect(plan.weeks()).toEqual([]);
-    expect(plan.toDraft().weekday2).toBe('');
   });
 
-  it('builds a four week plan that starts tomorrow', () => {
-    plan.build(draft, strategy, TODAY);
+  it('groups a four week plan by weeks from the start day', () => {
+    plan.load(samplePlan(TODAY));
 
-    expect(plan.items().length).toBe(36);
+    expect(plan.items().length).toBe(12);
     expect(plan.startedOn()).toBe('2026-10-20');
     expect(plan.weeks().length).toBe(4);
     expect(plan.weeks()[0].from).toBe('2026-10-20');
     expect(plan.weeks()[3].to).toBe('2026-11-16');
-    expect(plan.weeks().flatMap((week) => week.items).length).toBe(36);
+    expect(plan.weeks().flatMap((week) => week.items).length).toBe(12);
   });
 
   it('shows the content day once per week on the right weekday', () => {
-    plan.build({ ...draft, weekday2: '6', time2: '11:30' }, strategy, TODAY);
+    const calendar = samplePlan(TODAY);
+    plan.load({
+      ...calendar,
+      schedule: {
+        ...calendar.schedule,
+        slots: [
+          { weekday: 3, time: '18:00' },
+          { weekday: 6, time: '11:30' },
+        ],
+      },
+    });
 
     const days = plan.weeks()[0].contentDays;
     expect(days).toEqual([
@@ -68,19 +55,22 @@ describe('CalendarPlan', () => {
   });
 
   it('remembers the schedule and the plan', () => {
-    plan.build(draft, strategy, TODAY);
+    plan.load(samplePlan(TODAY));
     plan.toggleDone(plan.items()[0].id);
 
     TestBed.resetTestingModule();
     const restored = TestBed.inject(CalendarPlan);
 
-    expect(restored.items().length).toBe(36);
+    expect(restored.items().length).toBe(12);
     expect(restored.items()[0].done).toBe(true);
-    expect(restored.toDraft()).toEqual(draft);
+    expect(restored.schedule()).toEqual({
+      slots: [{ weekday: 3, time: '18:00' }],
+      publishTime: '19:00',
+    });
   });
 
   it('toggles a publication done and back', () => {
-    plan.build(draft, strategy, TODAY);
+    plan.load(samplePlan(TODAY));
     const id = plan.items()[3].id;
 
     plan.toggleDone(id);
@@ -90,7 +80,7 @@ describe('CalendarPlan', () => {
   });
 
   it('forgets everything on reset', () => {
-    plan.build(draft, strategy, TODAY);
+    plan.load(samplePlan(TODAY));
 
     plan.reset();
 
@@ -99,7 +89,7 @@ describe('CalendarPlan', () => {
   });
 
   it('ignores a corrupted or malformed store', () => {
-    plan.build(draft, strategy, TODAY);
+    plan.load(samplePlan(TODAY));
     const stored = JSON.parse(localStorage.getItem(CALENDAR_STORAGE_KEY) ?? '{}') as {
       items: { time: string }[];
     };

@@ -10,9 +10,10 @@ import {
   SYNC_BACKUP_STORAGE_KEY,
   SYNC_META_STORAGE_KEY,
   SYNC_PUSH_DELAY_MS,
+  SYNC_RETRY_DELAY_MS,
 } from '../constants';
 import {
-  ChatApiError,
+  ApiError,
   JsonValue,
   ServerState,
   StateConflictError,
@@ -21,10 +22,11 @@ import {
   SyncMeta,
   SyncStatus,
 } from '../models';
+import { mergeBundles } from '../utils/sync-merge';
 import { Access } from './access';
 import { Account } from './account';
+import { ApiClient } from './api-client';
 import { CalendarPlan } from './calendar-plan';
-import { ChatApi } from './chat-api';
 import { Kits } from './kits';
 import { MonthReviews } from './month-reviews';
 import { PAGE_RELOAD } from './page-reload';
@@ -46,7 +48,7 @@ const KEYS = Object.keys(SYNC_KEYS) as SyncKey[];
 
 @Service()
 export class Sync {
-  private readonly api = inject(ChatApi);
+  private readonly api = inject(ApiClient);
   private readonly access = inject(Access);
   private readonly account = inject(Account);
   private readonly calendar = inject(CalendarPlan);
@@ -60,7 +62,8 @@ export class Sync {
   readonly status = signal<SyncStatus>('off');
 
   private timer: ReturnType<typeof setTimeout> | undefined;
-  private running = false;
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
+  private inflight: Promise<void> | undefined;
   private revision = 0;
   private lastSyncedJson: string | undefined;
   private started = false;
@@ -99,29 +102,28 @@ export class Sync {
           this.flush();
         }
       });
+      window.addEventListener('online', () => void this.pull());
     }
   }
 
-  async pull(): Promise<void> {
-    if (!this.account.signedIn() || this.running) {
-      return;
+  pull(): Promise<void> {
+    if (!this.account.signedIn()) {
+      return Promise.resolve();
     }
-    this.running = true;
-    this.status.set('syncing');
-    try {
-      await this.reconcile(await this.api.loadState());
-    } catch (error) {
-      this.fail(error);
-    } finally {
-      this.running = false;
-    }
+    return this.run(async () => {
+      this.status.set('syncing');
+      try {
+        await this.reconcile(await this.api.loadState());
+      } catch (error) {
+        this.fail(error);
+      }
+    });
   }
 
   flush(): void {
-    clearTimeout(this.timer);
-    this.timer = undefined;
+    this.clearTimers();
     const meta = this.readMeta();
-    if (!this.account.signedIn() || !meta?.dirty || this.running) {
+    if (!this.account.signedIn() || !meta?.dirty) {
       return;
     }
     if (meta.version > 0 && JSON.stringify(this.readBundle()) === this.lastSyncedJson) {
@@ -129,18 +131,31 @@ export class Sync {
       this.status.set('ok');
       return;
     }
-    void this.push(meta.version);
+    void this.run(() => this.push(meta.version));
   }
 
   async settle(): Promise<boolean> {
-    clearTimeout(this.timer);
-    this.timer = undefined;
+    this.clearTimers();
+    if (this.inflight) {
+      await this.inflight;
+    }
     const meta = this.readMeta();
     if (!this.account.signedIn() || !meta?.dirty) {
       return true;
     }
-    await this.push(meta.version);
+    await this.run(() => this.push(meta.version));
     return this.readMeta()?.dirty !== true;
+  }
+
+  private run(work: () => Promise<void>): Promise<void> {
+    if (this.inflight) {
+      return this.inflight;
+    }
+    const task = work().finally(() => {
+      this.inflight = undefined;
+    });
+    this.inflight = task;
+    return task;
   }
 
   private async reconcile(server: ServerState): Promise<void> {
@@ -166,10 +181,24 @@ export class Sync {
       return;
     }
     if (meta?.dirty && !localEmpty) {
-      await this.push(server.version);
+      await this.mergeAndPush(server, local);
       return;
     }
     this.applyRemote(server, local, localEmpty);
+  }
+
+  private async mergeAndPush(server: ServerState, local: SyncBundle): Promise<void> {
+    const merged = mergeBundles(server.data ?? {}, local);
+    const changed = JSON.stringify(merged) !== JSON.stringify(local);
+    if (changed) {
+      this.writeRaw(SYNC_BACKUP_STORAGE_KEY, JSON.stringify(local));
+      this.writeBundle(merged);
+    }
+    this.writeMeta({ version: server.version, dirty: true });
+    await this.push(server.version, false);
+    if (changed) {
+      this.reload();
+    }
   }
 
   private applyRemote(server: ServerState, local: SyncBundle, localEmpty: boolean): void {
@@ -179,14 +208,7 @@ export class Sync {
       this.writeRaw(SYNC_BACKUP_STORAGE_KEY, JSON.stringify(local));
     }
     if (!same) {
-      KEYS.forEach((key) => {
-        const value = remote[key];
-        if (value === undefined) {
-          this.removeRaw(SYNC_KEYS[key]);
-        } else {
-          this.writeRaw(SYNC_KEYS[key], JSON.stringify(value));
-        }
-      });
+      this.writeBundle(remote);
     }
     this.writeMeta({ version: server.version, dirty: false });
     this.lastSyncedJson = JSON.stringify(remote);
@@ -197,15 +219,14 @@ export class Sync {
   }
 
   private markDirty(): void {
-    if (!this.account.signedIn()) {
+    if (!this.access.granted()) {
       return;
     }
     this.revision += 1;
     const meta = this.readMeta();
     this.writeMeta({ version: meta?.version ?? 0, dirty: true });
     this.status.set('idle');
-    clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.flush(), SYNC_PUSH_DELAY_MS);
+    this.scheduleFlush(SYNC_PUSH_DELAY_MS);
   }
 
   private async push(baseVersion: number, retry = true): Promise<void> {
@@ -219,12 +240,11 @@ export class Sync {
       this.writeMeta({ version: saved.version, dirty: changedMeanwhile });
       this.status.set(changedMeanwhile ? 'idle' : 'ok');
       if (changedMeanwhile) {
-        clearTimeout(this.timer);
-        this.timer = setTimeout(() => this.flush(), SYNC_PUSH_DELAY_MS);
+        this.scheduleFlush(SYNC_PUSH_DELAY_MS);
       }
     } catch (error) {
       if (error instanceof StateConflictError && retry) {
-        await this.push(error.state.version, false);
+        await this.mergeAndPush(error.state, this.readBundle());
         return;
       }
       this.fail(error);
@@ -232,12 +252,28 @@ export class Sync {
   }
 
   private fail(error: unknown): void {
-    if (error instanceof ChatApiError && error.unauthorized) {
+    if (error instanceof ApiError && error.unauthorized) {
       this.access.clear();
       this.status.set('off');
       return;
     }
     this.status.set('error');
+    if (this.readMeta()?.dirty) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = setTimeout(() => this.flush(), SYNC_RETRY_DELAY_MS);
+    }
+  }
+
+  private scheduleFlush(delay: number): void {
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.flush(), delay);
+  }
+
+  private clearTimers(): void {
+    clearTimeout(this.timer);
+    clearTimeout(this.retryTimer);
+    this.timer = undefined;
+    this.retryTimer = undefined;
   }
 
   private readBundle(): SyncBundle {
@@ -253,6 +289,17 @@ export class Sync {
       }
     });
     return bundle;
+  }
+
+  private writeBundle(bundle: SyncBundle): void {
+    KEYS.forEach((key) => {
+      const value = bundle[key];
+      if (value === undefined) {
+        this.removeRaw(SYNC_KEYS[key]);
+      } else {
+        this.writeRaw(SYNC_KEYS[key], JSON.stringify(value));
+      }
+    });
   }
 
   private readMeta(): SyncMeta | undefined {

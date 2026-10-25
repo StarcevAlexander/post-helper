@@ -3,6 +3,28 @@
     <p class="screen__subtitle">{{ texts.noPlan }}</p>
     <a class="screen__primary" routerLink="/intake">{{ texts.openIntake }}</a>
   } @else {
+    @if (offerPush()) {
+      <section class="offer" aria-labelledby="push-offer-title">
+        <h3 class="offer__title" id="push-offer-title">{{ pushTexts.offerTitle }}</h3>
+        <p class="offer__text">{{ pushTexts.offerText }}</p>
+        <div class="offer__actions">
+          <button
+            type="button"
+            class="screen__primary offer__enable"
+            [disabled]="push.busy()"
+            (click)="onEnablePush()"
+          >
+            {{ pushTexts.offerEnable }}
+          </button>
+          <button type="button" class="screen__secondary" (click)="onDismissPush()">
+            {{ pushTexts.offerLater }}
+          </button>
+        </div>
+        @if (push.notice()) {
+          <p class="offer__notice" role="status">{{ push.notice() }}</p>
+        }
+      </section>
+    }
     @let shootWeek = today.shootWeek();
     @if (shootWeek !== undefined) {
       <section class="shoot">

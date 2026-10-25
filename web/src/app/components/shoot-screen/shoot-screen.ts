@@ -1,48 +1,21 @@
 import { Component, computed, inject, input } from '@angular/core';
 import {
   CONTENT_DAY_WEEK_LABEL,
+  DAY_FORMAT,
   FORMAT_LABELS,
   KIT_FRAME_LABELS,
   KIT_OVERLAY_LABEL,
   KIT_VISUAL_LABEL,
+  RANGE_FORMAT,
   SHOOT_TEXTS,
   WEEK_LABEL,
 } from '../../constants';
-import { PlanItem } from '../../models';
+import { PlanItem, ShootEntry, ShootUnit, ShootWeekView } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
 import { ShootProgress } from '../../services/shoot-progress';
 import { fromDateKey } from '../../utils/date-utils';
 import { RefGallery } from '../ref-gallery/ref-gallery';
-
-const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-});
-
-const RANGE_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
-
-interface ShootLine {
-  label?: string;
-  text: string;
-}
-
-interface ShootUnit {
-  mark: string;
-  index: number;
-  title: string;
-  lines: ShootLine[];
-}
-
-interface ShootEntry {
-  item: PlanItem;
-  title: string;
-  when: string;
-  units: ShootUnit[];
-  readyMark: string;
-  marks: string[];
-}
 
 @Component({
   imports: [RefGallery],
@@ -61,7 +34,7 @@ export class ShootScreen {
   protected readonly visualLabel = KIT_VISUAL_LABEL;
   protected readonly overlayLabel = KIT_OVERLAY_LABEL;
 
-  protected readonly view = computed(() => {
+  protected readonly view = computed<ShootWeekView | undefined>(() => {
     const week = this.plan.weeks()[Number(this.week())];
     if (!week) {
       return undefined;

@@ -155,14 +155,14 @@ describe('IntakeScreen', () => {
     expect(html.textContent).toContain(INTAKE_TEXTS.again);
   });
 
-  it('asks where the master works and suggests to write it in the wishes too', async () => {
+  it('asks where the master works and allows to leave the city for the wishes', async () => {
     const fixture = await render();
     const html = fixture.nativeElement as HTMLElement;
 
     expect(html.querySelector('#intake-city')).not.toBeNull();
     expect(html.textContent).toContain(INTAKE_TEXTS.cityTitle);
     expect(html.textContent).toContain('Это поле можно не заполнять');
-    expect(html.textContent).toContain('напишите здесь, в каком городе или посёлке вы работаете');
+    expect(html.textContent?.match(/в каком городе или посёлке/g) ?? []).toHaveLength(0);
   });
 
   it('sends the typed city and shows it in the sent request', async () => {

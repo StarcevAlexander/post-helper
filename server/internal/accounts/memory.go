@@ -191,18 +191,6 @@ func (m *Memory) SaveState(_ context.Context, id string, baseVersion int, data j
 	return next, nil
 }
 
-func (m *Memory) CountUsage(_ context.Context, id string, since time.Time) (int, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	count := 0
-	for _, record := range m.usage {
-		if record.masterID == id && !record.at.Before(since) {
-			count++
-		}
-	}
-	return count, nil
-}
-
 func (m *Memory) RecordUsage(_ context.Context, id, _ string, at time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -1,16 +1,10 @@
 import { Component, ElementRef, computed, inject, input, viewChild } from '@angular/core';
-import { FORMAT_LABELS, REFS_TEXTS } from '../../constants';
+import { DAY_FORMAT, FORMAT_LABELS, REFS_TEXTS } from '../../constants';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Navigation } from '../../services/navigation';
 import { Refs } from '../../services/refs';
 import { fromDateKey } from '../../utils/date-utils';
 import { RefGallery } from '../ref-gallery/ref-gallery';
-
-const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-});
 
 @Component({
   imports: [RefGallery],

@@ -1,11 +1,10 @@
 import { Service, computed, effect, inject, signal, untracked } from '@angular/core';
 import { REFS_ORDER_DELAY_MS, REFS_POLL_MS, REFS_TEXTS } from '../constants';
-import { ChatApiError, PlanItem, RefFileMeta, RefOrderItem, RefStatus } from '../models';
-import { Access } from './access';
+import { PlanItem, RefFileMeta, RefOrderItem, RefStatus } from '../models';
 import { Account } from './account';
+import { ApiClient } from './api-client';
 import { CalendarPlan } from './calendar-plan';
-import { APP_VERSION } from '../version';
-import { ChatApi } from './chat-api';
+import { ClientErrors } from './client-errors';
 
 function toOrderItem(item: PlanItem): RefOrderItem {
   return {
@@ -25,8 +24,8 @@ function signatureOf(items: RefOrderItem[]): string {
 
 @Service()
 export class Refs {
-  private readonly api = inject(ChatApi);
-  private readonly access = inject(Access);
+  private readonly api = inject(ApiClient);
+  private readonly clientErrors = inject(ClientErrors);
   private readonly account = inject(Account);
   private readonly plan = inject(CalendarPlan);
   private readonly urls = new Map<string, Promise<string>>();
@@ -136,16 +135,6 @@ export class Refs {
   }
 
   private handleFailure(error: unknown): void {
-    if (error instanceof ChatApiError && error.unauthorized) {
-      this.access.clear();
-    }
-    const message = error instanceof ChatApiError ? error.message : String(error);
-    void this.api.reportClientError({
-      message,
-      where: 'refs',
-      stack: '',
-      version: APP_VERSION,
-    });
-    this.error.set(message || REFS_TEXTS.failedAction);
+    this.error.set(this.clientErrors.report(error, 'refs', REFS_TEXTS.failedAction));
   }
 }

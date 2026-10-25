@@ -1,15 +1,6 @@
 import { Service, computed, signal } from '@angular/core';
-import { CALENDAR_STORAGE_KEY, DEFAULT_DRAFT, PLAN_WEEKS, TIME_PATTERN } from '../constants';
-import {
-  ContentSlot,
-  PlanItem,
-  PlanWeek,
-  PostFormat,
-  Schedule,
-  ScheduleDraft,
-  StoredCalendar,
-  Strategy,
-} from '../models';
+import { CALENDAR_STORAGE_KEY, FORMAT_ORDER, PLAN_WEEKS, TIME_PATTERN } from '../constants';
+import { ContentSlot, PlanItem, PlanWeek, PostFormat, Schedule, StoredCalendar } from '../models';
 import {
   addDays,
   daysBetween,
@@ -17,9 +8,6 @@ import {
   mondayFirstWeekday,
   toDateKey,
 } from '../utils/date-utils';
-import { buildPlan } from '../utils/plan-builder';
-
-const FORMATS: readonly PostFormat[] = ['reels', 'post', 'stories'];
 
 function isSlot(value: unknown): value is ContentSlot {
   if (typeof value !== 'object' || value === null) {
@@ -47,7 +35,7 @@ function isItem(value: unknown): value is PlanItem {
     /^\d{4}-\d{2}-\d{2}$/.test(candidate['date']) &&
     typeof candidate['time'] === 'string' &&
     TIME_PATTERN.test(candidate['time']) &&
-    FORMATS.includes(candidate['format'] as PostFormat) &&
+    FORMAT_ORDER.includes(candidate['format'] as PostFormat) &&
     typeof candidate['pillar'] === 'string' &&
     typeof candidate['idea'] === 'string' &&
     typeof candidate['done'] === 'boolean'
@@ -85,31 +73,10 @@ export class CalendarPlan {
   readonly hasPlan = computed(() => this.items().length > 0);
   readonly weeks = computed<PlanWeek[]>(() => this.groupWeeks());
 
-  toDraft(): ScheduleDraft {
-    const schedule = this.schedule();
-    if (!schedule) {
-      return { ...DEFAULT_DRAFT };
-    }
-    const [first, second] = schedule.slots;
-    return {
-      weekday1: first ? String(first.weekday) : '',
-      time1: first?.time ?? DEFAULT_DRAFT.time1,
-      weekday2: second ? String(second.weekday) : '',
-      time2: second?.time ?? DEFAULT_DRAFT.time2,
-      publishTime: schedule.publishTime,
-    };
-  }
-
-  build(draft: ScheduleDraft, strategy: Strategy, today = new Date()): void {
-    const slots: ContentSlot[] = [{ weekday: Number(draft.weekday1), time: draft.time1 }];
-    if (draft.weekday2 !== '') {
-      slots.push({ weekday: Number(draft.weekday2), time: draft.time2 });
-    }
-    const schedule: Schedule = { slots, publishTime: draft.publishTime };
-    const start = addDays(today, 1);
-    this.schedule.set(schedule);
-    this.items.set(buildPlan(strategy, start, schedule.publishTime));
-    this.startedOn.set(toDateKey(start));
+  load(calendar: StoredCalendar): void {
+    this.schedule.set(calendar.schedule);
+    this.items.set(calendar.items);
+    this.startedOn.set(calendar.startedOn);
     this.save();
   }
 

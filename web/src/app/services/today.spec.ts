@@ -1,28 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { ScheduleDraft, Strategy } from '../models';
+import { samplePlan } from '../testing/plan-fixture';
 import { CalendarPlan } from './calendar-plan';
 import { Today } from './today';
-
-const strategy: Strategy = {
-  summary: 'Ок',
-  positioning: 'Аккуратный маникюр',
-  profileFixes: [],
-  pillars: [
-    { title: 'До и после', description: '', ideas: ['Кадр до'] },
-    { title: 'Процесс', description: '', ideas: ['Видео'] },
-  ],
-  cadence: { reels: 1, posts: 1, stories: 1, note: '' },
-  firstSteps: [],
-};
-
-const draft: ScheduleDraft = {
-  weekday1: '3',
-  time1: '18:00',
-  weekday2: '',
-  time2: '18:00',
-  publishTime: '19:00',
-};
 
 describe('Today', () => {
   let plan: CalendarPlan;
@@ -44,7 +24,7 @@ describe('Today', () => {
 
   function startOn(date: Date): void {
     vi.setSystemTime(date);
-    plan.build(draft, strategy, date);
+    plan.load(samplePlan(date));
   }
 
   it('picks publications of the current day', () => {

@@ -17,9 +17,16 @@ export const NOTIFY_DENIED_TEXT =
 
 export const NOTIFY_FAILED_TEXT = 'Не удалось показать уведомление';
 
+export const PUSH_OFFER_DISMISSED_KEY = 'helper.push-offer-dismissed';
+
 export const PUSH_TEXTS = {
   label: 'Получать пуш-уведомления',
-  hint: 'Сообщим, когда будут готовы план и референсы',
+  hint: 'Напоминания о дне съёмки и о каждой публикации, а также весть о готовом плане и референсах',
+  offerTitle: 'Включите напоминания',
+  offerText:
+    'За час до дня съёмки и за 15 минут до публикации придёт уведомление. Без него план легко пропустить.',
+  offerEnable: 'Включить',
+  offerLater: 'Не сейчас',
   testLabel: 'Проверить уведомление',
   unsupported:
     'Здесь уведомления недоступны. На iPhone добавьте приложение на экран «Домой» и откройте его оттуда',

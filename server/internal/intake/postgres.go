@@ -98,13 +98,14 @@ func (p *Postgres) List(ctx context.Context, status string, limit int) ([]Reques
 func (p *Postgres) Ready(ctx context.Context, masterID, replyNote string, now time.Time) error {
 	tag, err := p.pool.Exec(ctx, `
 		UPDATE intake_requests SET status = $2, reply_note = $3, updated_at = $4, ready_at = $4
-		WHERE id = (SELECT id FROM intake_requests WHERE master_id = $1 ORDER BY created_at DESC LIMIT 1)`,
-		masterID, StatusReady, replyNote, now)
+		WHERE status = $5 AND id = (SELECT id FROM intake_requests WHERE master_id = $1 ORDER BY created_at DESC LIMIT 1)`,
+		masterID, StatusReady, replyNote, now, StatusNew)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+		_, err := p.Latest(ctx, masterID)
+		return err
 	}
 	return nil
 }

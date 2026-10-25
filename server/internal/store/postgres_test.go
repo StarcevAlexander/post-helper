@@ -2,10 +2,14 @@ package store
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func openTestStore(t *testing.T) *Postgres {
@@ -34,72 +38,6 @@ func waitFor(t *testing.T, check func() bool) {
 	t.Fatal("condition was not met in time")
 }
 
-func TestMessagesRoundTripAndDedupe(t *testing.T) {
-	p := openTestStore(t)
-	conversation := "test-" + time.Now().Format("150405.000000")
-	batch := []Message{
-		{Source: SourceApp, ConversationID: conversation, Role: RoleUser, Text: "привет", Attachments: []string{"a.png"}, CreatedAt: time.Now()},
-		{Source: SourceApp, ConversationID: conversation, Role: RoleAssistant, Text: "здравствуйте", CreatedAt: time.Now().Add(time.Millisecond)},
-		{Source: SourceClaudeCode, ConversationID: conversation, ExternalID: conversation + "-1", Role: RoleUser, Text: "из терминала"},
-	}
-	p.SaveMessages(batch)
-	p.SaveMessages(batch[2:])
-
-	var got []Message
-	waitFor(t, func() bool {
-		var err error
-		got, err = p.Messages(context.Background(), MessageFilter{ConversationID: conversation})
-		return err == nil && len(got) >= 3
-	})
-	time.Sleep(200 * time.Millisecond)
-	got, err := p.Messages(context.Background(), MessageFilter{ConversationID: conversation})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 3 {
-		t.Fatalf("want 3 messages after dedupe, got %d", len(got))
-	}
-	if got[0].Text != "привет" || got[0].Attachments[0] != "a.png" || got[1].Role != RoleAssistant {
-		t.Fatalf("unexpected order or content: %+v", got)
-	}
-	onlyApp, err := p.Messages(context.Background(), MessageFilter{Source: SourceApp, ConversationID: conversation})
-	if err != nil || len(onlyApp) != 2 {
-		t.Fatalf("source filter: %v, %d", err, len(onlyApp))
-	}
-}
-
-func TestEventsAndErrors(t *testing.T) {
-	p := openTestStore(t)
-	marker := "marker-" + time.Now().Format("150405.000000")
-	p.SaveEvent(EventChatRequest, marker, map[string]string{"request": "x"})
-	p.SaveError(ErrorSourceClient, marker, map[string]string{"where": "test"})
-
-	waitFor(t, func() bool {
-		events, err := p.Events(context.Background(), EventChatRequest, 10)
-		if err != nil {
-			return false
-		}
-		for _, e := range events {
-			if e.Ref == marker {
-				return true
-			}
-		}
-		return false
-	})
-	waitFor(t, func() bool {
-		entries, err := p.Errors(context.Background(), 10)
-		if err != nil {
-			return false
-		}
-		for _, e := range entries {
-			if e.Message == marker && e.Source == ErrorSourceClient {
-				return true
-			}
-		}
-		return false
-	})
-}
-
 func TestErrorHandlerStoresOnlyErrors(t *testing.T) {
 	p := openTestStore(t)
 	marker := "slog-" + time.Now().Format("150405.000000")
@@ -108,19 +46,70 @@ func TestErrorHandlerStoresOnlyErrors(t *testing.T) {
 	logger.Error(marker, slog.String("path", "/x"))
 
 	waitFor(t, func() bool {
-		entries, err := p.Errors(context.Background(), 20)
-		if err != nil {
-			return false
-		}
-		stored := false
-		for _, e := range entries {
-			if e.Message == "not stored "+marker {
-				t.Fatal("info record must not be stored")
-			}
-			if e.Message == marker && e.Source == ErrorSourceServer {
-				stored = true
-			}
-		}
-		return stored
+		var stored int
+		err := p.Pool().QueryRow(context.Background(),
+			"SELECT COUNT(*) FROM error_log WHERE message = $1 AND source = $2", marker, ErrorSourceServer).Scan(&stored)
+		return err == nil && stored == 1
 	})
+	var leaked int
+	if err := p.Pool().QueryRow(context.Background(),
+		"SELECT COUNT(*) FROM error_log WHERE message = $1", "not stored "+marker).Scan(&leaked); err != nil || leaked != 0 {
+		t.Fatalf("info record must not be stored, count = %d, err = %v", leaked, err)
+	}
+}
+
+func TestPurgeDropsOldLogs(t *testing.T) {
+	p := openTestStore(t)
+	marker := "purge-" + time.Now().Format("150405.000000")
+	ctx := context.Background()
+	if _, err := p.Pool().Exec(ctx, "INSERT INTO error_log (source, message, created_at) VALUES ($1, $2, now() - interval '200 days')", ErrorSourceServer, marker+"-old"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Pool().Exec(ctx, "INSERT INTO error_log (source, message) VALUES ($1, $2)", ErrorSourceServer, marker+"-new"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Purge(ctx, time.Now().AddDate(0, 0, -LogRetentionDays)); err != nil {
+		t.Fatal(err)
+	}
+	var old, fresh int
+	_ = p.Pool().QueryRow(ctx, "SELECT COUNT(*) FROM error_log WHERE message = $1", marker+"-old").Scan(&old)
+	_ = p.Pool().QueryRow(ctx, "SELECT COUNT(*) FROM error_log WHERE message = $1", marker+"-new").Scan(&fresh)
+	if old != 0 || fresh != 1 {
+		t.Fatalf("old = %d, fresh = %d", old, fresh)
+	}
+}
+
+func lazyStore(t *testing.T) *Postgres {
+	t.Helper()
+	pool, err := pgxpool.New(context.Background(), "postgres://user:pass@127.0.0.1:1/none")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return newPostgres(pool, slog.New(slog.NewTextHandler(io.Discard, nil)))
+}
+
+func TestSaveAfterCloseIsDroppedWithoutPanic(t *testing.T) {
+	p := lazyStore(t)
+	p.Close()
+	p.Close()
+
+	p.SaveError(ErrorSourceServer, "late", nil)
+	logger := slog.New(NewErrorHandler(slog.NewTextHandler(io.Discard, nil), p))
+	logger.Error("late log after close")
+}
+
+func TestConcurrentSaveAndCloseDoNotPanic(t *testing.T) {
+	p := lazyStore(t)
+	var group sync.WaitGroup
+	for range 8 {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			for range 200 {
+				p.SaveError(ErrorSourceServer, "race", nil)
+			}
+		}()
+	}
+	p.Close()
+	group.Wait()
 }

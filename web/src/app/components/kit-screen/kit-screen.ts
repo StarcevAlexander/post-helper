@@ -1,5 +1,6 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import {
+  DAY_FORMAT,
   FORMAT_LABELS,
   KIT_COPIED_LABEL,
   KIT_COPY_CAPTION_LABEL,
@@ -11,19 +12,12 @@ import {
   KIT_SECTIONS,
   KIT_VISUAL_LABEL,
 } from '../../constants';
+import { KitCopyResult } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
 import { copyText } from '../../utils/clipboard';
 import { fromDateKey } from '../../utils/date-utils';
 import { captionWithHashtags } from '../../utils/kit-text';
-
-type CopyResult = 'caption' | 'failed';
-
-const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-});
 
 @Component({
   selector: 'app-kit-screen',
@@ -40,7 +34,7 @@ export class KitScreen {
   protected readonly visualLabel = KIT_VISUAL_LABEL;
   protected readonly missingText = KIT_MISSING_TEXT;
   protected readonly copyCaptionLabel = KIT_COPY_CAPTION_LABEL;
-  protected readonly copied = signal<CopyResult | undefined>(undefined);
+  protected readonly copied = signal<KitCopyResult | undefined>(undefined);
 
   protected readonly item = computed(() =>
     this.plan.items().find((candidate) => candidate.id === this.id()),
@@ -83,7 +77,7 @@ export class KitScreen {
     }
   }
 
-  private showCopyResult(success: boolean, kind: Exclude<CopyResult, 'failed'>): void {
+  private showCopyResult(success: boolean, kind: Exclude<KitCopyResult, 'failed'>): void {
     clearTimeout(this.copyTimer);
     this.copied.set(success ? kind : 'failed');
     this.copyTimer = setTimeout(() => this.copied.set(undefined), KIT_COPY_FEEDBACK_MS);

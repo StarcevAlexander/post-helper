@@ -3,8 +3,10 @@ import { RouterLink } from '@angular/router';
 import {
   CALENDAR_HINT,
   CONTENT_DAY_WEEK_LABEL,
+  DAY_FORMAT,
   DONE_LABEL,
   FORMAT_LABELS,
+  RANGE_FORMAT,
   KIT_OPEN_LABEL,
   KIT_PENDING_LABEL,
   REFS_TEXTS,
@@ -13,35 +15,11 @@ import {
   PLAN_TITLE,
   WEEK_LABEL,
 } from '../../constants';
-import { PlanItem } from '../../models';
+import { CalendarWeekView } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
 import { Refs } from '../../services/refs';
 import { fromDateKey } from '../../utils/date-utils';
-
-interface ItemView {
-  item: PlanItem;
-  dayLabel: string;
-  formatLabel: string;
-  hasKit: boolean;
-  refLabel?: string;
-  refStale: boolean;
-}
-
-interface WeekView {
-  index: number;
-  title: string;
-  contentDays: string[];
-  items: ItemView[];
-}
-
-const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-});
-
-const RANGE_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
 
 @Component({
   imports: [RouterLink],
@@ -61,7 +39,7 @@ export class CalendarScreen {
   protected readonly planTitle = PLAN_TITLE;
   protected readonly emptyText = PLAN_EMPTY_TEXT;
   protected readonly doneLabel = DONE_LABEL;
-  protected readonly weekViews = computed<WeekView[]>(() =>
+  protected readonly weekViews = computed<CalendarWeekView[]>(() =>
     this.plan.weeks().map((week) => ({
       index: week.index,
       title: `${WEEK_LABEL} ${week.index + 1}, ${RANGE_FORMAT.format(fromDateKey(week.from))} – ${RANGE_FORMAT.format(fromDateKey(week.to))}`,

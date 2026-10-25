@@ -62,6 +62,12 @@ func TestPostgresIntakeLifecycle(t *testing.T) {
 	if err != nil || latest.Status != intake.StatusReady || latest.ReplyNote != "План готов" || latest.ReadyAt.IsZero() {
 		t.Fatalf("latest = %+v, err %v", latest, err)
 	}
+	if err := db.Ready(ctx, master.ID, "", now.Add(90*time.Minute)); err != nil {
+		t.Fatalf("second Ready: %v", err)
+	}
+	if again, err := db.Latest(ctx, master.ID); err != nil || again.ReplyNote != "План готов" {
+		t.Fatalf("a ready request must stay untouched: %+v, err %v", again, err)
+	}
 	next, updated, err := db.Submit(ctx, master.ID, draft, now.Add(2*time.Hour))
 	if err != nil || updated || next.ID == first.ID || next.Review {
 		t.Fatalf("next = %+v, updated %v, err %v", next, updated, err)

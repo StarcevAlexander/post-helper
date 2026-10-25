@@ -3,6 +3,7 @@ package reminders
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"strings"
@@ -104,10 +105,18 @@ func TestBrokenOrEmptyDataGivesNothing(t *testing.T) {
 
 type fakeSender struct {
 	messages map[string][]push.Message
+	err      error
+	devices  *int
 }
 
 func (f *fakeSender) Send(_ context.Context, masterID string, message push.Message) (int, error) {
 	f.messages[masterID] = append(f.messages[masterID], message)
+	if f.err != nil {
+		return 0, f.err
+	}
+	if f.devices != nil {
+		return *f.devices, nil
+	}
 	return 1, nil
 }
 
@@ -242,5 +251,73 @@ func TestAnUnknownZoneFallsBackToTheServerOne(t *testing.T) {
 
 	if len(sender.messages[master.ID]) != 1 {
 		t.Fatalf("messages = %+v", sender.messages[master.ID])
+	}
+}
+
+func TestAReminderIsMarkedOnlyAfterADeliveredPush(t *testing.T) {
+	zero, one := 0, 1
+	tests := []struct {
+		name       string
+		err        error
+		devices    *int
+		wantMarked bool
+	}{
+		{"send error", errors.New("push service down"), nil, false},
+		{"no devices", nil, &zero, false},
+		{"delivered", nil, &one, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheduler, store, sender := newScheduler(t, moment("2026-10-27", "18:46"))
+			sender.err, sender.devices = tt.err, tt.devices
+			master := masterWithPlan(t, store, "Анна")
+
+			scheduler.Tick(context.Background())
+
+			marked, _ := scheduler.Sent.Has(context.Background(), master.ID, "item:a")
+			if marked != tt.wantMarked {
+				t.Errorf("marked = %v, want %v", marked, tt.wantMarked)
+			}
+		})
+	}
+}
+
+func TestAFailedReminderIsRetriedOnTheNextTick(t *testing.T) {
+	scheduler, store, sender := newScheduler(t, moment("2026-10-27", "18:46"))
+	master := masterWithPlan(t, store, "Анна")
+	sender.err = errors.New("push service down")
+
+	scheduler.Tick(context.Background())
+	sender.err = nil
+	scheduler.Tick(context.Background())
+	scheduler.Tick(context.Background())
+
+	if got := len(sender.messages[master.ID]); got != 2 {
+		t.Fatalf("attempts = %d, want one failed try, one retry and no repeat after success", got)
+	}
+}
+
+type panickingAccounts struct {
+	accounts.Store
+	victim string
+}
+
+func (p panickingAccounts) LoadState(ctx context.Context, id string) (accounts.State, error) {
+	if id == p.victim {
+		panic("broken state")
+	}
+	return p.Store.LoadState(ctx, id)
+}
+
+func TestAPanicForOneMasterDoesNotStopTheTick(t *testing.T) {
+	scheduler, store, sender := newScheduler(t, moment("2026-10-27", "18:46"))
+	first := masterWithPlan(t, store, "Анна")
+	second := masterWithPlan(t, store, "Вера")
+	scheduler.Accounts = panickingAccounts{Store: store, victim: first.ID}
+
+	scheduler.Tick(context.Background())
+
+	if len(sender.messages[first.ID]) != 0 || len(sender.messages[second.ID]) != 1 {
+		t.Fatalf("first = %+v, second = %+v", sender.messages[first.ID], sender.messages[second.ID])
 	}
 }

@@ -1,15 +1,19 @@
 import { inject } from '@angular/core';
 import { ActivatedRouteSnapshot, Routes } from '@angular/router';
 import { ROUTE_TITLES, SETTINGS_SECTION_TITLES } from './constants';
-import { SettingsScreen } from './models';
+import { accessGuard } from './guards/access.guard';
 import { CalendarPlan } from './services/calendar-plan';
 
-function settingsTitle(route: ActivatedRouteSnapshot): string {
-  const section = route.paramMap.get('section') as Exclude<SettingsScreen, 'main'> | null;
-  return (section && SETTINGS_SECTION_TITLES[section]) ?? ROUTE_TITLES.settings;
+function isSettingsSection(value: string): value is keyof typeof SETTINGS_SECTION_TITLES {
+  return value in SETTINGS_SECTION_TITLES;
 }
 
-export const routes: Routes = [
+function settingsTitle(route: ActivatedRouteSnapshot): string {
+  const section = route.paramMap.get('section') ?? '';
+  return isSettingsSection(section) ? SETTINGS_SECTION_TITLES[section] : ROUTE_TITLES.settings;
+}
+
+const screens: Routes = [
   {
     path: '',
     pathMatch: 'full',
@@ -101,5 +105,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./components/settings-panel/settings-panel').then((m) => m.SettingsPanel),
   },
+];
+
+export const routes: Routes = [
+  { path: '', canActivateChild: [accessGuard], children: screens },
   { path: '**', redirectTo: '' },
 ];

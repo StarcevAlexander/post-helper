@@ -93,7 +93,7 @@ func (h *intakeHandler) locate(ctx context.Context, masterID, city, note, browse
 		return
 	}
 	detached := context.WithoutCancel(ctx)
-	go func() {
+	safeGo(h.logger, "locate master", func() {
 		lookupCtx, cancel := context.WithTimeout(detached, places.RequestTimeout)
 		defer cancel()
 		found, err := h.places.Locate(lookupCtx, places.Query{City: city, Note: note})
@@ -108,7 +108,7 @@ func (h *intakeHandler) locate(ctx context.Context, masterID, city, note, browse
 		if err := h.accounts.SetLocation(lookupCtx, masterID, finalCity, found.Zone); err != nil {
 			h.logger.Error("save found place failed", slog.Any("error", err))
 		}
-	}()
+	})
 }
 
 func (h *intakeHandler) announce(ctx context.Context, request intake.Request, masterName string, updated, review bool) {
@@ -117,13 +117,13 @@ func (h *intakeHandler) announce(ctx context.Context, request intake.Request, ma
 		return
 	}
 	text := intake.Announcement(request, masterName, updated, review)
-	go func() {
+	safeGo(h.logger, "notify owner", func() {
 		notifyCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), intake.TelegramTimeout)
 		defer cancel()
 		if err := h.notifier.Notify(notifyCtx, text); err != nil {
 			h.logger.Error("notify owner failed", slog.Any("error", err))
 		}
-	}()
+	})
 }
 
 func (h *intakeHandler) latest(w http.ResponseWriter, r *http.Request) {
@@ -214,23 +214,28 @@ func (h *intakeHandler) deliverPlan(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	note := strings.TrimSpace(submission.Note)
-	if err := h.intake.Ready(r.Context(), id, note, time.Now()); err != nil && !errors.Is(err, intake.ErrNotFound) {
-		h.logger.Error("mark intake ready failed", slog.Any("error", err))
+	if submission.CarriesPlan() {
+		note := strings.TrimSpace(submission.Note)
+		if err := h.intake.Ready(r.Context(), id, note, time.Now()); err != nil && !errors.Is(err, intake.ErrNotFound) {
+			h.logger.Error("mark intake ready failed", slog.Any("error", err))
+		}
 	}
 	payload, _ := json.Marshal(map[string]any{"version": saved.Version, "items": len(merged.Items)})
 	if err := h.accounts.RecordEvent(r.Context(), id, EventPlanDelivered, payload, time.Now()); err != nil {
 		h.logger.Error("record plan event failed", slog.Any("error", err))
 	}
 	if h.refsOn {
-		h.orderRefs(r.Context(), id, merged.Items)
+		if err := h.orderRefs(r.Context(), id, merged.Items); err != nil {
+			writeError(w, http.StatusInternalServerError, MsgPlanRefsFailed)
+			return
+		}
 	} else if h.pushes != nil {
 		h.pushes.notify(r.Context(), id, push.Message{Title: PushPlanTitle, Body: PushPlanBody, URL: PushPlanURL})
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"version": saved.Version, "items": len(merged.Items)})
 }
 
-func (h *intakeHandler) orderRefs(ctx context.Context, masterID string, items []plan.Item) {
+func (h *intakeHandler) orderRefs(ctx context.Context, masterID string, items []plan.Item) error {
 	order := make([]refs.OrderItem, 0, len(items))
 	for _, item := range items {
 		order = append(order, refs.OrderItem{Key: item.ID, Format: item.Format, Pillar: item.Pillar, Idea: item.Idea, Date: item.Date})
@@ -238,11 +243,13 @@ func (h *intakeHandler) orderRefs(ctx context.Context, masterID string, items []
 	cleaned, message := cleanRefItems(order)
 	if message != "" {
 		h.logger.Error("plan items do not fit the references order", slog.String("reason", message))
-		return
+		return errors.New(message)
 	}
 	if _, _, err := h.refs.Sync(ctx, masterID, cleaned, time.Now()); err != nil {
 		h.logger.Error("order references for the plan failed", slog.Any("error", err))
+		return err
 	}
+	return nil
 }
 
 func (h *intakeHandler) deliverRefs(w http.ResponseWriter, r *http.Request) {
@@ -291,7 +298,12 @@ func (h *intakeHandler) deliverRefs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	order := refs.OrderItem{Key: item.ID, Format: item.Format, Pillar: item.Pillar, Idea: item.Idea, Date: item.Date}
-	if err := h.refs.Deliver(r.Context(), masterID, order, files, time.Now()); err != nil {
+	err := h.refs.Deliver(r.Context(), masterID, order, files, time.Now())
+	if errors.Is(err, refs.ErrState) {
+		writeError(w, http.StatusConflict, MsgRefsState)
+		return
+	}
+	if err != nil {
 		h.logger.Error("deliver refs failed", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, MsgRefsFailed)
 		return

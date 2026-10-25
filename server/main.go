@@ -58,6 +58,10 @@ func run() error {
 		return fmt.Errorf("config: %w", err)
 	}
 
+	if err := cfg.RequireStore(); err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+
 	logger := slog.Default()
 	var history store.Store = store.Noop{}
 	memoryAccounts := accounts.NewMemory()
@@ -68,6 +72,7 @@ func run() error {
 	var feedbackStore feedback.Store = feedback.NewMemory()
 	var pushStore push.Store = push.NewMemory()
 	var reminderSent reminders.Sent = reminders.NewMemory()
+	var pingDatabase func(context.Context) error
 	if cfg.DatabaseURL != "" {
 		openCtx, cancel := context.WithTimeout(context.Background(), databaseOpenTimeout)
 		postgres, err := store.Open(openCtx, cfg.DatabaseURL, logger)
@@ -86,14 +91,15 @@ func run() error {
 		reminderSent = reminders.NewPostgres(postgres.Pool())
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
 		slog.SetDefault(logger)
+		pingDatabase = postgres.Pool().Ping
 	} else {
-		slog.Warn("DATABASE_URL is not set: history, master accounts and master data live in memory and are lost on restart")
+		slog.Warn("ALLOW_MEMORY_STORE=1 and DATABASE_URL is not set: master accounts and master data live in memory and are lost on restart")
 	}
 	defer history.Close()
 
 	ctxRetention, stopRetention := context.WithCancel(context.Background())
 	defer stopRetention()
-	go runRetention(ctxRetention, accountStore, cfg.RetentionDays)
+	go runRetention(ctxRetention, accountStore, history, cfg.RetentionDays)
 
 	var notifier intake.Notifier
 	if telegram := intake.NewTelegram(cfg.TelegramToken, cfg.TelegramChatID); telegram != nil {
@@ -142,6 +148,7 @@ func run() error {
 		RetentionDays:  cfg.RetentionDays,
 		AllowedOrigins: cfg.AllowedOrigins,
 		Store:          history,
+		Ping:           pingDatabase,
 		Logger:         logger,
 	}
 	server := &http.Server{
@@ -186,20 +193,14 @@ func run() error {
 	}
 }
 
-func runRetention(ctx context.Context, store accounts.Store, days int) {
-	if days <= 0 {
-		return
-	}
+func runRetention(ctx context.Context, accountStore accounts.Store, logStore store.Store, days int) {
 	purge := func() {
-		before := time.Now().AddDate(0, 0, -days)
 		purgeCtx, cancel := context.WithTimeout(ctx, retentionTimeout)
 		defer cancel()
-		removed, err := store.Purge(purgeCtx, before)
-		if err != nil {
-			slog.Error("retention purge failed", slog.Any("error", err))
-			return
+		purgeLogs(purgeCtx, logStore)
+		if days > 0 {
+			purgeAccounts(purgeCtx, accountStore, days)
 		}
-		slog.Info("retention purge done", slog.Int64("removed", removed), slog.Int("days", days))
 	}
 	purge()
 	ticker := time.NewTicker(retentionInterval)
@@ -212,6 +213,24 @@ func runRetention(ctx context.Context, store accounts.Store, days int) {
 			purge()
 		}
 	}
+}
+
+func purgeAccounts(ctx context.Context, accountStore accounts.Store, days int) {
+	removed, err := accountStore.Purge(ctx, time.Now().AddDate(0, 0, -days))
+	if err != nil {
+		slog.Error("retention purge failed", slog.Any("error", err))
+		return
+	}
+	slog.Info("retention purge done", slog.Int64("removed", removed), slog.Int("days", days))
+}
+
+func purgeLogs(ctx context.Context, logStore store.Store) {
+	removed, err := logStore.Purge(ctx, time.Now().AddDate(0, 0, -store.LogRetentionDays))
+	if err != nil {
+		slog.Warn("log retention purge failed", slog.Any("error", err))
+		return
+	}
+	slog.Info("log retention purge done", slog.Int64("removed", removed), slog.Int("days", store.LogRetentionDays))
 }
 
 func reminderLocation(name string) *time.Location {

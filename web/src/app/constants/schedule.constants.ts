@@ -1,16 +1,8 @@
-import { PostFormat, ScheduleDraft, StrategyCadence } from '../models';
+import { PostFormat } from '../models';
 
 export const CALENDAR_STORAGE_KEY = 'helper.calendar';
 
 export const PLAN_WEEKS = 4;
-
-export const MAX_PER_WEEK = 14;
-
-export const DEFAULT_PUBLISH_TIME = '19:00';
-
-export const DEFAULT_CADENCE: StrategyCadence = { reels: 1, posts: 1, stories: 3, note: '' };
-
-export const GENERIC_PILLAR_TITLE = 'Свободная тема';
 
 export const WEEKDAY_NAMES: readonly string[] = [
   'Понедельник',
@@ -29,14 +21,6 @@ export const FORMAT_LABELS: Record<PostFormat, string> = {
 };
 
 export const FORMAT_ORDER: readonly PostFormat[] = ['reels', 'post', 'stories'];
-
-export const DEFAULT_DRAFT: ScheduleDraft = {
-  weekday1: '3',
-  time1: '18:00',
-  weekday2: '',
-  time2: '18:00',
-  publishTime: DEFAULT_PUBLISH_TIME,
-};
 
 export const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 

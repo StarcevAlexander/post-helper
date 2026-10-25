@@ -1,7 +1,10 @@
 package httpapi
 
 import (
+	"context"
+	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"post-helper/server/internal/auth"
 	"runtime/debug"
@@ -69,10 +72,78 @@ func withRecover(logger *slog.Logger, next http.Handler) http.Handler {
 	})
 }
 
-func withAuth(authenticator *auth.Authenticator, next http.Handler) http.Handler {
+func withLocalOnly(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		identity, ok := authenticator.Authenticate(r.Context(), bearerToken(r))
-		if !ok {
+		if r.URL.Path != HealthPath && !localRequest(r) {
+			writeError(w, http.StatusForbidden, MsgAdminForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func localRequest(r *http.Request) bool {
+	if _, present := r.Header[HeaderOrigin]; present {
+		return false
+	}
+	if site := r.Header.Get(HeaderFetchSite); site != "" && site != FetchSiteNone {
+		return false
+	}
+	return loopbackHost(r.Host)
+}
+
+func loopbackHost(hostport string) bool {
+	host := hostport
+	if parsed, _, err := net.SplitHostPort(hostport); err == nil {
+		host = parsed
+	}
+	host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
+	switch strings.ToLower(host) {
+	case LoopbackHostV4, LoopbackHostName, LoopbackHostV6:
+		return true
+	}
+	return false
+}
+
+func healthHandler(ping func(context.Context) error, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if ping != nil {
+			ctx, cancel := context.WithTimeout(r.Context(), HealthPingTimeout)
+			defer cancel()
+			if err := ping(ctx); err != nil {
+				logger.Warn("health check: database ping failed", slog.Any("error", err))
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func safeGo(logger *slog.Logger, name string, fn func()) {
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				logger.Error("panic in background task",
+					slog.String("task", name),
+					slog.Any("panic", recovered),
+					slog.String("stack", string(debug.Stack())),
+				)
+			}
+		}()
+		fn()
+	}()
+}
+
+func withAuth(logger *slog.Logger, authenticator *auth.Authenticator, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		identity, err := authenticator.Authenticate(r.Context(), bearerToken(r))
+		if errors.Is(err, auth.ErrStore) {
+			logger.Error("authentication store failed", slog.Any("error", err))
+			writeError(w, http.StatusServiceUnavailable, MsgAuthUnavailable)
+			return
+		}
+		if err != nil {
 			select {
 			case <-time.After(AuthFailDelay):
 			case <-r.Context().Done():

@@ -202,9 +202,9 @@ func TestAgentDeliversTheResultAndTheMasterGetsTheAudit(t *testing.T) {
 	if len(events) != 2 || events[0].Kind != "audit" || !strings.Contains(string(events[0].Payload), `"source":"agent"`) {
 		t.Errorf("events = %+v", events)
 	}
-	used, _ := fixture.store.CountUsage(context.Background(), master.ID, master.CreatedAt)
-	if used != 1 {
-		t.Errorf("the agent's audit must count as a use of the AI, used = %d", used)
+	summaries, _ := fixture.store.ListMasters(context.Background(), master.CreatedAt)
+	if len(summaries) != 1 || summaries[0].UsageTotal != 1 {
+		t.Errorf("the agent's audit must count as a use of the AI, summaries = %+v", summaries)
 	}
 }
 

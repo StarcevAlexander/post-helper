@@ -8,6 +8,10 @@ import (
 	"unicode/utf8"
 )
 
+func (s Submission) CarriesPlan() bool {
+	return s.Strategy != nil || s.Calendar != nil || len(s.Kits) > 0 || s.Review != nil
+}
+
 func Merge(existing json.RawMessage, submission Submission) (Merged, error) {
 	if submission.Strategy == nil && submission.Calendar == nil && len(submission.Kits) == 0 && submission.Review == nil && submission.Recommendations == nil && submission.Location == nil {
 		return Merged{}, fmt.Errorf("в плане нет ни стратегии, ни календаря, ни комплектов, ни итогов, ни рекомендаций, ни места")

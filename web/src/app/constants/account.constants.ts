@@ -1,8 +1,14 @@
+import { SyncKey } from '../models';
+
 export const SYNC_META_STORAGE_KEY = 'helper.sync';
 
 export const SYNC_BACKUP_STORAGE_KEY = 'helper.sync-backup';
 
 export const SYNC_PUSH_DELAY_MS = 2000;
+
+export const SYNC_RETRY_DELAY_MS = 30000;
+
+export const SYNC_MASTER_KEYS = ['shootProgress', 'settings'] as const satisfies readonly SyncKey[];
 
 export const SYNC_STATUS_TEXT = {
   off: '',

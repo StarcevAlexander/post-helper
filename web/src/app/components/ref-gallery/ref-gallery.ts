@@ -1,13 +1,7 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { REFS_TEXTS } from '../../constants';
-import { RefFileMeta } from '../../models';
+import { RefFileMeta, RefTileLoad, RefTileView } from '../../models';
 import { Refs } from '../../services/refs';
-
-interface TileView {
-  file: RefFileMeta;
-  url?: string;
-  failed: boolean;
-}
 
 @Component({
   selector: 'app-ref-gallery',
@@ -21,11 +15,11 @@ export class RefGallery {
 
   private readonly refs = inject(Refs);
   protected readonly texts = REFS_TEXTS;
-  protected readonly urls = signal<Record<string, string | null>>({});
+  protected readonly loads = signal<Record<string, RefTileLoad>>({});
 
   protected readonly status = computed(() => this.refs.byKey().get(this.itemId()));
-  protected readonly tiles = computed<TileView[]>(() => {
-    const urls = this.urls();
+  protected readonly tiles = computed<RefTileView[]>(() => {
+    const loads = this.loads();
     const index = this.index();
     const fromIndex = this.fromIndex();
     return (this.status()?.files ?? [])
@@ -34,31 +28,37 @@ export class RefGallery {
           (index === undefined || file.index === index) &&
           (fromIndex === undefined || file.index >= fromIndex),
       )
-      .map((file) => ({
-        file,
-        url: urls[file.id] ?? undefined,
-        failed: urls[file.id] === null,
-      }));
+      .map((file) => ({ file, load: loads[file.id] ?? { state: 'loading' } }));
   });
   protected readonly showNotes = computed(() => this.fromIndex() === undefined);
 
   constructor() {
     effect(() => {
-      for (const file of this.status()?.files ?? []) {
-        if (!(file.id in this.urls())) {
-          this.urls.update((current) => ({ ...current, [file.id]: null }));
-          void this.load(file);
+      const files = this.status()?.files ?? [];
+      untracked(() => {
+        for (const file of files) {
+          if (!(file.id in this.loads())) {
+            void this.load(file);
+          }
         }
-      }
+      });
     });
   }
 
+  protected retry(file: RefFileMeta): void {
+    void this.load(file);
+  }
+
   private async load(file: RefFileMeta): Promise<void> {
+    this.setLoad(file.id, { state: 'loading' });
     try {
-      const url = await this.refs.urlFor(file);
-      this.urls.update((current) => ({ ...current, [file.id]: url }));
+      this.setLoad(file.id, { state: 'ready', url: await this.refs.urlFor(file) });
     } catch {
-      this.urls.update((current) => ({ ...current, [file.id]: null }));
+      this.setLoad(file.id, { state: 'failed' });
     }
+  }
+
+  private setLoad(id: string, load: RefTileLoad): void {
+    this.loads.update((current) => ({ ...current, [id]: load }));
   }
 }

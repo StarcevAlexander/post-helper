@@ -117,3 +117,23 @@ func TestMemoryRemembersThatTheMasterAsksForTheMonthReview(t *testing.T) {
 		t.Fatalf("listed = %+v", listed)
 	}
 }
+
+func TestMemoryReadyOnlyFlipsNewRequests(t *testing.T) {
+	store := NewMemory()
+	ctx := context.Background()
+	now := time.Now()
+	draft := Draft{Networks: []Network{{Platform: PlatformVK, URL: "https://vk.com/anna"}}, Goals: []string{"reach"}}
+	_, _, _ = store.Submit(ctx, "m1", draft, now)
+	if err := store.Ready(ctx, "m1", "План готов", now.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.Ready(ctx, "m1", "", now.Add(2*time.Hour)); err != nil {
+		t.Fatalf("second Ready: %v", err)
+	}
+
+	latest, _ := store.Latest(ctx, "m1")
+	if latest.Status != StatusReady || latest.ReplyNote != "План готов" || !latest.ReadyAt.Equal(now.Add(time.Hour)) {
+		t.Errorf("a ready request must stay untouched, got %+v", latest)
+	}
+}

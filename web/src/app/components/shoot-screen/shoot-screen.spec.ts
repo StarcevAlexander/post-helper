@@ -3,32 +3,12 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { API_DEV_URL, API_REFS_FILES_PATH } from '../../constants';
-import { PublicationKit, RefStatus, ScheduleDraft, Strategy } from '../../models';
+import { PublicationKit, RefStatus } from '../../models';
+import { samplePlan } from '../../testing/plan-fixture';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
 import { Refs } from '../../services/refs';
 import { ShootScreen } from './shoot-screen';
-
-const strategy: Strategy = {
-  summary: 'Ок',
-  positioning: 'Аккуратный маникюр',
-  profileFixes: [],
-  pillars: [
-    { title: 'До и после', description: '', ideas: ['Кадр до'] },
-    { title: 'Процесс', description: '', ideas: ['Видео'] },
-    { title: 'Окошки', description: '', ideas: ['Свободно в пятницу'] },
-  ],
-  cadence: { reels: 1, posts: 1, stories: 1, note: '' },
-  firstSteps: [],
-};
-
-const draft: ScheduleDraft = {
-  weekday1: '3',
-  time1: '18:00',
-  weekday2: '',
-  time2: '18:00',
-  publishTime: '19:00',
-};
 
 const kit: PublicationKit = {
   shots: ['Руки крупно на светлом фоне'],
@@ -53,7 +33,7 @@ describe('ShootScreen', () => {
     });
     plan = TestBed.inject(CalendarPlan);
     http = TestBed.inject(HttpTestingController);
-    plan.build(draft, strategy, new Date(2026, 9, 19, 10, 0));
+    plan.load(samplePlan(new Date(2026, 9, 19, 10, 0)));
   });
 
   afterEach(() => {

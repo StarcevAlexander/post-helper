@@ -115,7 +115,6 @@ type Store interface {
 	Touch(ctx context.Context, id string, at time.Time) error
 	LoadState(ctx context.Context, id string) (State, error)
 	SaveState(ctx context.Context, id string, baseVersion int, data json.RawMessage, at time.Time) (State, error)
-	CountUsage(ctx context.Context, id string, since time.Time) (int, error)
 	RecordUsage(ctx context.Context, id, kind string, at time.Time) error
 	RecordEvent(ctx context.Context, id, kind string, payload json.RawMessage, at time.Time) error
 	ListEvents(ctx context.Context, id string, limit int) ([]Event, error)

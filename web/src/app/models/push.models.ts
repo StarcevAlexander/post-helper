@@ -4,6 +4,7 @@ export interface PushSubscriptionPayload {
     p256dh: string;
     auth: string;
   };
+  timeZone?: string;
 }
 
 export interface PushKeyResponse {

@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { APP_LINK_PARAM } from '../constants';
 import { PlanItem } from '../models';
 import { isTodayLink } from '../utils/app-link';
-import { toDateKey } from '../utils/date-utils';
+import { addDays, toDateKey } from '../utils/date-utils';
 import { CalendarPlan } from './calendar-plan';
 
 function byMoment(first: PlanItem, second: PlanItem): number {
@@ -15,6 +15,7 @@ export class Today {
   private readonly plan = inject(CalendarPlan);
   private readonly router = inject(Router);
   private readonly now = signal(new Date());
+  private rolloverTimer: ReturnType<typeof setTimeout> | undefined;
 
   readonly todayKey = computed(() => toDateKey(this.now()));
   readonly todayItems = computed(() =>
@@ -43,8 +44,23 @@ export class Today {
           .sort(byMoment)[0],
   );
 
+  constructor() {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          this.refresh();
+        }
+      });
+    }
+    this.refresh();
+  }
+
   refresh(): void {
-    this.now.set(new Date());
+    const now = new Date();
+    this.now.set(now);
+    clearTimeout(this.rolloverTimer);
+    const midnight = addDays(now, 1).getTime();
+    this.rolloverTimer = setTimeout(() => this.refresh(), Math.max(1000, midnight - now.getTime()));
   }
 
   openFromLink(): void {

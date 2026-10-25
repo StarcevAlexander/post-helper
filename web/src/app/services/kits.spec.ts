@@ -1,29 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { KITS_STORAGE_KEY } from '../constants';
-import { PlanItem, PublicationKit, ScheduleDraft, Strategy, StoredKit } from '../models';
+import { PlanItem, PublicationKit, StoredKit } from '../models';
+import { samplePlan } from '../testing/plan-fixture';
 import { CalendarPlan } from './calendar-plan';
 import { Kits } from './kits';
-
-const strategy: Strategy = {
-  summary: 'Ок',
-  positioning: 'Аккуратный маникюр',
-  profileFixes: [],
-  pillars: [
-    { title: 'До и после', description: '', ideas: ['Кадр до'] },
-    { title: 'Процесс', description: '', ideas: ['Видео'] },
-    { title: 'Окошки', description: '', ideas: ['Свободно в пятницу'] },
-  ],
-  cadence: { reels: 1, posts: 1, stories: 1, note: '' },
-  firstSteps: [],
-};
-
-const draft: ScheduleDraft = {
-  weekday1: '3',
-  time1: '18:00',
-  weekday2: '',
-  time2: '18:00',
-  publishTime: '19:00',
-};
 
 const kit: PublicationKit = {
   shots: ['Снять руки'],
@@ -54,7 +34,7 @@ describe('Kits', () => {
   beforeEach(() => {
     localStorage.clear();
     setUp();
-    plan.build(draft, strategy, new Date(2026, 9, 19, 10, 0));
+    plan.load(samplePlan(new Date(2026, 9, 19, 10, 0)));
     items = plan.items();
   });
 

@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -17,31 +16,12 @@ import (
 	"post-helper/server/internal/yandex"
 )
 
-type signInLimiter struct {
-	mu     sync.Mutex
-	hits   []time.Time
-	max    int
-	window time.Duration
-}
-
-func (l *signInLimiter) allow(now time.Time) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	cutoff := now.Add(-l.window)
-	l.hits = slices.DeleteFunc(l.hits, func(at time.Time) bool { return at.Before(cutoff) })
-	if len(l.hits) >= l.max {
-		return false
-	}
-	l.hits = append(l.hits, now)
-	return true
-}
-
 type authHandler struct {
 	accounts       accounts.Store
 	exchanger      yandex.Exchanger
 	clientID       string
 	allowedOrigins []string
-	limiter        *signInLimiter
+	limiter        *rateLimiter
 	logger         *slog.Logger
 }
 
@@ -133,7 +113,7 @@ func (h *authHandler) verify(w http.ResponseWriter, r *http.Request) (yandex.Pro
 		writeError(w, http.StatusBadRequest, MsgBadRequest)
 		return yandex.Profile{}, false
 	}
-	if !h.limiter.allow(time.Now()) {
+	if !h.limiter.allow(clientIP(r), time.Now()) {
 		writeError(w, http.StatusTooManyRequests, MsgTooManySignIns)
 		return yandex.Profile{}, false
 	}

@@ -263,8 +263,12 @@ func (p *Postgres) Deliver(ctx context.Context, masterID string, item OrderItem,
 			format = EXCLUDED.format, pillar = EXCLUDED.pillar, idea = EXCLUDED.idea, status = EXCLUDED.status,
 			attempts = 0, error = '', claimed_at = NULL, finished_at = EXCLUDED.finished_at,
 			planned_date = EXCLUDED.planned_date
+		WHERE ref_items.status NOT IN ($10, $11)
 		RETURNING id`,
-		newID(), masterID, item.Key, item.Format, item.Pillar, item.Idea, StatusDone, now, item.Date).Scan(&id)
+		newID(), masterID, item.Key, item.Format, item.Pillar, item.Idea, StatusDone, now, item.Date, StatusMade, StatusRunning).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrState
+	}
 	if err != nil {
 		return err
 	}

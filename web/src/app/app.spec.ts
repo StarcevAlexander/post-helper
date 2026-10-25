@@ -56,6 +56,14 @@ describe('App', () => {
     expect(element.querySelector('nav.tabs')).toBeNull();
   });
 
+  it('does not let a stranger open a screen by its address', async () => {
+    await start();
+
+    await TestBed.inject(Router).navigateByUrl('/today');
+
+    expect(TestBed.inject(Router).url).not.toContain('today');
+  });
+
   it('opens the request while there is no plan', async () => {
     localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
 

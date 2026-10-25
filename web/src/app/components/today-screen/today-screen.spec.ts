@@ -1,32 +1,15 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { PublicationKit, ScheduleDraft, Strategy } from '../../models';
+import { PublicationKit } from '../../models';
+import { samplePlan } from '../../testing/plan-fixture';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
+import { PushNotifications } from '../../services/push-notifications';
 import { Today } from '../../services/today';
 import { TodayScreen } from './today-screen';
-
-const strategy: Strategy = {
-  summary: 'Ок',
-  positioning: 'Аккуратный маникюр',
-  profileFixes: [],
-  pillars: [
-    { title: 'До и после', description: '', ideas: ['Кадр до'] },
-    { title: 'Процесс', description: '', ideas: ['Видео'] },
-  ],
-  cadence: { reels: 1, posts: 1, stories: 1, note: '' },
-  firstSteps: [],
-};
-
-const draft: ScheduleDraft = {
-  weekday1: '3',
-  time1: '18:00',
-  weekday2: '',
-  time2: '18:00',
-  publishTime: '19:00',
-};
 
 const kit: PublicationKit = {
   shots: ['Снять руки крупно'],
@@ -65,7 +48,7 @@ describe('TodayScreen', () => {
   });
 
   async function openOnFirstPublication() {
-    plan.build(draft, strategy, new Date(2026, 9, 19, 10, 0));
+    plan.load(samplePlan(new Date(2026, 9, 19, 10, 0)));
     const item = [...plan.items()].sort((a, b) =>
       `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
     )[0];
@@ -75,6 +58,41 @@ describe('TodayScreen', () => {
     await fixture.whenStable();
     return { item, fixture, element: fixture.nativeElement as HTMLElement };
   }
+
+  it('offers to turn on reminders until the master decides', async () => {
+    TestBed.resetTestingModule();
+    const push = {
+      supported: true,
+      subscribed: signal(false),
+      dismissed: signal(false),
+      busy: signal(false),
+      notice: signal(''),
+      enable: vi.fn(async () => undefined),
+      dismiss: vi.fn(() => push.dismissed.set(true)),
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: PushNotifications, useValue: push },
+      ],
+    });
+    TestBed.inject(CalendarPlan).load(samplePlan(new Date(2026, 9, 19, 10, 0)));
+    const fixture = TestBed.createComponent(TodayScreen);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('.offer')?.textContent).toContain('Включите напоминания');
+    element.querySelector<HTMLButtonElement>('.offer__enable')?.click();
+    expect(push.enable).toHaveBeenCalledTimes(1);
+
+    element.querySelector<HTMLButtonElement>('.offer .screen__secondary')?.click();
+    await fixture.whenStable();
+
+    expect(push.dismiss).toHaveBeenCalledTimes(1);
+    expect(element.querySelector('.offer')).toBeNull();
+  });
 
   it('explains that there is no calendar yet', async () => {
     const fixture = TestBed.createComponent(TodayScreen);
@@ -132,7 +150,7 @@ describe('TodayScreen', () => {
   });
 
   it('offers the shooting list for the week on a content day', async () => {
-    plan.build(draft, strategy, new Date(2026, 9, 19, 10, 0));
+    plan.load(samplePlan(new Date(2026, 9, 19, 10, 0)));
     const [year, month, day] = plan.weeks()[0].contentDays[0].date.split('-').map(Number);
     vi.setSystemTime(new Date(year, month - 1, day, 9, 0));
     const fixture = TestBed.createComponent(TodayScreen);

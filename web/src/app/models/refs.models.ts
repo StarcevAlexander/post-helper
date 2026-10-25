@@ -23,6 +23,14 @@ export interface RefStatus {
   files: RefFileMeta[];
 }
 
+export type RefTileLoad =
+  { state: 'loading' } | { state: 'ready'; url: string } | { state: 'failed' };
+
+export interface RefTileView {
+  file: RefFileMeta;
+  load: RefTileLoad;
+}
+
 export interface RefOrderItem {
   key: string;
   format: PostFormat;

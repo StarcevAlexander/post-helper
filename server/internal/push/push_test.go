@@ -45,6 +45,20 @@ func TestCleanSubscription(t *testing.T) {
 		{"no p256dh", "https://push.example/abc", "", "secret", false},
 		{"no auth", "https://push.example/abc", "key", " ", false},
 		{"huge endpoint", "https://push.example/" + strings.Repeat("a", MaxEndpointLength), "key", "secret", false},
+		{"loopback ip", "https://127.0.0.1/abc", "key", "secret", false},
+		{"loopback v6", "https://[::1]/abc", "key", "secret", false},
+		{"private 10", "https://10.1.2.3/abc", "key", "secret", false},
+		{"private 192", "https://192.168.0.5/abc", "key", "secret", false},
+		{"link local", "https://169.254.169.254/latest", "key", "secret", false},
+		{"mapped loopback", "https://[::ffff:127.0.0.1]/abc", "key", "secret", false},
+		{"public ip", "https://8.8.8.8/abc", "key", "secret", true},
+		{"localhost", "https://localhost/abc", "key", "secret", false},
+		{"localhost dot", "https://localhost./abc", "key", "secret", false},
+		{"sub localhost", "https://api.localhost/abc", "key", "secret", false},
+		{"mdns", "https://printer.local/abc", "key", "secret", false},
+		{"tailnet", "https://box.tail1234.ts.net/abc", "key", "secret", false},
+		{"odd port", "https://push.example:8443/abc", "key", "secret", false},
+		{"explicit 443", "https://push.example:443/abc", "key", "secret", true},
 		{"huge key", "https://push.example/abc", strings.Repeat("k", MaxKeyLength+1), "secret", false},
 	}
 	for _, tt := range tests {
@@ -181,5 +195,36 @@ func TestPayloadShapeForAngularServiceWorker(t *testing.T) {
 	want := `{"notification":{"title":"План готов","body":"Откройте","icon":"icons/icon-192x192.png","data":{"onActionClick":{"default":{"operation":"navigateLastFocusedOrOpen","url":"./"}}}}}`
 	if string(body) != want {
 		t.Errorf("payload = %s", body)
+	}
+}
+
+func TestSendDoesNotFollowRedirects(t *testing.T) {
+	var hits atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer target.Close()
+	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+"/internal", http.StatusTemporaryRedirect)
+	}))
+	defer redirector.Close()
+
+	privateKey, publicKey, err := webpush.GenerateVAPIDKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := NewMemory()
+	ctx := context.Background()
+	p256dh, secret := browserKeys(t)
+	_ = store.Save(ctx, "anna", Subscription{Endpoint: redirector.URL + "/hop", P256dh: p256dh, Auth: secret}, time.Now())
+	service := New(store, publicKey, privateKey, "https://example.test/")
+
+	delivered, err := service.Send(ctx, "anna", Message{Title: "t", Body: "b", URL: "./"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if delivered != 0 || hits.Load() != 0 {
+		t.Errorf("delivered = %d, redirect target hits = %d", delivered, hits.Load())
 	}
 }

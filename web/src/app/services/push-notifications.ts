@@ -2,23 +2,36 @@ import { Service, computed, effect, inject, signal, untracked } from '@angular/c
 import { toSignal } from '@angular/core/rxjs-interop';
 import { SwPush } from '@angular/service-worker';
 import { NEVER } from 'rxjs';
-import { NOTICE_HIDE_DELAY_MS, PUSH_TEXTS } from '../constants';
-import { ChatApiError, PushSubscriptionPayload } from '../models';
+import { NOTICE_HIDE_DELAY_MS, PUSH_OFFER_DISMISSED_KEY, PUSH_TEXTS } from '../constants';
+import { ApiError, PushSubscriptionPayload } from '../models';
+import { browserTimeZone } from '../utils/time-zone';
 import { Account } from './account';
-import { ChatApi } from './chat-api';
+import { ApiClient } from './api-client';
 
 function toPayload(subscription: PushSubscription): PushSubscriptionPayload | undefined {
   const { endpoint, keys } = subscription.toJSON();
   if (!endpoint || !keys?.['p256dh'] || !keys['auth']) {
     return undefined;
   }
-  return { endpoint, keys: { p256dh: keys['p256dh'], auth: keys['auth'] } };
+  return {
+    endpoint,
+    keys: { p256dh: keys['p256dh'], auth: keys['auth'] },
+    timeZone: browserTimeZone(),
+  };
+}
+
+function readDismissed(): boolean {
+  try {
+    return localStorage.getItem(PUSH_OFFER_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 @Service()
 export class PushNotifications {
   private readonly swPush = inject(SwPush, { optional: true });
-  private readonly api = inject(ChatApi);
+  private readonly api = inject(ApiClient);
   private readonly account = inject(Account);
   private readonly subscription = toSignal(this.swPush?.subscription ?? NEVER, {
     initialValue: null,
@@ -31,6 +44,7 @@ export class PushNotifications {
   readonly subscribed = computed(() => this.subscription() !== null);
   readonly busy = signal(false);
   readonly notice = signal('');
+  readonly dismissed = signal(readDismissed());
 
   constructor() {
     effect(() => {
@@ -42,6 +56,15 @@ export class PushNotifications {
         }
       });
     });
+  }
+
+  dismiss(): void {
+    this.dismissed.set(true);
+    try {
+      localStorage.setItem(PUSH_OFFER_DISMISSED_KEY, '1');
+    } catch {
+      return;
+    }
   }
 
   async enable(): Promise<void> {
@@ -63,7 +86,7 @@ export class PushNotifications {
       await this.upload(subscription);
       this.showNotice(PUSH_TEXTS.enabled);
     } catch (error) {
-      this.showNotice(error instanceof ChatApiError ? error.message : PUSH_TEXTS.failed);
+      this.showNotice(error instanceof ApiError ? error.message : PUSH_TEXTS.failed);
     } finally {
       this.busy.set(false);
     }
@@ -90,7 +113,7 @@ export class PushNotifications {
   private async upload(subscription: PushSubscription): Promise<void> {
     const payload = toPayload(subscription);
     if (!payload) {
-      throw new ChatApiError(PUSH_TEXTS.failed);
+      throw new ApiError(PUSH_TEXTS.failed);
     }
     const previous = this.syncedEndpoint;
     this.syncedEndpoint = payload.endpoint;

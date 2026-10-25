@@ -1,7 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
+  DAY_FORMAT,
   FORMAT_LABELS,
+  PUSH_TEXTS,
   REFS_TEXTS,
   SHOOT_TEXTS,
   TODAY_COPY_FEEDBACK_MS,
@@ -10,17 +12,12 @@ import {
 import { PlanItem, TodayCopyFeedback, TodayEntry, TodaySection } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
+import { PushNotifications } from '../../services/push-notifications';
 import { Refs } from '../../services/refs';
 import { Today } from '../../services/today';
 import { copyText } from '../../utils/clipboard';
 import { fromDateKey } from '../../utils/date-utils';
 import { captionWithHashtags } from '../../utils/kit-text';
-
-const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-});
 
 @Component({
   imports: [RouterLink],
@@ -33,8 +30,13 @@ export class TodayScreen {
   protected readonly plan = inject(CalendarPlan);
   protected readonly kits = inject(Kits);
   protected readonly refs = inject(Refs);
+  protected readonly push = inject(PushNotifications);
   protected readonly texts = TODAY_TEXTS;
   protected readonly shootTexts = SHOOT_TEXTS;
+  protected readonly pushTexts = PUSH_TEXTS;
+  protected readonly offerPush = computed(
+    () => this.push.supported && !this.push.subscribed() && !this.push.dismissed(),
+  );
   protected readonly feedback = signal<TodayCopyFeedback | undefined>(undefined);
 
   protected readonly sections = computed<TodaySection[]>(() => {
@@ -51,6 +53,14 @@ export class TodayScreen {
 
   constructor() {
     this.today.refresh();
+  }
+
+  protected onEnablePush(): void {
+    void this.push.enable();
+  }
+
+  protected onDismissPush(): void {
+    this.push.dismiss();
   }
 
   protected feedbackText(id: string): string {

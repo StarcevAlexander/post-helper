@@ -6,13 +6,13 @@ import {
   MAX_FEEDBACK_CONTACT,
   MAX_FEEDBACK_TEXT,
 } from '../constants';
-import { ChatApiError } from '../models';
+import { ApiError } from '../models';
 import { Access } from './access';
-import { ChatApi } from './chat-api';
+import { ApiClient } from './api-client';
 
 @Service()
 export class Feedback {
-  private readonly api = inject(ChatApi);
+  private readonly api = inject(ApiClient);
   private readonly access = inject(Access);
 
   readonly text = signal('');
@@ -55,10 +55,10 @@ export class Feedback {
       this.text.set('');
       this.sent.set(true);
     } catch (error) {
-      if (error instanceof ChatApiError && error.unauthorized) {
+      if (error instanceof ApiError && error.unauthorized) {
         this.access.clear();
       }
-      this.error.set(error instanceof ChatApiError ? error.message : API_MESSAGES.failed);
+      this.error.set(error instanceof ApiError ? error.message : API_MESSAGES.failed);
     } finally {
       this.busy.set(false);
     }

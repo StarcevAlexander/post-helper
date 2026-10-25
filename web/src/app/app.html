@@ -51,6 +51,20 @@
 
   <main class="shell__main">
     @if (access.granted()) {
+      @if (intake.readyUnseen()) {
+        <div class="banner" role="status">
+          <p class="banner__text">{{ readyBanner.text }}</p>
+          <a class="banner__link" routerLink="/intake">{{ readyBanner.open }}</a>
+          <button
+            type="button"
+            class="banner__close"
+            [attr.aria-label]="readyBanner.close"
+            (click)="intake.markSeen()"
+          >
+            ×
+          </button>
+        </div>
+      }
       <router-outlet />
     } @else {
       <app-access-gate />

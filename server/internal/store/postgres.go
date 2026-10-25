@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,7 +23,8 @@ type Postgres struct {
 	queue  chan func(context.Context) error
 	wg     sync.WaitGroup
 	logger *slog.Logger
-	once   sync.Once
+	mu     sync.Mutex
+	closed bool
 }
 
 func Open(ctx context.Context, databaseURL string, logger *slog.Logger) (*Postgres, error) {
@@ -39,6 +40,10 @@ func Open(ctx context.Context, databaseURL string, logger *slog.Logger) (*Postgr
 		pool.Close()
 		return nil, err
 	}
+	return newPostgres(pool, logger), nil
+}
+
+func newPostgres(pool *pgxpool.Pool, logger *slog.Logger) *Postgres {
 	p := &Postgres{
 		pool:   pool,
 		queue:  make(chan func(context.Context) error, queueSize),
@@ -46,7 +51,7 @@ func Open(ctx context.Context, databaseURL string, logger *slog.Logger) (*Postgr
 	}
 	p.wg.Add(1)
 	go p.work()
-	return p, nil
+	return p
 }
 
 func migrate(ctx context.Context, pool *pgxpool.Pool) error {
@@ -122,6 +127,11 @@ func (p *Postgres) work() {
 }
 
 func (p *Postgres) enqueue(job func(context.Context) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.closed {
+		return
+	}
 	select {
 	case p.queue <- job:
 	default:
@@ -130,56 +140,25 @@ func (p *Postgres) enqueue(job func(context.Context) error) {
 }
 
 func (p *Postgres) Close() {
-	p.once.Do(func() {
-		close(p.queue)
-		done := make(chan struct{})
-		go func() {
-			p.wg.Wait()
-			close(done)
-		}()
-		select {
-		case <-done:
-		case <-timeAfter(closeTimeout):
-		}
-		p.pool.Close()
-	})
-}
-
-func (p *Postgres) SaveMessages(messages []Message) {
-	if len(messages) == 0 {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
 		return
 	}
-	p.enqueue(func(ctx context.Context) error {
-		batch := &pgx.Batch{}
-		for _, m := range messages {
-			attachments, err := json.Marshal(nonNilStrings(m.Attachments))
-			if err != nil {
-				return err
-			}
-			batch.Queue(`INSERT INTO messages (source, conversation_id, external_id, role, text, attachments, meta, created_at)
-				VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, $7, COALESCE($8, now()))
-				ON CONFLICT (source, external_id) WHERE external_id IS NOT NULL DO NOTHING`,
-				m.Source, m.ConversationID, m.ExternalID, m.Role, clip(m.Text, MaxStoredTextBytes),
-				attachments, rawOrEmpty(m.Meta), nullTime(m),
-			)
-		}
-		results := p.pool.SendBatch(ctx, batch)
-		defer results.Close()
-		for range messages {
-			if _, err := results.Exec(); err != nil {
-				return fmt.Errorf("insert message: %w", err)
-			}
-		}
-		return nil
-	})
-}
+	p.closed = true
+	close(p.queue)
+	p.mu.Unlock()
 
-func (p *Postgres) SaveEvent(kind, ref string, payload any) {
-	data := marshalOrEmpty(payload)
-	p.enqueue(func(ctx context.Context) error {
-		_, err := p.pool.Exec(ctx, "INSERT INTO events (kind, ref, payload) VALUES ($1, $2, $3)", kind, ref, data)
-		return err
-	})
+	done := make(chan struct{})
+	go func() {
+		p.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-timeAfter(closeTimeout):
+	}
+	p.pool.Close()
 }
 
 func (p *Postgres) SaveError(source, message string, details any) {
@@ -191,91 +170,16 @@ func (p *Postgres) SaveError(source, message string, details any) {
 	})
 }
 
-func (p *Postgres) Messages(ctx context.Context, filter MessageFilter) ([]Message, error) {
-	ctx, cancel := context.WithTimeout(ctx, readTimeout)
-	defer cancel()
-
-	rows, err := p.pool.Query(ctx, `SELECT id, source, conversation_id, COALESCE(external_id, ''), role, text, attachments, meta, created_at
-		FROM (
-			SELECT * FROM messages
-			WHERE ($1 = '' OR source = $1) AND ($2 = '' OR conversation_id = $2)
-			ORDER BY created_at DESC, id DESC
-			LIMIT $3
-		) recent
-		ORDER BY created_at, id`, filter.Source, filter.ConversationID, clampLimit(filter.Limit))
-	if err != nil {
-		return nil, fmt.Errorf("query messages: %w", err)
-	}
-	defer rows.Close()
-
-	messages := []Message{}
-	for rows.Next() {
-		var m Message
-		var attachments []byte
-		if err := rows.Scan(&m.ID, &m.Source, &m.ConversationID, &m.ExternalID, &m.Role, &m.Text, &attachments, &m.Meta, &m.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan message: %w", err)
+func (p *Postgres) Purge(ctx context.Context, before time.Time) (int64, error) {
+	var removed int64
+	for _, statement := range purgeStatements {
+		tag, err := p.pool.Exec(ctx, statement, before)
+		if err != nil {
+			return removed, fmt.Errorf("purge logs: %w", err)
 		}
-		if err := json.Unmarshal(attachments, &m.Attachments); err != nil {
-			return nil, fmt.Errorf("decode attachments: %w", err)
-		}
-		messages = append(messages, m)
+		removed += tag.RowsAffected()
 	}
-	return messages, rows.Err()
-}
-
-func (p *Postgres) Events(ctx context.Context, kind string, limit int) ([]Event, error) {
-	ctx, cancel := context.WithTimeout(ctx, readTimeout)
-	defer cancel()
-
-	rows, err := p.pool.Query(ctx, `SELECT id, kind, ref, payload, created_at FROM events
-		WHERE ($1 = '' OR kind = $1) ORDER BY created_at DESC, id DESC LIMIT $2`, kind, clampLimit(limit))
-	if err != nil {
-		return nil, fmt.Errorf("query events: %w", err)
-	}
-	defer rows.Close()
-
-	events := []Event{}
-	for rows.Next() {
-		var e Event
-		if err := rows.Scan(&e.ID, &e.Kind, &e.Ref, &e.Payload, &e.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan event: %w", err)
-		}
-		events = append(events, e)
-	}
-	return events, rows.Err()
-}
-
-func (p *Postgres) Errors(ctx context.Context, limit int) ([]ErrorEntry, error) {
-	ctx, cancel := context.WithTimeout(ctx, readTimeout)
-	defer cancel()
-
-	rows, err := p.pool.Query(ctx, `SELECT id, source, message, details, created_at FROM error_log
-		ORDER BY created_at DESC, id DESC LIMIT $1`, clampLimit(limit))
-	if err != nil {
-		return nil, fmt.Errorf("query errors: %w", err)
-	}
-	defer rows.Close()
-
-	entries := []ErrorEntry{}
-	for rows.Next() {
-		var e ErrorEntry
-		if err := rows.Scan(&e.ID, &e.Source, &e.Message, &e.Details, &e.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan error entry: %w", err)
-		}
-		entries = append(entries, e)
-	}
-	return entries, rows.Err()
-}
-
-func clampLimit(limit int) int {
-	switch {
-	case limit <= 0:
-		return DefaultListLimit
-	case limit > MaxListLimit:
-		return MaxListLimit
-	default:
-		return limit
-	}
+	return removed, nil
 }
 
 func clip(text string, maxBytes int) string {
@@ -283,20 +187,6 @@ func clip(text string, maxBytes int) string {
 		return strings.ToValidUTF8(text, "")
 	}
 	return strings.ToValidUTF8(text[:maxBytes], "")
-}
-
-func nonNilStrings(values []string) []string {
-	if values == nil {
-		return []string{}
-	}
-	return values
-}
-
-func rawOrEmpty(raw json.RawMessage) []byte {
-	if len(raw) == 0 || !json.Valid(raw) {
-		return []byte("{}")
-	}
-	return raw
 }
 
 func marshalOrEmpty(value any) []byte {

@@ -1,11 +1,11 @@
-import { Service, effect, inject, signal, untracked, computed } from '@angular/core';
-import { AccountInfo, ChatApiError } from '../models';
+import { Service, computed, effect, inject, signal, untracked } from '@angular/core';
+import { AccountInfo, ApiError } from '../models';
 import { Access } from './access';
-import { ChatApi } from './chat-api';
+import { ApiClient } from './api-client';
 
 @Service()
 export class Account {
-  private readonly api = inject(ChatApi);
+  private readonly api = inject(ApiClient);
   private readonly access = inject(Access);
 
   readonly info = signal<AccountInfo | undefined>(undefined);
@@ -19,13 +19,27 @@ export class Account {
         untracked(() => this.info.set(undefined));
       }
     });
+
+    if (typeof document !== 'undefined') {
+      const retry = () => {
+        if (this.access.granted() && !this.signedIn()) {
+          void this.refresh();
+        }
+      };
+      window.addEventListener('online', retry);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          retry();
+        }
+      });
+    }
   }
 
   async refresh(): Promise<void> {
     try {
       this.info.set(await this.api.me());
     } catch (error) {
-      if (error instanceof ChatApiError && error.unauthorized) {
+      if (error instanceof ApiError && error.unauthorized) {
         this.access.reject();
       }
     }

@@ -146,16 +146,18 @@ describe('Intake', () => {
     http.expectOne({ method: 'GET', url: intakeUrl }).flush(ready);
     await pending;
 
-    expect(navigate).toHaveBeenCalledWith('/intake');
+    expect(navigate).not.toHaveBeenCalled();
     expect(intake.ready()).toBe(true);
+    expect(intake.readyUnseen()).toBe(true);
     expect(pull).toHaveBeenCalledTimes(1);
 
     intake.markSeen();
     expect(localStorage.getItem(INTAKE_SEEN_STORAGE_KEY)).toBe('2026-10-23T10:00:00Z');
+    expect(intake.readyUnseen()).toBe(false);
     const again = intake.refresh();
     http.expectOne({ method: 'GET', url: intakeUrl }).flush(ready);
     await again;
-    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).not.toHaveBeenCalled();
     expect(pull).toHaveBeenCalledTimes(1);
   });
 

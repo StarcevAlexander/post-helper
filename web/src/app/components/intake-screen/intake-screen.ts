@@ -12,6 +12,7 @@ import {
 import { IntakeGoalId } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Intake } from '../../services/intake';
+import { fieldValue } from '../../utils/form-events';
 import { detectPlatform } from '../../utils/intake-links';
 
 @Component({
@@ -73,19 +74,19 @@ export class IntakeScreen {
   }
 
   protected onLinkInput(index: number, event: Event): void {
-    this.intake.setLink(index, (event.target as HTMLInputElement).value);
+    this.intake.setLink(index, fieldValue(event));
   }
 
   protected onReferenceInput(index: number, event: Event): void {
-    this.intake.setReference(index, (event.target as HTMLInputElement).value);
+    this.intake.setReference(index, fieldValue(event));
   }
 
   protected onCityInput(event: Event): void {
-    this.intake.setCity((event.target as HTMLInputElement).value);
+    this.intake.setCity(fieldValue(event));
   }
 
   protected onNoteInput(event: Event): void {
-    this.intake.setNote((event.target as HTMLTextAreaElement).value);
+    this.intake.setNote(fieldValue(event));
   }
 
   protected isChosen(id: IntakeGoalId): boolean {

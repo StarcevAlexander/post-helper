@@ -1,9 +1,7 @@
 import { Service, effect, inject, signal, untracked } from '@angular/core';
-import { KITS_STORAGE_KEY } from '../constants';
+import { FORMAT_ORDER, KITS_STORAGE_KEY } from '../constants';
 import { PlanItem, PostFormat, PublicationKit, StoredKit } from '../models';
 import { CalendarPlan } from './calendar-plan';
-
-const FORMATS: readonly PostFormat[] = ['reels', 'post', 'stories'];
 
 function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
@@ -37,7 +35,7 @@ function isStoredKit(value: unknown): value is StoredKit {
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate['itemId'] === 'string' &&
-    FORMATS.includes(candidate['format'] as PostFormat) &&
+    FORMAT_ORDER.includes(candidate['format'] as PostFormat) &&
     typeof candidate['pillar'] === 'string' &&
     typeof candidate['idea'] === 'string' &&
     isKit(candidate['kit'])

@@ -10,14 +10,6 @@ export interface Schedule {
   publishTime: string;
 }
 
-export interface ScheduleDraft {
-  weekday1: string;
-  time1: string;
-  weekday2: string;
-  time2: string;
-  publishTime: string;
-}
-
 export interface PlanItem {
   id: string;
   date: string;

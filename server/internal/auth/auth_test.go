@@ -2,8 +2,11 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"post-helper/server/internal/accounts"
 )
@@ -51,21 +54,21 @@ func TestAuthenticate(t *testing.T) {
 	authenticator := New(store)
 	ctx := context.Background()
 
-	got, ok := authenticator.Authenticate(ctx, strings.ToLower(code))
-	if !ok || got.MasterID != master.ID || got.Name != "Анна" {
-		t.Errorf("master = %+v, %v", got, ok)
+	got, err := authenticator.Authenticate(ctx, strings.ToLower(code))
+	if err != nil || got.MasterID != master.ID || got.Name != "Анна" {
+		t.Errorf("master = %+v, %v", got, err)
 	}
 	for _, token := range []string{"", "wrong", "ABCDE-FGHJK-LMNPQ-RSTUV", "owner-secret-1"} {
-		if _, ok := authenticator.Authenticate(ctx, token); ok {
-			t.Errorf("token %q must be refused", token)
+		if _, err := authenticator.Authenticate(ctx, token); !errors.Is(err, ErrUnauthorized) {
+			t.Errorf("token %q must be unauthorized, got %v", token, err)
 		}
 	}
 
 	if err := store.SetDisabled(ctx, master.ID, true); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := authenticator.Authenticate(ctx, code); ok {
-		t.Error("a disabled master must be refused")
+	if _, err := authenticator.Authenticate(ctx, code); !errors.Is(err, ErrUnauthorized) {
+		t.Errorf("a disabled master must be refused, got %v", err)
 	}
 }
 
@@ -79,5 +82,77 @@ func TestAuthenticateRecordsLastSeen(t *testing.T) {
 	list, _ := store.ListMasters(context.Background(), master.CreatedAt)
 	if len(list) != 1 || list[0].LastSeenAt.IsZero() {
 		t.Errorf("list = %+v", list)
+	}
+}
+
+type failingStore struct {
+	accounts.Store
+	lookupErr error
+	touches   int
+}
+
+func (f *failingStore) FindByCodeHash(ctx context.Context, hash string) (accounts.Master, error) {
+	if f.lookupErr != nil {
+		return accounts.Master{}, f.lookupErr
+	}
+	return f.Store.FindByCodeHash(ctx, hash)
+}
+
+func (f *failingStore) Touch(ctx context.Context, id string, at time.Time) error {
+	f.touches++
+	return f.Store.Touch(ctx, id, at)
+}
+
+func TestAuthenticateDistinguishesStoreErrors(t *testing.T) {
+	boom := errors.New("connection refused")
+	tests := []struct {
+		name       string
+		lookupErr  error
+		wantStore  bool
+		wantUnauth bool
+	}{
+		{"not found", accounts.ErrNotFound, false, true},
+		{"wrapped not found", fmt.Errorf("find: %w", accounts.ErrNotFound), false, true},
+		{"store failure", boom, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			authenticator := New(&failingStore{Store: accounts.NewMemory(), lookupErr: tt.lookupErr})
+			_, err := authenticator.Authenticate(context.Background(), "ABCDE-FGHJK-LMNPQ-RSTUV")
+			if errors.Is(err, ErrStore) != tt.wantStore || errors.Is(err, ErrUnauthorized) != tt.wantUnauth {
+				t.Errorf("err = %v", err)
+			}
+		})
+	}
+}
+
+func TestAuthenticateTouchesOncePerInterval(t *testing.T) {
+	store := &failingStore{Store: accounts.NewMemory()}
+	code, _ := GenerateCode()
+	if _, err := store.CreateMaster(context.Background(), "Анна", HashCode(code)); err != nil {
+		t.Fatal(err)
+	}
+	authenticator := New(store)
+	clock := time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
+	authenticator.now = func() time.Time { return clock }
+	ctx := context.Background()
+
+	for range 5 {
+		if _, err := authenticator.Authenticate(ctx, code); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if store.touches != 1 {
+		t.Fatalf("touches within interval = %d", store.touches)
+	}
+	clock = clock.Add(TouchInterval - time.Second)
+	_, _ = authenticator.Authenticate(ctx, code)
+	if store.touches != 1 {
+		t.Fatalf("touches just before interval = %d", store.touches)
+	}
+	clock = clock.Add(time.Second)
+	_, _ = authenticator.Authenticate(ctx, code)
+	if store.touches != 2 {
+		t.Fatalf("touches after interval = %d", store.touches)
 	}
 }

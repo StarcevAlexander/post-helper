@@ -12,18 +12,18 @@ export interface ApiErrorBody {
   state?: ServerState;
 }
 
-export class ChatApiError extends Error {
+export class ApiError extends Error {
   constructor(
     message: string,
     readonly unauthorized = false,
     readonly insufficient = false,
   ) {
     super(message);
-    this.name = 'ChatApiError';
+    this.name = 'ApiError';
   }
 }
 
-export class StateConflictError extends ChatApiError {
+export class StateConflictError extends ApiError {
   constructor(
     message: string,
     readonly state: ServerState,

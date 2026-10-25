@@ -21,7 +21,7 @@ import {
   THEME_SECTION_TITLE,
   THEMES,
 } from '../../constants';
-import { ChatApiError, SettingsScreen, ThemeId } from '../../models';
+import { ApiError, SettingsScreen, ThemeId } from '../../models';
 import { Navigation } from '../../services/navigation';
 import { Settings } from '../../services/settings';
 import { Account } from '../../services/account';
@@ -29,6 +29,7 @@ import { PushNotifications } from '../../services/push-notifications';
 import { Session } from '../../services/session';
 import { TestNotification } from '../../services/test-notification';
 import { YandexAuth } from '../../services/yandex-auth';
+import { fieldChecked, fieldValue } from '../../utils/form-events';
 import { formatRetention } from '../../utils/format-retention';
 import { Sync } from '../../services/sync';
 
@@ -106,7 +107,7 @@ export class SettingsPanel {
   }
 
   protected onPushChanged(event: Event): void {
-    const enabled = (event.target as HTMLInputElement).checked;
+    const enabled = fieldChecked(event);
     void (enabled ? this.pushNotifications.enable() : this.pushNotifications.disable());
   }
 
@@ -129,9 +130,7 @@ export class SettingsPanel {
       await this.account.rename(name);
       this.navigation.back();
     } catch (error) {
-      this.nameError.set(
-        error instanceof ChatApiError ? error.message : ACCOUNT_TEXTS.renameFailed,
-      );
+      this.nameError.set(error instanceof ApiError ? error.message : ACCOUNT_TEXTS.renameFailed);
     } finally {
       this.renaming.set(false);
     }
@@ -163,6 +162,6 @@ export class SettingsPanel {
   }
 
   protected onScaleChanged(event: Event): void {
-    this.settings.setScale(Number((event.target as HTMLInputElement).value));
+    this.settings.setScale(Number(fieldValue(event)));
   }
 }

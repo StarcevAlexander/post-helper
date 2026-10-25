@@ -2,8 +2,10 @@ import { Component, DestroyRef, afterNextRender, effect, inject, untracked } fro
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AccessGate } from './components/access-gate/access-gate';
 import {
+  LEGACY_STORAGE_KEYS,
   NAV_TABS,
   NAV_TEXTS,
+  PLAN_READY_BANNER,
   SETTINGS_OPEN_LABEL,
   UPDATE_BUTTON_LABEL,
   UPDATE_TEXTS,
@@ -17,6 +19,7 @@ import { Settings } from './services/settings';
 import { Sync } from './services/sync';
 import { Today } from './services/today';
 import { YandexAuth } from './services/yandex-auth';
+import { forgetLegacyStorage } from './utils/legacy-storage';
 import { hideSplash, showSplash } from './utils/splash';
 import { APP_VERSION } from './version';
 
@@ -30,9 +33,9 @@ export class App {
   protected readonly access = inject(Access);
   protected readonly navigation = inject(Navigation);
   protected readonly appUpdate = inject(AppUpdate);
+  protected readonly intake = inject(Intake);
   private readonly account = inject(Account);
   private readonly settings = inject(Settings);
-  private readonly intake = inject(Intake);
   private readonly sync = inject(Sync);
   private readonly today = inject(Today);
   private readonly yandexAuth = inject(YandexAuth);
@@ -43,6 +46,7 @@ export class App {
   protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly updateTexts = UPDATE_TEXTS;
+  protected readonly readyBanner = PLAN_READY_BANNER;
   protected readonly version = APP_VERSION;
 
   private tutorialOpened = false;
@@ -71,6 +75,7 @@ export class App {
     });
 
     afterNextRender(() => {
+      forgetLegacyStorage();
       void this.yandexAuth.loadConfig();
       void this.yandexAuth.completeFromUrl();
       this.today.openFromLink();

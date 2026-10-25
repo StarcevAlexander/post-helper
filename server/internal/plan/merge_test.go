@@ -323,3 +323,27 @@ func TestMergeRejectsBadRecommendations(t *testing.T) {
 		}
 	}
 }
+
+func TestSubmissionCarriesPlan(t *testing.T) {
+	tests := []struct {
+		name       string
+		submission Submission
+		want       bool
+	}{
+		{"empty", Submission{}, false},
+		{"location only", Submission{Location: &Place{City: "Казань"}}, false},
+		{"recommendations only", Submission{Recommendations: []Recommendation{}}, false},
+		{"note only", Submission{Note: "привет"}, false},
+		{"strategy", Submission{Strategy: &Strategy{}}, true},
+		{"calendar", Submission{Calendar: &Calendar{}}, true},
+		{"kits", Submission{Kits: map[string]Kit{"a": {}}}, true},
+		{"review", Submission{Review: &Review{}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.submission.CarriesPlan(); got != tt.want {
+				t.Errorf("CarriesPlan = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

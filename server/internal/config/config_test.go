@@ -141,3 +141,37 @@ func TestAdminPort(t *testing.T) {
 		}
 	})
 }
+
+func TestRequireStore(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     Config
+		wantErr bool
+	}{
+		{"database set", Config{DatabaseURL: "postgres://db"}, false},
+		{"no database", Config{}, true},
+		{"no database but memory allowed", Config{AllowMemoryStore: true}, false},
+		{"database and memory flag", Config{DatabaseURL: "postgres://db", AllowMemoryStore: true}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.cfg.RequireStore(); (err != nil) != tt.wantErr {
+				t.Errorf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestLoadReadsAllowMemoryStore(t *testing.T) {
+	t.Setenv(EnvAPIKey, "key")
+	for value, want := range map[string]bool{"1": true, " 1 ": true, "": false, "0": false, "true": false} {
+		t.Setenv(EnvAllowMemoryStore, value)
+		cfg, err := Load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.AllowMemoryStore != want {
+			t.Errorf("%q: AllowMemoryStore = %v, want %v", value, cfg.AllowMemoryStore, want)
+		}
+	}
+}

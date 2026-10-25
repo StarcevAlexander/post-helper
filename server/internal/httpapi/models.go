@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"post-helper/server/internal/accounts"
@@ -34,24 +36,8 @@ type Options struct {
 	RetentionDays  int
 	AllowedOrigins []string
 	Store          store.Store
+	Ping           func(ctx context.Context) error
 	Logger         *slog.Logger
-}
-
-type IngestRequest struct {
-	Source         string          `json:"source"`
-	ConversationID string          `json:"conversationId"`
-	Messages       []IngestMessage `json:"messages"`
-}
-
-type IngestMessage struct {
-	ExternalID string    `json:"externalId"`
-	Role       string    `json:"role"`
-	Text       string    `json:"text"`
-	At         time.Time `json:"at"`
-}
-
-type IngestResponse struct {
-	Accepted int `json:"accepted"`
 }
 
 type ClientErrorRequest struct {
@@ -59,6 +45,14 @@ type ClientErrorRequest struct {
 	Where   string `json:"where"`
 	Stack   string `json:"stack"`
 	Version string `json:"version"`
+}
+
+type rateLimiter struct {
+	mu     sync.Mutex
+	hits   map[string][]time.Time
+	max    int
+	window time.Duration
+	swept  time.Time
 }
 
 type statusRecorder struct {
@@ -169,6 +163,7 @@ type PushKeyResponse struct {
 
 type PushSubscribeRequest struct {
 	Endpoint string `json:"endpoint"`
+	TimeZone string `json:"timeZone"`
 	Keys     struct {
 		P256dh string `json:"p256dh"`
 		Auth   string `json:"auth"`

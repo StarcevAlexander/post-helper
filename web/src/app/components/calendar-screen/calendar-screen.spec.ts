@@ -2,32 +2,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { ScheduleDraft, Strategy } from '../../models';
+import { samplePlan } from '../../testing/plan-fixture';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
 import { Refs } from '../../services/refs';
 import { CalendarScreen } from './calendar-screen';
-
-const strategy: Strategy = {
-  summary: 'Ок',
-  positioning: '',
-  profileFixes: [],
-  pillars: [
-    { title: 'До и после', description: '', ideas: ['Кадр до'] },
-    { title: 'Процесс', description: '', ideas: ['Видео'] },
-    { title: 'Окошки', description: '', ideas: ['Свободно в пятницу'] },
-  ],
-  cadence: { reels: 1, posts: 1, stories: 2, note: '' },
-  firstSteps: [],
-};
-
-const draft: ScheduleDraft = {
-  weekday1: '3',
-  time1: '18:00',
-  weekday2: '',
-  time2: '18:00',
-  publishTime: '19:00',
-};
 
 describe('CalendarScreen', () => {
   beforeEach(() => {
@@ -44,7 +23,7 @@ describe('CalendarScreen', () => {
 
   function setUp(withPlan = true) {
     if (withPlan) {
-      TestBed.inject(CalendarPlan).build(draft, strategy);
+      TestBed.inject(CalendarPlan).load(samplePlan(new Date()));
     }
     const fixture = TestBed.createComponent(CalendarScreen);
     return { fixture, element: fixture.nativeElement as HTMLElement };
@@ -64,7 +43,7 @@ describe('CalendarScreen', () => {
 
     expect(element.querySelectorAll('.week').length).toBe(4);
     expect(element.querySelector('.week__content-day')?.textContent).toContain('18:00');
-    expect(element.querySelectorAll('.item').length).toBe(16);
+    expect(element.querySelectorAll('.item').length).toBe(12);
   });
 
   it('marks a publication as done', async () => {
@@ -135,7 +114,7 @@ describe('CalendarScreen', () => {
     const buttons = element.querySelectorAll<HTMLAnchorElement>('.item__kit .item__button');
     expect(buttons.length).toBe(1);
     expect(buttons[0].textContent).toContain('Открыть комплект');
-    expect(element.querySelectorAll('.item__kit .item__status').length).toBe(15);
+    expect(element.querySelectorAll('.item__kit .item__status').length).toBe(11);
 
     expect(buttons[0].getAttribute('href')).toBe(`/kit/${first.id}`);
   });

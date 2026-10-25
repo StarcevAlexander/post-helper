@@ -18,6 +18,8 @@ const (
 	EnvAdminPort         = "ADMIN_PORT"
 	DefaultAdminPort     = "8081"
 	EnvReminderTimezone  = "REMINDER_TIMEZONE"
+	EnvAllowMemoryStore  = "ALLOW_MEMORY_STORE"
+	AllowMemoryStoreOn   = "1"
 	DefaultVapidSubject  = "https://starcevalexander.github.io/post-helper/"
 	DefaultRetentionDays = 1095
 	DefaultHistoryKeep   = 200

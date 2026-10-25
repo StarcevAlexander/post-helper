@@ -7,10 +7,10 @@ import {
   YANDEX_PROVIDER,
   YANDEX_TEXTS,
 } from '../constants';
-import { ChatApiError, OAuthMode, OAuthPending } from '../models';
+import { ApiError, OAuthMode, OAuthPending } from '../models';
 import { Access } from './access';
 import { Account } from './account';
-import { ChatApi } from './chat-api';
+import { ApiClient } from './api-client';
 import { PAGE_NAVIGATE } from './page-navigate';
 
 function randomState(): string {
@@ -20,7 +20,7 @@ function randomState(): string {
 
 @Service()
 export class YandexAuth {
-  private readonly api = inject(ChatApi);
+  private readonly api = inject(ApiClient);
   private readonly access = inject(Access);
   private readonly account = inject(Account);
   private readonly navigate = inject(PAGE_NAVIGATE);
@@ -93,7 +93,7 @@ export class YandexAuth {
         this.notice.set(YANDEX_TEXTS.linkedDone);
       }
     } catch (error) {
-      this.notice.set(error instanceof ChatApiError ? error.message : YANDEX_TEXTS.failed);
+      this.notice.set(error instanceof ApiError ? error.message : YANDEX_TEXTS.failed);
     } finally {
       this.busy.set(false);
     }

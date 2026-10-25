@@ -15,7 +15,12 @@ const (
 	MaxTitleRunes             = 80
 	MaxBodyRunes              = 300
 	MaxURLLength              = 300
+	AllowedEndpointPort       = "443"
+	EndpointScheme            = "https"
+	LocalHostName             = "localhost"
 )
+
+var blockedHostSuffixes = []string{".localhost", ".local", ".ts.net"}
 
 const (
 	StatusGone     = 410

@@ -3,31 +3,16 @@ package store
 import "time"
 
 const (
-	SourceApp        = "app"
-	SourceClaudeCode = "claude-code"
+	ErrorSourceServer  = "server"
+	ErrorSourceClient  = "client"
+	queueSize          = 512
+	writeTimeout       = 5 * time.Second
+	closeTimeout       = 8 * time.Second
+	MaxStoredTextBytes = 512 << 10
+	LogRetentionDays   = 90
 )
 
-const (
-	RoleUser      = "user"
-	RoleAssistant = "assistant"
-)
-
-const (
-	EventChatRequest      = "chat.request"
-	EventStrategy         = "strategy.generated"
-	EventKit              = "kit.generated"
-	EventReview           = "review.generated"
-	EventAudit            = "audit.generated"
-	EventHTTPRequest      = "http.request"
-	EventIngest           = "ingest"
-	ErrorSourceServer     = "server"
-	ErrorSourceClient     = "client"
-	queueSize             = 512
-	writeTimeout          = 5 * time.Second
-	readTimeout           = 10 * time.Second
-	closeTimeout          = 8 * time.Second
-	DefaultListLimit      = 100
-	MaxListLimit          = 1000
-	MaxStoredTextBytes    = 512 << 10
-	MaxStoredMessageBytes = 8 << 10
-)
+var purgeStatements = []string{
+	`DELETE FROM error_log WHERE created_at < $1`,
+	`DELETE FROM events WHERE created_at < $1`,
+}

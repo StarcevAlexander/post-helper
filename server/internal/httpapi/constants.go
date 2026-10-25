@@ -3,42 +3,24 @@ package httpapi
 import "time"
 
 const (
-	ChatRoute     = "POST /api/chat"
-	StrategyRoute = "POST /api/strategy"
-	HealthRoute   = "GET /healthz"
+	HealthRoute = "GET /healthz"
 )
 
 const HealthPath = "/healthz"
 
 const (
-	IngestRoute          = "POST /api/ingest"
-	HistoryRoute         = "GET /api/history"
-	EventsRoute          = "GET /api/events"
-	ErrorsRoute          = "GET /api/errors"
 	ClientErrorRoute     = "POST /api/client-error"
-	MaxIngestBodyBytes   = 16 << 20
-	MaxIngestMessages    = 2000
 	MaxClientErrorBytes  = 32 << 10
-	MsgBadIngest         = "Неверный пакет сообщений"
-	MsgHistoryFailed     = "Не удалось прочитать из базы"
-	QueryConversation    = "conversation"
-	QuerySource          = "source"
 	QueryLimit           = "limit"
-	QueryKind            = "kind"
-	FieldConversation    = "conversation"
 	maxClientErrorFields = 2000
 )
 
 const (
-	FieldText    = "text"
-	FieldHistory = "history"
-	FieldFiles   = "files"
+	FieldFiles = "files"
 )
 
 const (
-	MaxBodyBytes   int64 = 25 << 20
 	MaxFormMemory  int64 = 8 << 20
-	MaxFiles             = 8
 	AuthFailDelay        = 400 * time.Millisecond
 	journalTimeout       = 5 * time.Second
 	SniffLength          = 512
@@ -51,34 +33,12 @@ const (
 
 const (
 	MsgUnauthorized    = "Неверный пароль"
+	MsgAuthUnavailable = "Сервис временно недоступен, попробуйте позже"
 	MsgBadRequest      = "Не удалось разобрать запрос"
-	MsgBadHistory      = "Не удалось разобрать историю беседы"
 	MsgEmptyMessage    = "Напишите текст или приложите файл"
-	MsgTooManyFiles    = "Слишком много файлов"
 	MsgTooLarge        = "Файлы слишком большие"
 	MsgUnsupportedFile = "Этот тип файла не поддерживается"
 	MsgUpstreamFailed  = "Помощник временно недоступен, попробуйте ещё раз"
-)
-
-const (
-	MaxStrategyBodyBytes    int64 = 32 << 10
-	MaxProfileFieldRunes          = 1500
-	MsgStrategyFailed             = "Не удалось составить стратегию, попробуйте ещё раз"
-	MsgStrategyRefused            = "С такой анкетой я стратегию составить не могу. Опишите свою работу иначе"
-	MsgStrategyInsufficient       = "Не хватает данных для стратегии. "
-	MsgNoSpecialty                = "Расскажите, чем вы занимаетесь"
-	MsgProfileTooLong             = "Ответ в анкете слишком длинный"
-)
-
-const (
-	KitRoute                 = "POST /api/kit"
-	MaxKitBodyBytes    int64 = 32 << 10
-	MaxKitFieldRunes         = 600
-	MsgKitFailed             = "Не удалось подготовить комплект, попробуйте ещё раз"
-	MsgKitRefused            = "Для этой идеи комплект подготовить не получилось. Попробуйте другую публикацию"
-	MsgBadFormat             = "Неизвестный формат публикации"
-	MsgNoIdea                = "Не указана идея публикации"
-	MsgKitFieldTooLong       = "Описание публикации слишком длинное"
 )
 
 const (
@@ -95,12 +55,8 @@ const (
 	AdminCreateMasterRoute        = "POST /api/admin/masters"
 	AdminDisableMasterRoute       = "POST /api/admin/masters/{id}/disabled"
 	AdminLocationRoute            = "POST /api/admin/masters/{id}/location"
-	ReviewRoute                   = "POST /api/review"
 	MaxStateBodyBytes       int64 = 3 << 20
 	MaxMasterNameRunes            = 60
-	MaxReviewItems                = 60
-	MaxReviewPillars              = 12
-	MaxReviewFieldRunes           = 600
 	MsgBadState                   = "Не удалось разобрать сохранённые данные"
 	MsgStateConflict              = "Данные уже изменены с другого устройства"
 	MsgStateFailed                = "Не удалось сохранить данные, попробуйте ещё раз"
@@ -115,27 +71,17 @@ const (
 	MsgSignInFailed               = "Не удалось войти. Попробуйте ещё раз"
 	DefaultMasterName             = "Мастер"
 	MaxYandexCodeBytes            = 4096
-	SignInLimitPerWindow          = 30
+	SignInLimitPerWindow          = 10
 	SignInLimitWindow             = time.Minute
 	MsgMasterNotFound             = "Мастер не найден"
 	MsgBadPlace                   = "Укажите населённый пункт и, если знаете, часовой пояс IANA, например Asia/Irkutsk"
 	MsgPlaceUnknown               = "Не удалось определить часовой пояс по населённому пункту, укажите его явно"
 	MsgMasterFailed               = "Не удалось выполнить действие с мастером"
-	MsgReviewFailed               = "Не удалось подвести итоги, попробуйте ещё раз"
-	MsgReviewRefused              = "Итоги по этим данным подвести не получилось"
-	MsgReviewTooLarge             = "Слишком много данных для итогов недели"
-	MsgNoReviewItems              = "В недельном плане нет публикаций"
-	UsageChat                     = "chat"
-	UsageStrategy                 = "strategy"
-	UsageKit                      = "kit"
-	UsageReview                   = "review"
 )
 
 const MaxAdminBodyBytes int64 = 4 << 10
 
 const (
-	AuditRoute               = "POST /api/audit"
-	FieldProfile             = "profile"
 	FieldImages              = "images"
 	MaxAuditBodyBytes  int64 = 52 << 20
 	MsgNoImages              = "Приложите скриншоты профиля"
@@ -143,7 +89,6 @@ const (
 	MsgAuditFailed           = "Не удалось разобрать профиль, попробуйте ещё раз"
 	MsgAuditRefused          = "По этим скриншотам разбор подготовить не получилось"
 	MsgAuditUnreadable       = "Скриншоты не подошли: "
-	UsageAudit               = "audit"
 )
 
 const (
@@ -291,3 +236,23 @@ type FeedbackRequest struct {
 	Text    string `json:"text"`
 	Contact string `json:"contact"`
 }
+
+const (
+	HeaderOrigin      = "Origin"
+	HeaderFetchSite   = "Sec-Fetch-Site"
+	FetchSiteNone     = "none"
+	LoopbackHostV4    = "127.0.0.1"
+	LoopbackHostName  = "localhost"
+	LoopbackHostV6    = "::1"
+	MsgAdminForbidden = "Админский порт доступен только локальным скриптам"
+)
+
+const (
+	HeaderForwardedFor        = "X-Forwarded-For"
+	ClientErrorLimitPerWindow = 30
+	ClientErrorLimitWindow    = time.Hour
+	MaxLimiterKeys            = 10000
+	HealthPingTimeout         = 3 * time.Second
+	MsgTooManyClientErrors    = "Слишком много отчётов об ошибках, подождите"
+	MsgPlanRefsFailed         = "План сохранён, но заказать референсы не удалось: повторите отправку плана"
+)

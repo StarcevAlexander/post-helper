@@ -13,6 +13,8 @@ export interface PublicationKit {
   tip: string;
 }
 
+export type KitCopyResult = 'caption' | 'failed';
+
 export interface StoredKit {
   itemId: string;
   format: PostFormat;

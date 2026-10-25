@@ -30,6 +30,7 @@ func Load() (Config, error) {
 
 		AdminPort:        valueOr(strings.TrimSpace(os.Getenv(EnvAdminPort)), DefaultAdminPort),
 		ReminderTimezone: strings.TrimSpace(os.Getenv(EnvReminderTimezone)),
+		AllowMemoryStore: strings.TrimSpace(os.Getenv(EnvAllowMemoryStore)) == AllowMemoryStoreOn,
 	}
 
 	var problems []error
@@ -40,6 +41,14 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	return cfg, nil
+}
+
+func (c Config) RequireStore() error {
+	if c.DatabaseURL == "" && !c.AllowMemoryStore {
+		return fmt.Errorf("%s is not set: master data would be lost on restart (set %s=%s to run in memory on purpose)",
+			EnvDatabaseURL, EnvAllowMemoryStore, AllowMemoryStoreOn)
+	}
+	return nil
 }
 
 func LoadDotEnv(path string) error {

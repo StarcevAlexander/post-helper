@@ -261,6 +261,10 @@ func (h *adminHandler) restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	saved, err := h.accounts.SaveState(r.Context(), id, current.Version, snapshot.Data, time.Now())
+	if errors.Is(err, accounts.ErrConflict) {
+		writeError(w, http.StatusConflict, MsgStateConflict)
+		return
+	}
 	if err != nil {
 		h.logger.Error("restore state failed", slog.Any("error", err))
 		writeError(w, http.StatusInternalServerError, MsgRestoreFailed)

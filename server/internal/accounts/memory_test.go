@@ -45,12 +45,8 @@ func TestMemoryUsageCounts(t *testing.T) {
 	_ = store.RecordUsage(ctx, master.ID, "strategy", day.Add(2*time.Hour))
 	_ = store.RecordUsage(ctx, other.ID, "kit", day.Add(time.Hour))
 
-	today, _ := store.CountUsage(ctx, master.ID, day)
 	list, _ := store.ListMasters(ctx, day)
 
-	if today != 2 {
-		t.Errorf("today = %d", today)
-	}
 	byID := map[string]MasterSummary{}
 	for _, summary := range list {
 		byID[summary.ID] = summary
@@ -177,9 +173,8 @@ func TestMemoryDeleteMasterRemovesEverything(t *testing.T) {
 	}
 	events, _ := store.ListEvents(ctx, master.ID, 0)
 	versions, _ := store.StateVersions(ctx, master.ID, 0)
-	count, _ := store.CountUsage(ctx, master.ID, time.Time{})
-	if len(events) != 0 || len(versions) != 0 || count != 0 {
-		t.Errorf("leftovers: %d events, %d versions, %d usage", len(events), len(versions), count)
+	if len(events) != 0 || len(versions) != 0 || len(store.usage) != 0 {
+		t.Errorf("leftovers: %d events, %d versions, %d usage", len(events), len(versions), len(store.usage))
 	}
 	if err := store.DeleteMaster(ctx, master.ID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("err = %v", err)

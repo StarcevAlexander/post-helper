@@ -98,6 +98,7 @@ describe('PushNotifications', () => {
     expect(subscribeRequest.request.body).toEqual({
       endpoint: 'https://push.example/new',
       keys: { p256dh: 'key', auth: 'secret' },
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     expect(service.subscribed()).toBe(true);
     expect(service.notice()).toBe(PUSH_TEXTS.enabled);

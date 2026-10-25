@@ -1,10 +1,8 @@
 import { Component, inject } from '@angular/core';
-import { MONTH_REVIEW_TEXTS } from '../../constants';
+import { LONG_DAY_FORMAT, MONTH_REVIEW_TEXTS } from '../../constants';
 import { Intake } from '../../services/intake';
 import { MonthReviews } from '../../services/month-reviews';
 import { fromDateKey } from '../../utils/date-utils';
-
-const DAY_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' });
 
 @Component({
   selector: 'app-month-review-screen',
@@ -22,6 +20,6 @@ export class MonthReviewScreen {
   }
 
   protected period(from: string, to: string): string {
-    return `${DAY_FORMAT.format(fromDateKey(from))} – ${DAY_FORMAT.format(fromDateKey(to))}`;
+    return `${LONG_DAY_FORMAT.format(fromDateKey(from))} – ${LONG_DAY_FORMAT.format(fromDateKey(to))}`;
   }
 }

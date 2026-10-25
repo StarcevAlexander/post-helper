@@ -34,7 +34,7 @@ import {
   RefOrderItem,
   RefStatus,
   ApiErrorBody,
-  ChatApiError,
+  ApiError,
   ClientErrorReport,
   FeedbackSubmission,
   IntakeSubmission,
@@ -48,7 +48,7 @@ import {
 import { Access } from './access';
 
 @Service()
-export class ChatApi {
+export class ApiClient {
   private readonly http = inject(HttpClient);
   private readonly access = inject(Access);
 
@@ -104,7 +104,7 @@ export class ChatApi {
   async refFile(id: string): Promise<Blob> {
     const baseUrl = isDevMode() ? API_DEV_URL : API_PRODUCTION_URL;
     if (!baseUrl) {
-      throw new ChatApiError(API_MESSAGES.notConfigured);
+      throw new ApiError(API_MESSAGES.notConfigured);
     }
     try {
       return await firstValueFrom(
@@ -153,7 +153,7 @@ export class ChatApi {
   ): Promise<T> {
     const baseUrl = isDevMode() ? API_DEV_URL : API_PRODUCTION_URL;
     if (!baseUrl) {
-      throw new ChatApiError(API_MESSAGES.notConfigured);
+      throw new ApiError(API_MESSAGES.notConfigured);
     }
 
     try {
@@ -168,22 +168,22 @@ export class ChatApi {
     }
   }
 
-  private toApiError(error: unknown): ChatApiError {
+  private toApiError(error: unknown): ApiError {
     if (!(error instanceof HttpErrorResponse)) {
-      return new ChatApiError(API_MESSAGES.failed);
+      return new ApiError(API_MESSAGES.failed);
     }
     if (error.status === HTTP_UNAUTHORIZED) {
-      return new ChatApiError(API_MESSAGES.unauthorized, true);
+      return new ApiError(API_MESSAGES.unauthorized, true);
     }
     if (error.status === HTTP_OFFLINE) {
-      return new ChatApiError(API_MESSAGES.offline);
+      return new ApiError(API_MESSAGES.offline);
     }
     const body = error.error as ApiErrorBody | null;
     if (error.status === HTTP_CONFLICT && body?.state) {
       return new StateConflictError(body.error ?? API_MESSAGES.failed, body.state);
     }
     const serverMessage = body?.error;
-    return new ChatApiError(
+    return new ApiError(
       serverMessage || API_MESSAGES.failed,
       false,
       error.status === HTTP_UNPROCESSABLE,

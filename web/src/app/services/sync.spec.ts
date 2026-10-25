@@ -5,6 +5,7 @@ import {
   API_DEV_URL,
   API_ME_PATH,
   API_STATE_PATH,
+  CALENDAR_STORAGE_KEY,
   SETTINGS_STORAGE_KEY,
   STRATEGY_STORAGE_KEY,
   SYNC_BACKUP_STORAGE_KEY,
@@ -290,6 +291,89 @@ describe('Sync', () => {
     const second = http.expectOne({ method: 'PUT', url: stateUrl });
     expect((second.request.body as { baseVersion: number }).baseVersion).toBe(1);
     second.flush({ version: 2, data: {}, updatedAt: '2026-10-19T10:00:10Z' });
+  });
+
+  it('merges a newer server copy with the unsaved marks instead of overwriting it', async () => {
+    const localCalendar = {
+      startedOn: '2026-10-13',
+      schedule: { slots: [{ weekday: 1, time: '10:00' }], publishTime: '12:00' },
+      items: [
+        {
+          id: 'a',
+          date: '2026-10-14',
+          time: '12:00',
+          format: 'post',
+          pillar: 'p',
+          idea: 'old',
+          done: true,
+        },
+      ],
+    };
+    const serverCalendar = {
+      ...localCalendar,
+      startedOn: '2026-10-20',
+      items: [{ ...localCalendar.items[0], date: '2026-10-21', idea: 'new', done: false }],
+    };
+    localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(localCalendar));
+    localStorage.setItem(SYNC_META_STORAGE_KEY, JSON.stringify({ version: 2, dirty: true }));
+    await signIn();
+
+    http.expectOne(stateUrl).flush({
+      version: 5,
+      data: { calendar: serverCalendar },
+      updatedAt: '2026-10-19T10:00:00Z',
+    });
+    const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: stateUrl }));
+    expect(put.request.body).toEqual({
+      baseVersion: 5,
+      data: {
+        calendar: { ...serverCalendar, items: [{ ...serverCalendar.items[0], done: true }] },
+      },
+    });
+    put.flush({ version: 6, data: {}, updatedAt: '2026-10-19T10:00:05Z' });
+
+    await vi.waitFor(() => expect(meta()).toEqual({ version: 6, dirty: false }));
+    expect(JSON.parse(localStorage.getItem(CALENDAR_STORAGE_KEY) ?? '{}')).toMatchObject({
+      startedOn: '2026-10-20',
+    });
+    expect(JSON.parse(localStorage.getItem(SYNC_BACKUP_STORAGE_KEY) ?? '{}')).toMatchObject({
+      calendar: { startedOn: '2026-10-13' },
+    });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('remembers an edit made before the server answered who is signed in', async () => {
+    TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
+    TestBed.tick();
+    http.expectOne(meUrl).flush({ error: 'нет связи' }, { status: 0, statusText: 'offline' });
+    await vi.waitFor(() => expect(account.signedIn()).toBe(false));
+
+    TestBed.inject(Settings).setTheme('dark');
+    TestBed.tick();
+
+    expect(meta()).toEqual({ version: 0, dirty: true });
+    expect(sync.status()).toBe('idle');
+  });
+
+  it('does not start a second save while one is in flight', async () => {
+    await signIn();
+    http.expectOne(stateUrl).flush({ version: 0, data: null, updatedAt: '' });
+    await vi.waitFor(() => expect(sync.status()).toBe('ok'));
+    vi.useFakeTimers();
+    TestBed.inject(Settings).setTheme('dark');
+    TestBed.tick();
+    await vi.advanceTimersByTimeAsync(SYNC_PUSH_DELAY_MS + 10);
+    const first = http.expectOne({ method: 'PUT', url: stateUrl });
+
+    sync.flush();
+    const settled = sync.settle();
+    await vi.advanceTimersByTimeAsync(1);
+
+    http.expectNone({ method: 'PUT', url: stateUrl });
+    first.flush({ version: 1, data: {}, updatedAt: '2026-10-19T10:00:00Z' });
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(settled).resolves.toBe(true);
+    http.expectNone({ method: 'PUT', url: stateUrl });
   });
 
   it('does not bother the server when nothing really changed', async () => {

@@ -1,5 +1,4 @@
-const SPLASH_ID = 'splash';
-const SPLASH_TEXT_ID = 'splash-text';
+import { SPLASH_ID, SPLASH_TEXT_ID } from '../constants';
 
 export function showSplash(text: string): void {
   const splash = document.getElementById(SPLASH_ID);

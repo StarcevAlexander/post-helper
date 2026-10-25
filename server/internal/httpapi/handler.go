@@ -85,7 +85,7 @@ func (c *core) intakeHandler() *intakeHandler {
 func NewHandler(options Options) http.Handler {
 	c := newCore(options)
 	authenticator := auth.New(c.people)
-	protected := func(next http.Handler) http.Handler { return withAuth(authenticator, next) }
+	protected := func(next http.Handler) http.Handler { return withAuth(c.logger, authenticator, next) }
 	state := &stateHandler{accounts: c.people, logger: c.logger}
 	jobs := &auditJobsHandler{accounts: c.people, intakes: c.intake, keeper: c.keeper, logger: c.logger}
 	refsMaster := c.refsHandler()
@@ -95,17 +95,15 @@ func NewHandler(options Options) http.Handler {
 		exchanger:      options.Yandex,
 		clientID:       options.YandexClientID,
 		allowedOrigins: options.AllowedOrigins,
-		limiter:        &signInLimiter{max: SignInLimitPerWindow, window: SignInLimitWindow},
+		limiter:        newRateLimiter(SignInLimitPerWindow, SignInLimitWindow),
 		logger:         c.logger,
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc(HealthRoute, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	mux.HandleFunc(HealthRoute, healthHandler(options.Ping, c.logger))
 	mux.HandleFunc(AuthConfigRoute, signIn.config)
 	mux.HandleFunc(AuthYandexRoute, signIn.login)
-	mux.Handle(ClientErrorRoute, protected(&clientErrorHandler{recorder: c.history}))
+	mux.Handle(ClientErrorRoute, protected(&clientErrorHandler{recorder: c.history, limiter: newRateLimiter(ClientErrorLimitPerWindow, ClientErrorLimitWindow)}))
 	mux.Handle(MeRoute, protected(&meHandler{accounts: c.people, retentionDays: options.RetentionDays, logger: c.logger}))
 	mux.Handle(MeRenameRoute, protected(&renameHandler{accounts: c.people, logger: c.logger}))
 	mux.Handle(MeYandexRoute, protected(http.HandlerFunc(signIn.link)))
@@ -134,13 +132,7 @@ func NewAdminHandler(options Options) http.Handler {
 	intakes := c.intakeHandler()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc(HealthRoute, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-	mux.Handle(HistoryRoute, &historyHandler{reader: c.history, logger: c.logger})
-	mux.Handle(EventsRoute, &eventsHandler{reader: c.history, logger: c.logger})
-	mux.Handle(ErrorsRoute, &errorsHandler{reader: c.history, logger: c.logger})
-	mux.Handle(IngestRoute, &ingestHandler{recorder: c.history})
+	mux.HandleFunc(HealthRoute, healthHandler(options.Ping, c.logger))
 	mux.HandleFunc(AdminMastersRoute, admin.list)
 	mux.HandleFunc(AdminCreateMasterRoute, admin.create)
 	mux.HandleFunc(AdminEventsRoute, admin.events)
@@ -175,5 +167,5 @@ func NewAdminHandler(options Options) http.Handler {
 			time.AfterFunc(ShutdownDelay, options.Shutdown)
 		})
 	}
-	return withLogging(c.logger, withRecover(c.logger, mux))
+	return withLogging(c.logger, withRecover(c.logger, withLocalOnly(mux)))
 }

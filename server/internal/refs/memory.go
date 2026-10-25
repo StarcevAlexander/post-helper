@@ -238,6 +238,9 @@ func (m *Memory) Deliver(_ context.Context, masterID string, item OrderItem, fil
 			break
 		}
 	}
+	if target != nil && (target.Status == StatusMade || target.Status == StatusRunning) {
+		return ErrState
+	}
 	if target == nil {
 		id := newID()
 		target = &memoryItem{Item: Item{ID: id, MasterID: masterID, Key: item.Key, CreatedAt: now}}

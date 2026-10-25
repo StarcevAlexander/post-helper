@@ -19,4 +19,5 @@ type Config struct {
 
 	AdminPort        string
 	ReminderTimezone string
+	AllowMemoryStore bool
 }

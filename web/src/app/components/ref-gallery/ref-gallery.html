@@ -4,16 +4,22 @@
       <ul class="tiles">
         @for (tile of tiles(); track tile.file.id) {
           <li class="tile">
-            @if (tile.url) {
-              <img
-                class="tile__media"
-                [src]="tile.url"
-                [alt]="texts.photo + ' ' + (tile.file.index + 1)"
-              />
-            } @else if (tile.failed) {
-              <p class="tile__placeholder" role="alert">{{ texts.loadFailed }}</p>
-            } @else {
-              <p class="tile__placeholder" role="status">{{ texts.loading }}</p>
+            @switch (tile.load.state) {
+              @case ('ready') {
+                <img
+                  class="tile__media"
+                  [src]="tile.load.url"
+                  [alt]="texts.photo + ' ' + (tile.file.index + 1)"
+                />
+              }
+              @case ('failed') {
+                <button type="button" class="tile__placeholder" (click)="retry(tile.file)">
+                  {{ texts.loadFailed }}
+                </button>
+              }
+              @default {
+                <p class="tile__placeholder" role="status">{{ texts.loading }}</p>
+              }
             }
             @if (tile.file.caption) {
               <div class="tile__description">

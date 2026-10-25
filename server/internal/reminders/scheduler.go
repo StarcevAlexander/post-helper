@@ -3,6 +3,7 @@ package reminders
 import (
 	"context"
 	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"post-helper/server/internal/accounts"
@@ -40,12 +41,25 @@ func (s *Scheduler) Tick(ctx context.Context) {
 	}
 	for _, master := range masters {
 		if !master.Disabled {
-			s.remind(ctx, master.Master, now)
+			s.remindSafely(ctx, master.Master, now)
 		}
 	}
 	if err := s.Sent.Forget(ctx, now.Add(-ForgetAfter)); err != nil {
 		s.Logger.Error("reminders: forget old failed", slog.Any("error", err))
 	}
+}
+
+func (s *Scheduler) remindSafely(ctx context.Context, master accounts.Master, now time.Time) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			s.Logger.Error("reminders: panic while reminding a master",
+				slog.String("master", master.ID),
+				slog.Any("panic", recovered),
+				slog.String("stack", string(debug.Stack())),
+			)
+		}
+	}()
+	s.remind(ctx, master, now)
 }
 
 func (s *Scheduler) remind(ctx context.Context, master accounts.Master, now time.Time) {
@@ -63,15 +77,19 @@ func (s *Scheduler) remind(ctx context.Context, master accounts.Master, now time
 		if already {
 			continue
 		}
-		if err := s.Sent.Mark(ctx, masterID, reminder.Key, now); err != nil {
-			s.Logger.Error("reminders: mark failed", slog.Any("error", err))
-			continue
-		}
 		sendCtx, cancel := context.WithTimeout(ctx, SendTimeout)
 		sent, err := s.Sender.Send(sendCtx, masterID, push.Message{Title: reminder.Title, Body: reminder.Body, URL: reminder.URL})
 		cancel()
 		if err != nil {
 			s.Logger.Error("reminders: push failed", slog.String("key", reminder.Key), slog.Any("error", err))
+			continue
+		}
+		if sent == 0 {
+			s.Logger.Warn("reminders: no device received the push, will retry inside the window", slog.String("key", reminder.Key))
+			continue
+		}
+		if err := s.Sent.Mark(ctx, masterID, reminder.Key, now); err != nil {
+			s.Logger.Error("reminders: mark failed", slog.Any("error", err))
 			continue
 		}
 		s.Logger.Info("reminder sent", slog.String("key", reminder.Key), slog.Int("devices", sent))
