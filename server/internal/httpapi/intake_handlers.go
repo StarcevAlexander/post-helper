@@ -63,6 +63,14 @@ func (h *intakeHandler) submit(w http.ResponseWriter, r *http.Request) {
 		}
 		draft.Stats = stats
 	}
+	if body.Schedule != nil {
+		schedule, err := intake.CleanSchedule(body.Schedule.ShootDays, body.Schedule.ShootTime, body.Schedule.PublishTime)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, MsgIntakeBadSchedule)
+			return
+		}
+		draft.Schedule = schedule
+	}
 
 	request, updated, err := h.intake.Submit(r.Context(), identity.MasterID, draft, time.Now())
 	if err != nil {

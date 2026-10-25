@@ -184,4 +184,29 @@ describe('IntakeScreen', () => {
     expect(html.textContent).toContain('Населённый пункт');
     expect(html.textContent).toContain('Иркутск');
   });
+
+  it('lets the master pick shooting days and times and shows them in the sent request', async () => {
+    const fixture = TestBed.createComponent(IntakeScreen);
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    const tuesday = element.querySelector<HTMLButtonElement>('button.day[aria-label="Вторник"]');
+    expect(tuesday).not.toBeNull();
+    tuesday?.click();
+    fixture.detectChanges();
+    expect(tuesday?.getAttribute('aria-pressed')).toBe('true');
+    expect(intake.draft().schedule.shootDays).toEqual([1]);
+    const publish = element.querySelector<HTMLInputElement>('#intake-publish-time');
+    expect(publish).not.toBeNull();
+    if (publish) {
+      publish.value = '19:30';
+      publish.dispatchEvent(new Event('input'));
+    }
+    expect(intake.draft().schedule.publishTime).toBe('19:30');
+
+    intake.request.set(sent({ schedule: { shootDays: [1, 3], publishTime: '19:30' } }));
+    intake.cancelEdit();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Дни съёмки: Вторник, Четверг');
+    expect(element.textContent).toContain('Публикации: 19:30');
+  });
 });

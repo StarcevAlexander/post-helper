@@ -182,20 +182,27 @@ type AdminLocationRequest struct {
 }
 
 type IntakeRequest struct {
-	Links      []string            `json:"links"`
-	References []string            `json:"references"`
-	Goals      []string            `json:"goals"`
-	Note       string              `json:"note"`
-	Review     bool                `json:"review"`
-	City       string              `json:"city"`
-	TimeZone   string              `json:"timeZone"`
-	Stats      *IntakeStatsRequest `json:"stats"`
+	Links      []string               `json:"links"`
+	References []string               `json:"references"`
+	Goals      []string               `json:"goals"`
+	Note       string                 `json:"note"`
+	Review     bool                   `json:"review"`
+	City       string                 `json:"city"`
+	TimeZone   string                 `json:"timeZone"`
+	Stats      *IntakeStatsRequest    `json:"stats"`
+	Schedule   *IntakeScheduleRequest `json:"schedule"`
 }
 
 type IntakeStatsRequest struct {
 	Followers *int   `json:"followers"`
 	Reach     *int   `json:"reach"`
 	BestPost  string `json:"bestPost"`
+}
+
+type IntakeScheduleRequest struct {
+	ShootDays   []int  `json:"shootDays"`
+	ShootTime   string `json:"shootTime"`
+	PublishTime string `json:"publishTime"`
 }
 
 const (
@@ -246,10 +253,11 @@ type FeedbackRequest struct {
 }
 
 const (
-	AdminDigestRoute = "POST /api/admin/digest"
-	MsgDigestOff     = "Дайджест владельцу не настроен: нужны TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID"
-	MsgDigestFailed  = "Не удалось отправить дайджест"
-	MsgIntakeBadStat = "Цифры за месяц: подписчики и охват это целые числа, лучшая публикация до 300 знаков"
+	AdminDigestRoute     = "POST /api/admin/digest"
+	MsgDigestOff         = "Дайджест владельцу не настроен: нужны TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID"
+	MsgDigestFailed      = "Не удалось отправить дайджест"
+	MsgIntakeBadStat     = "Цифры за месяц: подписчики и охват это целые числа, лучшая публикация до 300 знаков"
+	MsgIntakeBadSchedule = "Когда удобно: дни недели от понедельника до воскресенья, время в формате ЧЧ:ММ"
 )
 
 type DigestResponse struct {

@@ -132,3 +132,34 @@ func TestTheOwnerSendsTheDigestOnDemandThroughTheAdminPort(t *testing.T) {
 		t.Errorf("public port answered %d", recorder.Code)
 	}
 }
+
+func TestTheOwnerReadsWhenTheMasterIsAvailable(t *testing.T) {
+	fixture := newIntakeFixture(t)
+	code, _ := fixture.master(t, "Анна")
+
+	response := fixture.call(http.MethodPost, "/api/intake", code,
+		`{"links":["vk.com/anna"],"goals":["reach"],"schedule":{"shootDays":[3,1],"shootTime":"11:00","publishTime":"19:30"}}`)
+	sent := fixture.notifier.wait(t)
+	list := fixture.call(http.MethodGet, "/api/admin/intakes?status=new", testPassword, "")
+
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"schedule":{"shootDays":[1,3],"shootTime":"11:00","publishTime":"19:30"}`) {
+		t.Fatalf("submit = %d %s", response.Code, response.Body)
+	}
+	for _, want := range []string{"Когда мастеру удобно", "Дни съёмки: вторник, четверг", "Время съёмки: 11:00", "Время публикаций: 19:30"} {
+		if !strings.Contains(sent, want) {
+			t.Errorf("telegram lacks %q:\n%s", want, sent)
+		}
+	}
+	if !strings.Contains(list.Body.String(), `"shootDays":[1,3]`) {
+		t.Errorf("list lacks the schedule: %s", list.Body)
+	}
+
+	bad := fixture.call(http.MethodPost, "/api/intake", code, `{"links":["vk.com/anna"],"goals":["reach"],"schedule":{"shootDays":[9]}}`)
+	empty := fixture.call(http.MethodPost, "/api/intake", code, `{"links":["vk.com/anna"],"goals":["reach"],"schedule":{"shootDays":[],"shootTime":" "}}`)
+	if bad.Code != http.StatusBadRequest || !strings.Contains(bad.Body.String(), MsgIntakeBadSchedule) {
+		t.Errorf("bad schedule = %d %s", bad.Code, bad.Body)
+	}
+	if empty.Code != http.StatusOK || strings.Contains(empty.Body.String(), `"schedule"`) {
+		t.Errorf("empty schedule = %d %s", empty.Code, empty.Body)
+	}
+}

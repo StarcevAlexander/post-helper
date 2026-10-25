@@ -45,3 +45,9 @@ export interface StoredCalendar {
   items: PlanItem[];
   startedOn: string;
 }
+
+export interface WeekdayOption {
+  index: number;
+  short: string;
+  full: string;
+}

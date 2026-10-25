@@ -213,3 +213,34 @@
   background: transparent;
   color: var(--accent-strong);
 }
+
+.days {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.days__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.day {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0.0625rem solid var(--border);
+  border-radius: 0.75rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.day--on {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}

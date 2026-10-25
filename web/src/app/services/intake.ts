@@ -10,14 +10,18 @@ import {
   INTAKE_TEXTS,
   MAX_BEST_POST_LENGTH,
   STAT_PATTERN,
+  TIME_PATTERN,
 } from '../constants';
 import {
   IntakeDraft,
   IntakeGoalId,
   IntakeRequest,
+  IntakeSchedule,
+  IntakeScheduleDraft,
   IntakeStatField,
   IntakeStats,
   IntakeStatsDraft,
+  IntakeTimeField,
 } from '../models';
 import { browserTimeZone } from '../utils/time-zone';
 import { Account } from './account';
@@ -76,6 +80,37 @@ function statsOf(draft: IntakeStatsDraft): IntakeStats | undefined {
   };
 }
 
+function emptySchedule(): IntakeScheduleDraft {
+  return { shootDays: [], shootTime: '', publishTime: '' };
+}
+
+function scheduleDraftOf(schedule: IntakeSchedule | undefined): IntakeScheduleDraft {
+  return {
+    shootDays: [...(schedule?.shootDays ?? [])],
+    shootTime: schedule?.shootTime ?? '',
+    publishTime: schedule?.publishTime ?? '',
+  };
+}
+
+function timeValid(value: string): boolean {
+  return value === '' || TIME_PATTERN.test(value);
+}
+
+function scheduleValid(schedule: IntakeScheduleDraft): boolean {
+  return timeValid(schedule.shootTime) && timeValid(schedule.publishTime);
+}
+
+function scheduleOf(draft: IntakeScheduleDraft): IntakeSchedule | undefined {
+  if (draft.shootDays.length === 0 && draft.shootTime === '' && draft.publishTime === '') {
+    return undefined;
+  }
+  return {
+    shootDays: [...draft.shootDays].sort((left, right) => left - right),
+    ...(draft.shootTime === '' ? {} : { shootTime: draft.shootTime }),
+    ...(draft.publishTime === '' ? {} : { publishTime: draft.publishTime }),
+  };
+}
+
 function emptyDraft(): IntakeDraft {
   return {
     links: [''],
@@ -84,6 +119,7 @@ function emptyDraft(): IntakeDraft {
     note: '',
     city: '',
     stats: emptyStats(),
+    schedule: emptySchedule(),
   };
 }
 
@@ -95,6 +131,7 @@ function draftOf(request: IntakeRequest, withNote: boolean): IntakeDraft {
     note: withNote ? (request.note ?? '') : '',
     city: request.city ?? '',
     stats: withNote ? statsDraftOf(request.stats) : emptyStats(),
+    schedule: scheduleDraftOf(request.schedule),
   };
 }
 
@@ -129,6 +166,7 @@ export class Intake {
     this.showForm() ? this.reviewMode() : this.request()?.review === true,
   );
   readonly statsValid = computed(() => statsValid(this.draft().stats));
+  readonly scheduleValid = computed(() => scheduleValid(this.draft().schedule));
   readonly canSubmit = computed(() => {
     const draft = this.draft();
     return (
@@ -136,6 +174,7 @@ export class Intake {
       draft.goals.length > 0 &&
       draft.links.some((link) => link.trim().length > 0) &&
       draft.note.length <= INTAKE_MAX_NOTE_LENGTH &&
+      this.scheduleValid() &&
       (!this.reviewMode() || this.statsValid())
     );
   });
@@ -172,6 +211,7 @@ export class Intake {
     try {
       const draft = this.draft();
       const stats = this.reviewMode() ? statsOf(draft.stats) : undefined;
+      const schedule = scheduleOf(draft.schedule);
       this.request.set(
         await this.api.submitIntake({
           links: draft.links.map((link) => link.trim()).filter(Boolean),
@@ -182,6 +222,7 @@ export class Intake {
           timeZone: browserTimeZone(),
           ...(this.reviewMode() ? { review: true } : {}),
           ...(stats ? { stats } : {}),
+          ...(schedule ? { schedule } : {}),
         }),
       );
       this.editing.set(false);
@@ -289,6 +330,22 @@ export class Intake {
     this.draft.update((draft) => ({ ...draft, stats: { ...draft.stats, [field]: value } }));
   }
 
+  toggleShootDay(day: number): void {
+    this.draft.update((draft) => {
+      const shootDays = draft.schedule.shootDays.includes(day)
+        ? draft.schedule.shootDays.filter((chosen) => chosen !== day)
+        : [...draft.schedule.shootDays, day];
+      return { ...draft, schedule: { ...draft.schedule, shootDays } };
+    });
+  }
+
+  setTime(field: IntakeTimeField, value: string): void {
+    this.draft.update((draft) => ({
+      ...draft,
+      schedule: { ...draft.schedule, [field]: value.trim() },
+    }));
+  }
+
   stop(): void {
     clearTimeout(this.timer);
     this.timer = undefined;
@@ -336,6 +393,9 @@ export class Intake {
       draft.note === '' &&
       draft.city === '' &&
       Object.values(draft.stats).every((value) => value === '') &&
+      draft.schedule.shootDays.length === 0 &&
+      draft.schedule.shootTime === '' &&
+      draft.schedule.publishTime === '' &&
       draft.links.every((link) => link === '') &&
       draft.references.every((link) => link === '')
     );

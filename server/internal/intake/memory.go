@@ -35,13 +35,14 @@ func (m *Memory) Submit(_ context.Context, masterID string, draft Draft, now tim
 		current.Note = draft.Note
 		current.Review = draft.Review
 		current.Stats = cloneStats(draft.Stats)
+		current.Schedule = cloneSchedule(draft.Schedule)
 		current.City = draft.City
 		current.UpdatedAt = now
 		return *current, true, nil
 	}
 	created := &Request{
 		ID: newID(), MasterID: masterID, Networks: slices.Clone(draft.Networks), References: slices.Clone(draft.References),
-		Goals: slices.Clone(draft.Goals), Note: draft.Note, Review: draft.Review, Stats: cloneStats(draft.Stats), City: draft.City,
+		Goals: slices.Clone(draft.Goals), Note: draft.Note, Review: draft.Review, Stats: cloneStats(draft.Stats), Schedule: cloneSchedule(draft.Schedule), City: draft.City,
 		Status: StatusNew, CreatedAt: now, UpdatedAt: now,
 	}
 	m.requests = append(m.requests, created)
@@ -92,6 +93,15 @@ func cloneStats(stats *Stats) *Stats {
 		return nil
 	}
 	copied := *stats
+	return &copied
+}
+
+func cloneSchedule(schedule *Schedule) *Schedule {
+	if schedule == nil {
+		return nil
+	}
+	copied := *schedule
+	copied.ShootDays = slices.Clone(schedule.ShootDays)
 	return &copied
 }
 

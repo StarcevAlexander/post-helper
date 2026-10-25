@@ -2,6 +2,7 @@ package intake
 
 import (
 	"errors"
+	"regexp"
 	"time"
 )
 
@@ -41,16 +42,21 @@ const (
 )
 
 var (
-	ErrNotFound   = errors.New("intake request not found")
-	ErrNoNetworks = errors.New("no social links")
-	ErrTooMany    = errors.New("too many social links")
-	ErrTooManyRef = errors.New("too many reference links")
-	ErrBadLink    = errors.New("bad social link")
-	ErrBadGoal    = errors.New("unknown goal")
-	ErrNoGoals    = errors.New("no goals")
-	ErrLongText   = errors.New("text is too long")
-	ErrBadStats   = errors.New("month stats are out of range")
+	ErrNotFound    = errors.New("intake request not found")
+	ErrNoNetworks  = errors.New("no social links")
+	ErrTooMany     = errors.New("too many social links")
+	ErrTooManyRef  = errors.New("too many reference links")
+	ErrBadLink     = errors.New("bad social link")
+	ErrBadGoal     = errors.New("unknown goal")
+	ErrNoGoals     = errors.New("no goals")
+	ErrLongText    = errors.New("text is too long")
+	ErrBadStats    = errors.New("month stats are out of range")
+	ErrBadSchedule = errors.New("schedule preferences are out of range")
 )
+
+var timePattern = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
+
+var WeekdayNames = []string{"понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"}
 
 var platformHosts = map[string]string{
 	"instagram.com": PlatformInstagram,

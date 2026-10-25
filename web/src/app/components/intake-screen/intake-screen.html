@@ -119,6 +119,52 @@
       />
     </section>
 
+    <section class="section">
+      <h3 class="section__heading">{{ scheduleTexts.title }}</h3>
+      <p class="screen__hint">{{ scheduleTexts.hint }}</p>
+      <fieldset class="days">
+        <legend class="stat__label">{{ scheduleTexts.shootDays }}</legend>
+        <p class="screen__hint">{{ scheduleTexts.shootDaysHint }}</p>
+        <div class="days__row">
+          @for (day of weekdays; track day.index) {
+            <button
+              type="button"
+              class="day"
+              [class.day--on]="isShootDay(day.index)"
+              [attr.aria-pressed]="isShootDay(day.index)"
+              [attr.aria-label]="day.full"
+              (click)="intake.toggleShootDay(day.index)"
+            >
+              {{ day.short }}
+            </button>
+          }
+        </div>
+      </fieldset>
+      <label class="stat__label" for="intake-shoot-time">{{ scheduleTexts.shootTime }}</label>
+      <input
+        id="intake-shoot-time"
+        class="field"
+        type="time"
+        [attr.aria-invalid]="timeInvalid('shootTime')"
+        [value]="intake.draft().schedule.shootTime"
+        (input)="onTimeInput('shootTime', $event)"
+      />
+      <label class="stat__label" for="intake-publish-time">{{ scheduleTexts.publishTime }}</label>
+      <p class="screen__hint" id="intake-publish-hint">{{ scheduleTexts.publishHint }}</p>
+      <input
+        id="intake-publish-time"
+        class="field"
+        type="time"
+        aria-describedby="intake-publish-hint"
+        [attr.aria-invalid]="timeInvalid('publishTime')"
+        [value]="intake.draft().schedule.publishTime"
+        (input)="onTimeInput('publishTime', $event)"
+      />
+      @if (!intake.scheduleValid()) {
+        <p class="screen__error" role="alert">{{ scheduleTexts.invalid }}</p>
+      }
+    </section>
+
     @if (intake.reviewing()) {
       <section class="section">
         <h3 class="section__heading">{{ statsTexts.title }}</h3>
@@ -261,6 +307,16 @@
       <section class="section">
         <h3 class="section__heading">{{ texts.cityLabel }}</h3>
         <p class="suggestion">{{ city }}</p>
+      </section>
+    }
+    @if (scheduleLines().length > 0) {
+      <section class="section">
+        <h3 class="section__heading">{{ scheduleTexts.summary }}</h3>
+        <ul class="section__list">
+          @for (line of scheduleLines(); track line) {
+            <li>{{ line }}</li>
+          }
+        </ul>
       </section>
     }
     @if (intake.request()?.note; as note) {

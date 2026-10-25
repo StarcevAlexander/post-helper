@@ -103,9 +103,29 @@ function describeIntake(request) {
     'Цели:',
     ...(request.goalTitles ?? request.goals).map((goal) => `  • ${goal}`),
     request.note ? `Пожелания и рекомендации (обязательно учесть в плане):\n  ${request.note.replace(/\n/g, '\n  ')}` : 'Пожеланий нет',
+    ...describeSchedule(request.schedule),
     ...describeStats(request.stats),
   ];
   return lines.join('\n');
+}
+
+const WEEKDAY_NAMES = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+
+function describeSchedule(schedule) {
+  if (!schedule) {
+    return ['Когда удобно: мастер не указал, предложите дни и время сами и напишите об этом в note'];
+  }
+  const lines = [];
+  if (schedule.shootDays?.length) {
+    lines.push(`  • дни съёмки: ${schedule.shootDays.map((day) => WEEKDAY_NAMES[day] ?? day).join(', ')}`);
+  }
+  if (schedule.shootTime) {
+    lines.push(`  • время съёмки: ${schedule.shootTime}`);
+  }
+  if (schedule.publishTime) {
+    lines.push(`  • время публикаций: ${schedule.publishTime}`);
+  }
+  return ['Когда мастеру удобно (обязательно: slots из дней и времени съёмки, publishTime и time публикаций из времени публикаций):', ...lines];
 }
 
 function describeStats(stats) {

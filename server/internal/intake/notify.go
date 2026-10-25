@@ -78,6 +78,12 @@ func Announcement(request Request, masterName string, updated, review bool) stri
 	if request.Note != "" {
 		fmt.Fprintf(&text, "\nПожелания и рекомендации:\n%s\n", request.Note)
 	}
+	if schedule := ScheduleLines(request.Schedule); len(schedule) > 0 {
+		text.WriteString("\nКогда мастеру удобно (расписание плана строить по этому):\n")
+		for _, line := range schedule {
+			fmt.Fprintf(&text, "• %s\n", line)
+		}
+	}
 	if stats := StatsLines(request.Stats); len(stats) > 0 {
 		text.WriteString("\nЦифры за месяц от мастера:\n")
 		for _, line := range stats {
@@ -89,6 +95,29 @@ func Announcement(request Request, masterName string, updated, review bool) stri
 	}
 	fmt.Fprintf(&text, "\nid мастера: %s", request.MasterID)
 	return text.String()
+}
+
+func ScheduleLines(schedule *Schedule) []string {
+	if schedule == nil {
+		return nil
+	}
+	var lines []string
+	if len(schedule.ShootDays) > 0 {
+		names := make([]string, 0, len(schedule.ShootDays))
+		for _, day := range schedule.ShootDays {
+			if day >= 0 && day < len(WeekdayNames) {
+				names = append(names, WeekdayNames[day])
+			}
+		}
+		lines = append(lines, "Дни съёмки: "+strings.Join(names, ", "))
+	}
+	if schedule.ShootTime != "" {
+		lines = append(lines, "Время съёмки: "+schedule.ShootTime)
+	}
+	if schedule.PublishTime != "" {
+		lines = append(lines, "Время публикаций: "+schedule.PublishTime)
+	}
+	return lines
 }
 
 func StatsLines(stats *Stats) []string {

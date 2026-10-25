@@ -16,6 +16,12 @@ type Stats struct {
 	BestPost  string `json:"bestPost,omitempty"`
 }
 
+type Schedule struct {
+	ShootDays   []int  `json:"shootDays"`
+	ShootTime   string `json:"shootTime,omitempty"`
+	PublishTime string `json:"publishTime,omitempty"`
+}
+
 type Draft struct {
 	Networks   []Network
 	References []Network
@@ -24,6 +30,7 @@ type Draft struct {
 	City       string
 	Review     bool
 	Stats      *Stats
+	Schedule   *Schedule
 }
 
 type Request struct {
@@ -37,6 +44,7 @@ type Request struct {
 	Note           string    `json:"note,omitempty"`
 	Review         bool      `json:"review,omitempty"`
 	Stats          *Stats    `json:"stats,omitempty"`
+	Schedule       *Schedule `json:"schedule,omitempty"`
 	City           string    `json:"city,omitempty"`
 	MasterTimezone string    `json:"masterTimezone,omitempty"`
 	Status         string    `json:"status"`

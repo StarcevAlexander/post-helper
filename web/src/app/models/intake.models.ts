@@ -50,6 +50,20 @@ export interface IntakeStatsDraft {
 
 export type IntakeStatField = keyof IntakeStatsDraft;
 
+export interface IntakeSchedule {
+  shootDays: number[];
+  shootTime?: string;
+  publishTime?: string;
+}
+
+export interface IntakeScheduleDraft {
+  shootDays: number[];
+  shootTime: string;
+  publishTime: string;
+}
+
+export type IntakeTimeField = Exclude<keyof IntakeScheduleDraft, 'shootDays'>;
+
 export interface IntakeDraft {
   links: string[];
   references: string[];
@@ -57,12 +71,14 @@ export interface IntakeDraft {
   note: string;
   city: string;
   stats: IntakeStatsDraft;
+  schedule: IntakeScheduleDraft;
 }
 
-export interface IntakeSubmission extends Omit<IntakeDraft, 'stats'> {
+export interface IntakeSubmission extends Omit<IntakeDraft, 'stats' | 'schedule'> {
   review?: boolean;
   timeZone?: string;
   stats?: IntakeStats;
+  schedule?: IntakeSchedule;
 }
 
 export interface IntakeRequest {
@@ -79,4 +95,5 @@ export interface IntakeRequest {
   readyAt?: string;
   review?: boolean;
   stats?: IntakeStats;
+  schedule?: IntakeSchedule;
 }

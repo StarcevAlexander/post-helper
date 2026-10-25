@@ -2,6 +2,7 @@ package intake
 
 import (
 	"net/url"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -51,6 +52,30 @@ func CleanStats(followers, reach *int, bestPost string) (*Stats, error) {
 		return nil, ErrBadStats
 	}
 	return &Stats{Followers: followers, Reach: reach, BestPost: bestPost}, nil
+}
+
+func CleanSchedule(days []int, shootTime, publishTime string) (*Schedule, error) {
+	shootTime = strings.TrimSpace(shootTime)
+	publishTime = strings.TrimSpace(publishTime)
+	chosen := make([]int, 0, len(days))
+	for _, day := range days {
+		if day < 0 || day >= len(WeekdayNames) {
+			return nil, ErrBadSchedule
+		}
+		if !slices.Contains(chosen, day) {
+			chosen = append(chosen, day)
+		}
+	}
+	slices.Sort(chosen)
+	for _, clock := range []string{shootTime, publishTime} {
+		if clock != "" && !timePattern.MatchString(clock) {
+			return nil, ErrBadSchedule
+		}
+	}
+	if len(chosen) == 0 && shootTime == "" && publishTime == "" {
+		return nil, nil
+	}
+	return &Schedule{ShootDays: chosen, ShootTime: shootTime, PublishTime: publishTime}, nil
 }
 
 func nonNil(networks []Network) []Network {

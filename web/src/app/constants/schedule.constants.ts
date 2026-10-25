@@ -56,3 +56,5 @@ export const RESCHEDULE_TEXTS = {
   noFreeDay: 'Свободного дня впереди не нашлось',
   movedFrom: 'было',
 } as const;
+
+export const WEEKDAY_SHORT_NAMES: readonly string[] = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];

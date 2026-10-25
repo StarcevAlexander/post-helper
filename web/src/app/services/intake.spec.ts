@@ -127,6 +127,7 @@ describe('Intake', () => {
       note: 'Без танцев',
       city: '',
       stats: { followers: '', reach: '', bestPost: '' },
+      schedule: { shootDays: [], shootTime: '', publishTime: '' },
     });
 
     intake.cancelEdit();
@@ -180,6 +181,7 @@ describe('Intake', () => {
       note: '',
       city: '',
       stats: { followers: '', reach: '', bestPost: '' },
+      schedule: { shootDays: [], shootTime: '', publishTime: '' },
     });
   });
 
@@ -357,5 +359,36 @@ describe('Intake', () => {
     fillDraft();
 
     expect(intake.canSubmit()).toBe(true);
+  });
+
+  it('sends the preferred days and times, keeps them for a new request and refuses a broken time', async () => {
+    fillDraft();
+    intake.toggleShootDay(3);
+    intake.toggleShootDay(1);
+    intake.setTime('shootTime', '11:00');
+    intake.setTime('publishTime', '19:3');
+    expect(intake.scheduleValid()).toBe(false);
+    expect(intake.canSubmit()).toBe(false);
+    intake.setTime('publishTime', '19:30');
+    expect(intake.canSubmit()).toBe(true);
+
+    const pending = intake.submit();
+    const sent = http.expectOne({ method: 'POST', url: intakeUrl });
+    const schedule = { shootDays: [1, 3], shootTime: '11:00', publishTime: '19:30' };
+    expect(sent.request.body).toMatchObject({ schedule });
+    sent.flush(request({ status: 'ready', readyAt: '2026-10-23T10:00:00Z', schedule }));
+    await pending;
+
+    intake.startNew();
+    expect(intake.draft().schedule).toEqual(schedule);
+  });
+
+  it('does not send the schedule when nothing is chosen', async () => {
+    fillDraft();
+    const pending = intake.submit();
+    const sent = http.expectOne({ method: 'POST', url: intakeUrl });
+    expect(sent.request.body).not.toHaveProperty('schedule');
+    sent.flush(request());
+    await pending;
   });
 });

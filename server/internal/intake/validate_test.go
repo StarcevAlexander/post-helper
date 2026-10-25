@@ -114,3 +114,37 @@ func TestAnnouncementCarriesWishes(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanScheduleSortsDaysAndChecksTimes(t *testing.T) {
+	schedule, err := CleanSchedule([]int{3, 1, 3}, " 11:00 ", "19:30")
+	if err != nil || schedule == nil {
+		t.Fatalf("CleanSchedule: %v %v", schedule, err)
+	}
+	if len(schedule.ShootDays) != 2 || schedule.ShootDays[0] != 1 || schedule.ShootDays[1] != 3 || schedule.ShootTime != "11:00" || schedule.PublishTime != "19:30" {
+		t.Errorf("schedule = %+v", schedule)
+	}
+	if empty, err := CleanSchedule(nil, "", " "); err != nil || empty != nil {
+		t.Errorf("empty schedule = %+v %v", empty, err)
+	}
+	for name, bad := range map[string]func() (*Schedule, error){
+		"day":  func() (*Schedule, error) { return CleanSchedule([]int{7}, "", "") },
+		"time": func() (*Schedule, error) { return CleanSchedule(nil, "25:00", "") },
+		"text": func() (*Schedule, error) { return CleanSchedule(nil, "", "вечером") },
+	} {
+		if _, err := bad(); err != ErrBadSchedule {
+			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+}
+
+func TestAnnouncementCarriesSchedule(t *testing.T) {
+	text := Announcement(Request{
+		MasterID: "m1", Networks: []Network{{Platform: PlatformVK, URL: "https://vk.com/anna"}}, Goals: []string{"reach"},
+		Schedule: &Schedule{ShootDays: []int{1, 3}, ShootTime: "11:00", PublishTime: "19:30"},
+	}, "Анна", false, false)
+	for _, want := range []string{"Когда мастеру удобно", "Дни съёмки: вторник, четверг", "Время съёмки: 11:00", "Время публикаций: 19:30"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("announcement lacks %q:\n%s", want, text)
+		}
+	}
+}
