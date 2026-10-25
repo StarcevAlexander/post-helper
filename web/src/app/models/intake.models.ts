@@ -36,17 +36,33 @@ export interface IntakeNetwork {
   url: string;
 }
 
+export interface IntakeStats {
+  followers?: number;
+  reach?: number;
+  bestPost?: string;
+}
+
+export interface IntakeStatsDraft {
+  followers: string;
+  reach: string;
+  bestPost: string;
+}
+
+export type IntakeStatField = keyof IntakeStatsDraft;
+
 export interface IntakeDraft {
   links: string[];
   references: string[];
   goals: IntakeGoalId[];
   note: string;
   city: string;
+  stats: IntakeStatsDraft;
 }
 
-export interface IntakeSubmission extends IntakeDraft {
+export interface IntakeSubmission extends Omit<IntakeDraft, 'stats'> {
   review?: boolean;
   timeZone?: string;
+  stats?: IntakeStats;
 }
 
 export interface IntakeRequest {
@@ -62,4 +78,5 @@ export interface IntakeRequest {
   updatedAt: string;
   readyAt?: string;
   review?: boolean;
+  stats?: IntakeStats;
 }

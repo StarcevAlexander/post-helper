@@ -55,7 +55,7 @@ func TestTheContentDayIsRemindedAnHourBefore(t *testing.T) {
 func TestAPublicationIsRemindedFifteenMinutesBeforeWithItsIdea(t *testing.T) {
 	due := Due(json.RawMessage(calendarJSON), moment("2026-10-27", "18:45"), irkutsk)
 
-	if len(due) != 1 || due[0].Key != "item:a" || due[0].Title != TitlePublication || due[0].Body != "Сторис: Почему болит спина" {
+	if len(due) != 1 || due[0].Key != "item:a:2026-10-27" || due[0].Title != TitlePublication || due[0].Body != "Сторис: Почему болит спина" {
 		t.Fatalf("due = %+v", due)
 	}
 }
@@ -64,7 +64,7 @@ func TestPublicationsAlreadyMarkedAsDoneAreLeftAlone(t *testing.T) {
 	due := Due(json.RawMessage(calendarJSON), moment("2026-10-28", "18:50"), irkutsk)
 
 	for _, reminder := range due {
-		if reminder.Key == "item:b" {
+		if reminder.Key == "item:b:2026-10-28" {
 			t.Fatalf("a published item was reminded: %+v", due)
 		}
 	}
@@ -87,7 +87,7 @@ func TestTheTimeZoneOfTheMasterDecidesWhenTheDayStarts(t *testing.T) {
 
 	due := Due(json.RawMessage(calendarJSON), moment, moscow)
 
-	if len(due) != 1 || due[0].Key != "item:a" {
+	if len(due) != 1 || due[0].Key != "item:a:2026-10-27" {
 		t.Fatalf("due = %v", keys(due))
 	}
 	if other := Due(json.RawMessage(calendarJSON), moment, irkutsk); len(other) != 0 {
@@ -274,7 +274,7 @@ func TestAReminderIsMarkedOnlyAfterADeliveredPush(t *testing.T) {
 
 			scheduler.Tick(context.Background())
 
-			marked, _ := scheduler.Sent.Has(context.Background(), master.ID, "item:a")
+			marked, _ := scheduler.Sent.Has(context.Background(), master.ID, "item:a:2026-10-27")
 			if marked != tt.wantMarked {
 				t.Errorf("marked = %v, want %v", marked, tt.wantMarked)
 			}

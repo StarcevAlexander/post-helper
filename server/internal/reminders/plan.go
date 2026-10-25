@@ -58,7 +58,7 @@ func all(plan calendar, location *time.Location) []Reminder {
 			body = label + ": " + item.Idea
 		}
 		reminders = append(reminders, Reminder{
-			Key:   fmt.Sprintf("%s:%s", KeyPublication, item.ID),
+			Key:   fmt.Sprintf("%s:%s:%s", KeyPublication, item.ID, item.Date),
 			At:    moment.Add(-PublicationLead),
 			Title: TitlePublication,
 			Body:  body,

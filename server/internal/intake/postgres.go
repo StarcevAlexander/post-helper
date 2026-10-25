@@ -18,7 +18,7 @@ func NewPostgres(pool *pgxpool.Pool) *Postgres {
 	return &Postgres{pool: pool}
 }
 
-const selectColumns = `id, master_id, networks, inspirations, goals, note, status, reply_note, created_at, updated_at, ready_at, review, city`
+const selectColumns = `id, master_id, networks, inspirations, goals, note, status, reply_note, created_at, updated_at, ready_at, review, city, stats`
 
 func (p *Postgres) Submit(ctx context.Context, masterID string, draft Draft, now time.Time) (Request, bool, error) {
 	networks, err := json.Marshal(draft.Networks)
@@ -30,6 +30,10 @@ func (p *Postgres) Submit(ctx context.Context, masterID string, draft Draft, now
 		return Request{}, false, err
 	}
 	goals, err := json.Marshal(draft.Goals)
+	if err != nil {
+		return Request{}, false, err
+	}
+	stats, err := marshalStats(draft.Stats)
 	if err != nil {
 		return Request{}, false, err
 	}
@@ -47,14 +51,14 @@ func (p *Postgres) Submit(ctx context.Context, masterID string, draft Draft, now
 	switch {
 	case updated:
 		_, err = transaction.Exec(ctx, `
-			UPDATE intake_requests SET networks = $2, goals = $3, note = $4, updated_at = $5, inspirations = $6, review = $7, city = $8 WHERE id = $1`,
-			id, networks, goals, draft.Note, now, references, draft.Review, draft.City)
+			UPDATE intake_requests SET networks = $2, goals = $3, note = $4, updated_at = $5, inspirations = $6, review = $7, city = $8, stats = $9 WHERE id = $1`,
+			id, networks, goals, draft.Note, now, references, draft.Review, draft.City, stats)
 	case errors.Is(err, pgx.ErrNoRows):
 		id = newID()
 		_, err = transaction.Exec(ctx, `
-			INSERT INTO intake_requests (id, master_id, networks, goals, note, status, created_at, updated_at, inspirations, review, city)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9, $10)`,
-			id, masterID, networks, goals, draft.Note, StatusNew, now, references, draft.Review, draft.City)
+			INSERT INTO intake_requests (id, master_id, networks, goals, note, status, created_at, updated_at, inspirations, review, city, stats)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9, $10, $11)`,
+			id, masterID, networks, goals, draft.Note, StatusNew, now, references, draft.Review, draft.City, stats)
 	}
 	if err != nil {
 		return Request{}, false, err
@@ -110,12 +114,19 @@ func (p *Postgres) Ready(ctx context.Context, masterID, replyNote string, now ti
 	return nil
 }
 
+func marshalStats(stats *Stats) ([]byte, error) {
+	if stats == nil {
+		return nil, nil
+	}
+	return json.Marshal(stats)
+}
+
 func scan(row pgx.Row) (Request, error) {
 	var request Request
-	var networks, references, goals []byte
+	var networks, references, goals, stats []byte
 	var ready *time.Time
 	err := row.Scan(&request.ID, &request.MasterID, &networks, &references, &goals, &request.Note, &request.Status,
-		&request.ReplyNote, &request.CreatedAt, &request.UpdatedAt, &ready, &request.Review, &request.City)
+		&request.ReplyNote, &request.CreatedAt, &request.UpdatedAt, &ready, &request.Review, &request.City, &stats)
 	if err != nil {
 		return Request{}, err
 	}
@@ -127,6 +138,13 @@ func scan(row pgx.Row) (Request, error) {
 	}
 	if err := json.Unmarshal(goals, &request.Goals); err != nil {
 		return Request{}, err
+	}
+	if len(stats) > 0 {
+		var parsed Stats
+		if err := json.Unmarshal(stats, &parsed); err != nil {
+			return Request{}, err
+		}
+		request.Stats = &parsed
 	}
 	if ready != nil {
 		request.ReadyAt = *ready

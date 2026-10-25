@@ -27,3 +27,20 @@ const (
 )
 
 var timePattern = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
+
+var formatLabels = map[string]string{
+	FormatReels:   "Reels",
+	FormatPost:    "Пост",
+	FormatStories: "Сторис",
+}
+
+func FormatLabel(format string) string {
+	if label, ok := formatLabels[format]; ok {
+		return label
+	}
+	return format
+}
+
+func (i Item) Label() string {
+	return FormatLabel(i.Format) + ", " + i.Date + " " + i.Time + ": " + i.Idea
+}

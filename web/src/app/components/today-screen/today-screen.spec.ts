@@ -6,6 +6,7 @@ import { provideRouter } from '@angular/router';
 import { PublicationKit } from '../../models';
 import { samplePlan } from '../../testing/plan-fixture';
 import { CalendarPlan } from '../../services/calendar-plan';
+import { IdeaRequests } from '../../services/idea-requests';
 import { Kits } from '../../services/kits';
 import { PushNotifications } from '../../services/push-notifications';
 import { Today } from '../../services/today';
@@ -139,6 +140,58 @@ describe('TodayScreen', () => {
 
     expect(plan.items().find((candidate) => candidate.id === item.id)?.done).toBe(true);
     expect(element.querySelector('.entry--done')).not.toBeNull();
+  });
+
+  it('moves the publication to the next free day and lets the master undo it', async () => {
+    const { item, fixture, element } = await openOnFirstPublication();
+
+    element.querySelector<HTMLButtonElement>('.entry__move')?.click();
+    await fixture.whenStable();
+
+    const moved = plan.items().find((candidate) => candidate.id === item.id)!;
+    expect(moved.date).not.toBe(item.date);
+    expect(moved.movedFrom).toBe(item.date);
+    expect(element.querySelector('.moved')?.textContent).toContain(`«${item.idea}» перенесено на`);
+
+    element.querySelector<HTMLButtonElement>('.moved__undo')?.click();
+    await fixture.whenStable();
+
+    expect(element.querySelector('.moved')).toBeNull();
+    expect(element.querySelector('.entry__return')).toBeNull();
+
+    expect(plan.items().find((candidate) => candidate.id === item.id)?.date).toBe(item.date);
+  });
+
+  it('offers to return a moved publication to its original day at any time', async () => {
+    const { item, fixture, element } = await openOnFirstPublication();
+    const next = [...plan.items()].sort((a, b) => a.date.localeCompare(b.date))[1];
+    plan.moveTo(next.id, item.date);
+    await fixture.whenStable();
+
+    const back = element.querySelector<HTMLButtonElement>('.entry__return');
+    expect(back?.textContent).toContain('Вернуть на');
+    back?.click();
+    await fixture.whenStable();
+
+    expect(plan.items().find((candidate) => candidate.id === next.id)?.date).toBe(next.date);
+  });
+
+  it('links to the idea replacement and shows when it is already requested', async () => {
+    const { item, fixture, element } = await openOnFirstPublication();
+
+    expect(element.querySelector('.entry__replace')?.getAttribute('href')).toBe(
+      `/replace/${item.id}`,
+    );
+
+    localStorage.setItem(
+      'helper.idea-requests',
+      JSON.stringify({ [item.id]: { idea: item.idea, sentAt: 'x' } }),
+    );
+    TestBed.inject(IdeaRequests).marks.set({ [item.id]: { idea: item.idea, sentAt: 'x' } });
+    await fixture.whenStable();
+
+    expect(element.querySelector('.entry__replace')).toBeNull();
+    expect(element.textContent).toContain('Замена запрошена');
   });
 
   it('links to the calendar', async () => {

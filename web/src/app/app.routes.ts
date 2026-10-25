@@ -67,6 +67,15 @@ const screens: Routes = [
       import('./components/shoot-screen/shoot-screen').then((m) => m.ShootScreen),
   },
   {
+    path: 'replace/:id',
+    title: ROUTE_TITLES.replace,
+    data: { back: true },
+    loadComponent: () =>
+      import('./components/replace-idea-screen/replace-idea-screen').then(
+        (m) => m.ReplaceIdeaScreen,
+      ),
+  },
+  {
     path: 'refs/:id',
     title: ROUTE_TITLES.refs,
     data: { back: true },

@@ -35,6 +35,16 @@
         }}</a>
       </section>
     }
+    @if (reschedule.last(); as last) {
+      <p class="moved" role="status" aria-live="polite">
+        <span>{{ moveLabel(last) }}</span>
+        @if (last.to) {
+          <button type="button" class="moved__undo entry__button" (click)="reschedule.undo()">
+            {{ moveTexts.undo }}
+          </button>
+        }
+      </p>
+    }
     @if (sections().length === 0) {
       <p class="screen__subtitle">{{ texts.empty }}</p>
     }
@@ -57,6 +67,9 @@
                   <span class="entry__format" [attr.data-format]="entry.item.format">
                     {{ entry.formatLabel }}
                   </span>
+                  @if (entry.item.movedFrom; as movedFrom) {
+                    <span class="entry__moved">{{ movedLabel(movedFrom) }}</span>
+                  }
                 </span>
                 <span class="entry__idea">{{ entry.item.idea }}</span>
                 <span class="entry__pillar">{{ entry.item.pillar }}</span>
@@ -93,6 +106,38 @@
                 >
                   {{ entry.refLabel }}
                 </a>
+              }
+              @if (!entry.item.done) {
+                <button
+                  type="button"
+                  class="entry__button entry__move"
+                  [attr.aria-label]="
+                    moveTexts.move + ' ' + moveTexts.moveHint + ': ' + entry.item.idea
+                  "
+                  (click)="reschedule.move(entry.item.id)"
+                >
+                  {{ moveTexts.move }}
+                </button>
+                @if (entry.item.movedFrom; as movedFrom) {
+                  <button
+                    type="button"
+                    class="entry__button entry__return"
+                    [attr.aria-label]="returnLabel(movedFrom) + ': ' + entry.item.idea"
+                    (click)="plan.undoMove(entry.item.id)"
+                  >
+                    {{ returnLabel(movedFrom) }}
+                  </button>
+                }
+                @if (entry.ideaRequested) {
+                  <span class="entry__status">{{ ideaTexts.requested }}</span>
+                } @else {
+                  <a
+                    class="entry__replace entry__button"
+                    [routerLink]="['/replace', entry.item.id]"
+                  >
+                    {{ ideaTexts.open }}
+                  </a>
+                }
               }
             </div>
             <p class="entry__feedback" role="status" aria-live="polite">

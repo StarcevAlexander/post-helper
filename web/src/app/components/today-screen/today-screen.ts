@@ -3,17 +3,27 @@ import { RouterLink } from '@angular/router';
 import {
   DAY_FORMAT,
   FORMAT_LABELS,
+  IDEA_REQUEST_TEXTS,
   PUSH_TEXTS,
   REFS_TEXTS,
+  RESCHEDULE_TEXTS,
   SHOOT_TEXTS,
   TODAY_COPY_FEEDBACK_MS,
   TODAY_TEXTS,
 } from '../../constants';
-import { PlanItem, TodayCopyFeedback, TodayEntry, TodaySection } from '../../models';
+import {
+  PlanItem,
+  RescheduleResult,
+  TodayCopyFeedback,
+  TodayEntry,
+  TodaySection,
+} from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
+import { IdeaRequests } from '../../services/idea-requests';
 import { Kits } from '../../services/kits';
 import { PushNotifications } from '../../services/push-notifications';
 import { Refs } from '../../services/refs';
+import { Reschedule } from '../../services/reschedule';
 import { Today } from '../../services/today';
 import { copyText } from '../../utils/clipboard';
 import { fromDateKey } from '../../utils/date-utils';
@@ -31,9 +41,13 @@ export class TodayScreen {
   protected readonly kits = inject(Kits);
   protected readonly refs = inject(Refs);
   protected readonly push = inject(PushNotifications);
+  protected readonly reschedule = inject(Reschedule);
+  protected readonly ideas = inject(IdeaRequests);
   protected readonly texts = TODAY_TEXTS;
   protected readonly shootTexts = SHOOT_TEXTS;
   protected readonly pushTexts = PUSH_TEXTS;
+  protected readonly moveTexts = RESCHEDULE_TEXTS;
+  protected readonly ideaTexts = IDEA_REQUEST_TEXTS;
   protected readonly offerPush = computed(
     () => this.push.supported && !this.push.subscribed() && !this.push.dismissed(),
   );
@@ -71,6 +85,18 @@ export class TodayScreen {
     return current.ok ? TODAY_TEXTS.copied : TODAY_TEXTS.copyFailed;
   }
 
+  protected movedLabel(from: string): string {
+    return `${RESCHEDULE_TEXTS.movedFrom} ${DAY_FORMAT.format(fromDateKey(from))}`;
+  }
+
+  protected returnLabel(from: string): string {
+    return `${RESCHEDULE_TEXTS.undoTo} ${DAY_FORMAT.format(fromDateKey(from))}`;
+  }
+
+  protected moveLabel(last: RescheduleResult): string {
+    return this.reschedule.describe(last);
+  }
+
   protected async onCopyCaption(entry: TodayEntry): Promise<void> {
     if (!entry.captionText) {
       return;
@@ -101,6 +127,7 @@ export class TodayScreen {
             : `${REFS_TEXTS.open} (${ref.files.length})`
           : undefined,
       refStale: ref?.stale ?? false,
+      ideaRequested: this.ideas.requested(item),
     };
   }
 }

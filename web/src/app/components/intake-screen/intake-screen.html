@@ -119,6 +119,54 @@
       />
     </section>
 
+    @if (intake.reviewing()) {
+      <section class="section">
+        <h3 class="section__heading">{{ statsTexts.title }}</h3>
+        <p class="screen__hint" id="intake-stats-hint">{{ statsTexts.hint }}</p>
+        <label class="stat__label" for="intake-followers">{{ statsTexts.followers }}</label>
+        <input
+          id="intake-followers"
+          class="field"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          aria-describedby="intake-stats-hint"
+          [attr.aria-invalid]="statInvalid('followers')"
+          [placeholder]="statsTexts.followersPlaceholder"
+          [value]="intake.draft().stats.followers"
+          (input)="onStatInput('followers', $event)"
+        />
+        <label class="stat__label" for="intake-reach">{{ statsTexts.reach }}</label>
+        <input
+          id="intake-reach"
+          class="field"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          aria-describedby="intake-stats-hint"
+          [attr.aria-invalid]="statInvalid('reach')"
+          [placeholder]="statsTexts.reachPlaceholder"
+          [value]="intake.draft().stats.reach"
+          (input)="onStatInput('reach', $event)"
+        />
+        <label class="stat__label" for="intake-best-post">{{ statsTexts.bestPost }}</label>
+        <input
+          id="intake-best-post"
+          class="field"
+          type="text"
+          autocomplete="off"
+          aria-describedby="intake-stats-hint"
+          [attr.maxlength]="maxBestPost"
+          [placeholder]="statsTexts.bestPostPlaceholder"
+          [value]="intake.draft().stats.bestPost"
+          (input)="onStatInput('bestPost', $event)"
+        />
+        @if (!intake.statsValid()) {
+          <p class="screen__error" role="alert">{{ statsTexts.invalid }}</p>
+        }
+      </section>
+    }
+
     <section class="section">
       <label class="section__heading" for="intake-note">{{ texts.noteTitle }}</label>
       <p class="screen__hint" id="intake-note-hint">{{ texts.noteHint }}</p>
@@ -219,6 +267,16 @@
       <section class="section">
         <h3 class="section__heading">{{ texts.sentWishes }}</h3>
         <p class="suggestion suggestion--wish">{{ note }}</p>
+      </section>
+    }
+    @if (statLines().length > 0) {
+      <section class="section">
+        <h3 class="section__heading">{{ statsTexts.summary }}</h3>
+        <ul class="section__list">
+          @for (line of statLines(); track line) {
+            <li>{{ line }}</li>
+          }
+        </ul>
       </section>
     }
     <button type="button" class="screen__secondary" (click)="intake.edit()">

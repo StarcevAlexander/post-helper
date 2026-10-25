@@ -34,13 +34,15 @@ func (m *Memory) Submit(_ context.Context, masterID string, draft Draft, now tim
 		current.Goals = slices.Clone(draft.Goals)
 		current.Note = draft.Note
 		current.Review = draft.Review
+		current.Stats = cloneStats(draft.Stats)
 		current.City = draft.City
 		current.UpdatedAt = now
 		return *current, true, nil
 	}
 	created := &Request{
 		ID: newID(), MasterID: masterID, Networks: slices.Clone(draft.Networks), References: slices.Clone(draft.References),
-		Goals: slices.Clone(draft.Goals), Note: draft.Note, Review: draft.Review, City: draft.City, Status: StatusNew, CreatedAt: now, UpdatedAt: now,
+		Goals: slices.Clone(draft.Goals), Note: draft.Note, Review: draft.Review, Stats: cloneStats(draft.Stats), City: draft.City,
+		Status: StatusNew, CreatedAt: now, UpdatedAt: now,
 	}
 	m.requests = append(m.requests, created)
 	return *created, false, nil
@@ -83,6 +85,14 @@ func (m *Memory) Ready(_ context.Context, masterID, replyNote string, now time.T
 	}
 	current.Status, current.ReplyNote, current.UpdatedAt, current.ReadyAt = StatusReady, replyNote, now, now
 	return nil
+}
+
+func cloneStats(stats *Stats) *Stats {
+	if stats == nil {
+		return nil
+	}
+	copied := *stats
+	return &copied
 }
 
 func (m *Memory) latest(masterID string) *Request {

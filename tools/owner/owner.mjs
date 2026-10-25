@@ -28,6 +28,7 @@ const HELP = `Управление «Помощником» из консоли 
                                                       записать населённый пункт мастера и часовой пояс (без зоны её определит нейросеть)
   node tools/owner/owner.mjs push <id> "Заголовок" ["Текст"] [--url "./?screen=today"]
                                                       отправить мастеру уведомление на телефон (если он включил их в настройках)
+  node tools/owner/owner.mjs digest                    прислать себе в Telegram недельный дайджест сейчас (сам он уходит по понедельникам в 9:00)
 
 Настройка: сервер по умолчанию http://127.0.0.1:8081 (локальный админский порт), другой адрес задаётся OWNER_SERVER в окружении или в tools/owner/.env`;
 
@@ -102,8 +103,26 @@ function describeIntake(request) {
     'Цели:',
     ...(request.goalTitles ?? request.goals).map((goal) => `  • ${goal}`),
     request.note ? `Пожелания и рекомендации (обязательно учесть в плане):\n  ${request.note.replace(/\n/g, '\n  ')}` : 'Пожеланий нет',
+    ...describeStats(request.stats),
   ];
   return lines.join('\n');
+}
+
+function describeStats(stats) {
+  if (!stats) {
+    return [];
+  }
+  const lines = [];
+  if (stats.followers !== undefined) {
+    lines.push(`  • подписчиков сейчас: ${stats.followers}`);
+  }
+  if (stats.reach !== undefined) {
+    lines.push(`  • охват за месяц: ${stats.reach}`);
+  }
+  if (stats.bestPost) {
+    lines.push(`  • лучшая публикация: ${stats.bestPost}`);
+  }
+  return lines.length > 0 ? ['Цифры за месяц от мастера (опираться на них в итогах):', ...lines] : [];
 }
 
 function parseRefsArguments(args) {
@@ -186,7 +205,10 @@ async function main([command, id, extra, ...rest]) {
               .map((item) => {
                 const email = item.email ? ` · ${item.email}` : '';
                 const contact = item.contact ? ` · контакт: ${item.contact}` : '';
-                return `${item.createdAt} · ${item.masterName} (${item.masterId})${email}${contact}\n${item.text}`;
+                const idea = item.itemId
+                  ? `\nЗАМЕНА ИДЕИ публикации ${item.itemId} (${item.itemLabel}): залить plan.json с новой idea и kits["${item.itemId}"]`
+                  : '';
+                return `${item.createdAt} · ${item.masterName} (${item.masterId})${email}${contact}${idea}\n${item.text}`;
               })
               .join('\n\n')
           : 'Сообщений нет',
@@ -237,6 +259,10 @@ async function main([command, id, extra, ...rest]) {
       }
       const stats = buildReviewStats(await call('GET', `${MASTERS}/${id}/export`), toLocalDateKey(new Date()));
       return console.log(extra === '--json' ? JSON.stringify(stats, null, 2) : describeReviewStats(stats));
+    }
+    case 'digest': {
+      const sent = await call('POST', '/api/admin/digest');
+      return console.log(`Отправлено в Telegram:\n\n${sent.text}`);
     }
     case 'refs-clear': {
       if (!id) {

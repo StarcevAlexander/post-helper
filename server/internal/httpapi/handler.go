@@ -146,6 +146,7 @@ func NewAdminHandler(options Options) http.Handler {
 	mux.HandleFunc(AdminPushRoute, c.pushes.adminSend)
 	mux.HandleFunc(AdminIntakesRoute, intakes.list)
 	mux.HandleFunc(AdminFeedbackRoute, c.feedbackHandler().list)
+	mux.HandleFunc(AdminDigestRoute, digestHandler(options.Digest, c.logger))
 	mux.HandleFunc(AdminPlanRoute, intakes.deliverPlan)
 	mux.HandleFunc(AdminRefsDeliverRoute, intakes.deliverRefs)
 	mux.HandleFunc(AdminRefsClearRoute, intakes.clearRefs)

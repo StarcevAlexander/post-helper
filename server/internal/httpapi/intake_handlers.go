@@ -55,6 +55,14 @@ func (h *intakeHandler) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	draft.City = city
 	draft.Review = body.Review
+	if body.Stats != nil {
+		stats, err := intake.CleanStats(body.Stats.Followers, body.Stats.Reach, body.Stats.BestPost)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, MsgIntakeBadStat)
+			return
+		}
+		draft.Stats = stats
+	}
 
 	request, updated, err := h.intake.Submit(r.Context(), identity.MasterID, draft, time.Now())
 	if err != nil {
@@ -321,7 +329,11 @@ func (h *intakeHandler) clearRefs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *intakeHandler) calendarItem(ctx context.Context, masterID, key string) (plan.Item, bool) {
-	state, err := h.accounts.LoadState(ctx, masterID)
+	return calendarItemOf(ctx, h.accounts, masterID, key)
+}
+
+func calendarItemOf(ctx context.Context, store accounts.Store, masterID, key string) (plan.Item, bool) {
+	state, err := store.LoadState(ctx, masterID)
 	if err != nil {
 		return plan.Item{}, false
 	}

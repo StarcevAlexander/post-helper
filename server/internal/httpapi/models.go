@@ -19,7 +19,12 @@ import (
 	"post-helper/server/internal/yandex"
 )
 
+type DigestSender interface {
+	Send(ctx context.Context) (string, error)
+}
+
 type Options struct {
+	Digest         DigestSender
 	Auditor        audit.Generator
 	Refs           refs.Store
 	RefPlanner     refs.Generator

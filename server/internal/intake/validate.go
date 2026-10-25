@@ -37,6 +37,22 @@ func Clean(links, references, goals []string, note string) (Draft, error) {
 	return Draft{Networks: networks, References: inspirations, Goals: chosen, Note: note}, nil
 }
 
+func CleanStats(followers, reach *int, bestPost string) (*Stats, error) {
+	bestPost = strings.TrimSpace(bestPost)
+	if followers == nil && reach == nil && bestPost == "" {
+		return nil, nil
+	}
+	for _, value := range []*int{followers, reach} {
+		if value != nil && (*value < 0 || *value > MaxStatValue) {
+			return nil, ErrBadStats
+		}
+	}
+	if utf8.RuneCountInString(bestPost) > MaxBestPostRunes {
+		return nil, ErrBadStats
+	}
+	return &Stats{Followers: followers, Reach: reach, BestPost: bestPost}, nil
+}
+
 func nonNil(networks []Network) []Network {
 	if networks == nil {
 		return []Network{}

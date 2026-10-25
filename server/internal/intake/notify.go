@@ -78,11 +78,34 @@ func Announcement(request Request, masterName string, updated, review bool) stri
 	if request.Note != "" {
 		fmt.Fprintf(&text, "\nПожелания и рекомендации:\n%s\n", request.Note)
 	}
+	if stats := StatsLines(request.Stats); len(stats) > 0 {
+		text.WriteString("\nЦифры за месяц от мастера:\n")
+		for _, line := range stats {
+			fmt.Fprintf(&text, "• %s\n", line)
+		}
+	}
 	if mentionsInstagram(request) {
 		text.WriteString("\n* " + MetaNote + "\n")
 	}
 	fmt.Fprintf(&text, "\nid мастера: %s", request.MasterID)
 	return text.String()
+}
+
+func StatsLines(stats *Stats) []string {
+	if stats == nil {
+		return nil
+	}
+	var lines []string
+	if stats.Followers != nil {
+		lines = append(lines, fmt.Sprintf("Подписчиков сейчас: %d", *stats.Followers))
+	}
+	if stats.Reach != nil {
+		lines = append(lines, fmt.Sprintf("Охват за месяц: %d", *stats.Reach))
+	}
+	if stats.BestPost != "" {
+		lines = append(lines, "Лучшая публикация: "+stats.BestPost)
+	}
+	return lines
 }
 
 func clip(text string) string {

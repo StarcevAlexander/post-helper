@@ -1,0 +1,53 @@
+<div class="screen__body">
+  @if (item()) {
+    <header class="screen__header">
+      <h2 class="screen__title">{{ heading() }}</h2>
+      <p class="screen__subtitle">{{ subheading() }}</p>
+    </header>
+
+    @if (ideas.sent()) {
+      <p class="headline" role="status">
+        <strong>{{ texts.sentTitle }}.</strong>
+        {{ texts.sentText }}
+      </p>
+      <a class="screen__secondary" routerLink="/calendar">{{ texts.backToCalendar }}</a>
+    } @else if (requested()) {
+      <p class="headline" role="status">{{ texts.pendingText }}</p>
+      <a class="screen__secondary" routerLink="/calendar">{{ texts.backToCalendar }}</a>
+    } @else {
+      <p class="screen__hint">{{ texts.intro }}</p>
+
+      <section class="section">
+        <label class="section__heading" for="replace-text">{{ texts.textLabel }}</label>
+        <textarea
+          id="replace-text"
+          class="field field--note"
+          rows="5"
+          [attr.maxlength]="maxText"
+          [placeholder]="texts.textPlaceholder"
+          [value]="ideas.text()"
+          (input)="onTextInput($event)"
+        ></textarea>
+        <p class="screen__hint screen__hint--counter">
+          {{ ideas.text().length }} / {{ maxText }} {{ texts.counter }}
+        </p>
+      </section>
+
+      @if (ideas.error(); as message) {
+        <p class="screen__error" role="alert">{{ message }}</p>
+      }
+
+      <button
+        type="button"
+        class="screen__primary"
+        [disabled]="!ideas.canSubmit()"
+        (click)="onSubmit()"
+      >
+        {{ ideas.busy() ? texts.sending : texts.submit }}
+      </button>
+    }
+  } @else {
+    <p class="screen__hint">{{ texts.missing }}</p>
+    <a class="screen__secondary" routerLink="/calendar">{{ texts.backToCalendar }}</a>
+  }
+</div>

@@ -41,3 +41,18 @@ export const DONE_LABEL = 'Опубликовано';
 export const WEEK_LABEL = 'Неделя';
 
 export const CONTENT_DAY_WEEK_LABEL = 'День контента';
+
+export const RESCHEDULE_FEEDBACK_MS = 10000;
+
+export const RESCHEDULE_SEARCH_DAYS = 60;
+
+export const RESCHEDULE_TEXTS = {
+  move: 'Перенести',
+  moveHint: 'на ближайший свободный день',
+  moved: 'Перенесено на',
+  movedLower: 'перенесено на',
+  undo: 'Вернуть',
+  undoTo: 'Вернуть на',
+  noFreeDay: 'Свободного дня впереди не нашлось',
+  movedFrom: 'было',
+} as const;

@@ -17,10 +17,11 @@ func NewPostgres(pool *pgxpool.Pool) *Postgres {
 
 func (p *Postgres) Add(ctx context.Context, message Message) (Message, error) {
 	err := p.pool.QueryRow(ctx, `
-		INSERT INTO feedback (id, master_id, master_name, email, contact, text, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO feedback (id, master_id, master_name, email, contact, text, item_id, item_label, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING created_at`,
-		message.ID, message.MasterID, message.MasterName, message.Email, message.Contact, message.Text, message.CreatedAt,
+		message.ID, message.MasterID, message.MasterName, message.Email, message.Contact, message.Text,
+		message.ItemID, message.ItemLabel, message.CreatedAt,
 	).Scan(&message.CreatedAt)
 	return message, err
 }
@@ -34,7 +35,7 @@ func (p *Postgres) CountSince(ctx context.Context, masterID string, since time.T
 
 func (p *Postgres) List(ctx context.Context, limit int) ([]Message, error) {
 	rows, err := p.pool.Query(ctx, `
-		SELECT id, COALESCE(master_id, ''), master_name, email, contact, text, created_at
+		SELECT id, COALESCE(master_id, ''), master_name, email, contact, text, item_id, item_label, created_at
 		FROM feedback ORDER BY created_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
@@ -43,7 +44,8 @@ func (p *Postgres) List(ctx context.Context, limit int) ([]Message, error) {
 	listed := []Message{}
 	for rows.Next() {
 		var message Message
-		if err := rows.Scan(&message.ID, &message.MasterID, &message.MasterName, &message.Email, &message.Contact, &message.Text, &message.CreatedAt); err != nil {
+		if err := rows.Scan(&message.ID, &message.MasterID, &message.MasterName, &message.Email, &message.Contact,
+			&message.Text, &message.ItemID, &message.ItemLabel, &message.CreatedAt); err != nil {
 			return nil, err
 		}
 		listed = append(listed, message)

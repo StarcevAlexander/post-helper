@@ -1,6 +1,6 @@
 import { ACCOUNT_TEXTS } from './account.constants';
 import { FAQ_TEXTS } from './faq.constants';
-import { FEEDBACK_TEXTS } from './feedback.constants';
+import { FEEDBACK_TEXTS, IDEA_REQUEST_TEXTS } from './feedback.constants';
 import { INTAKE_TEXTS } from './intake.constants';
 import { KIT_TITLE } from './kit.constants';
 import { MONTH_REVIEW_TEXTS } from './month-review.constants';
@@ -37,6 +37,7 @@ export const ROUTE_TITLES = {
   tutorial: TUTORIAL_TEXTS.title,
   faq: FAQ_TEXTS.title,
   feedback: FEEDBACK_TEXTS.title,
+  replace: IDEA_REQUEST_TEXTS.title,
 } as const;
 
 export const SETTINGS_SECTION_TITLES = {

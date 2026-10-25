@@ -7,6 +7,7 @@ export interface CalendarItemView {
   hasKit: boolean;
   refLabel?: string;
   refStale: boolean;
+  ideaRequested: boolean;
 }
 
 export interface CalendarWeekView {

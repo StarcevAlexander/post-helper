@@ -1,6 +1,20 @@
 import { Service, computed, signal } from '@angular/core';
-import { CALENDAR_STORAGE_KEY, FORMAT_ORDER, PLAN_WEEKS, TIME_PATTERN } from '../constants';
-import { ContentSlot, PlanItem, PlanWeek, PostFormat, Schedule, StoredCalendar } from '../models';
+import {
+  CALENDAR_STORAGE_KEY,
+  FORMAT_ORDER,
+  PLAN_WEEKS,
+  RESCHEDULE_SEARCH_DAYS,
+  TIME_PATTERN,
+} from '../constants';
+import {
+  ContentSlot,
+  PlanItem,
+  PlanWeek,
+  PostFormat,
+  RescheduleResult,
+  Schedule,
+  StoredCalendar,
+} from '../models';
 import {
   addDays,
   daysBetween,
@@ -38,9 +52,13 @@ function isItem(value: unknown): value is PlanItem {
     FORMAT_ORDER.includes(candidate['format'] as PostFormat) &&
     typeof candidate['pillar'] === 'string' &&
     typeof candidate['idea'] === 'string' &&
-    typeof candidate['done'] === 'boolean'
+    typeof candidate['done'] === 'boolean' &&
+    (candidate['movedFrom'] === undefined ||
+      (typeof candidate['movedFrom'] === 'string' && DATE_PATTERN.test(candidate['movedFrom'])))
   );
 }
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function isStoredCalendar(value: unknown): value is StoredCalendar {
   if (typeof value !== 'object' || value === null) {
@@ -87,6 +105,49 @@ export class CalendarPlan {
     this.save();
   }
 
+  reschedule(id: string, todayKey: string): RescheduleResult | undefined {
+    const item = this.items().find((candidate) => candidate.id === id);
+    if (!item) {
+      return undefined;
+    }
+    const taken = new Set(
+      this.items()
+        .filter((other) => other.id !== id)
+        .map((other) => other.date),
+    );
+    const dayAfter = toDateKey(addDays(fromDateKey(item.date), 1));
+    const start = fromDateKey(dayAfter > todayKey ? dayAfter : todayKey);
+    for (let offset = 0; offset < RESCHEDULE_SEARCH_DAYS; offset += 1) {
+      const candidate = toDateKey(addDays(start, offset));
+      if (!taken.has(candidate)) {
+        this.moveTo(id, candidate);
+        return { id, from: item.date, to: candidate };
+      }
+    }
+    return { id, from: item.date };
+  }
+
+  moveTo(id: string, date: string): void {
+    this.items.update((items) =>
+      items.map((item) => {
+        if (item.id !== id || item.date === date) {
+          return item;
+        }
+        const origin = item.movedFrom ?? item.date;
+        const { movedFrom, ...rest } = item;
+        return origin === date ? { ...rest, date } : { ...rest, date, movedFrom: origin };
+      }),
+    );
+    this.save();
+  }
+
+  undoMove(id: string): void {
+    const item = this.items().find((candidate) => candidate.id === id);
+    if (item?.movedFrom) {
+      this.moveTo(id, item.movedFrom);
+    }
+  }
+
   reset(): void {
     this.schedule.set(undefined);
     this.items.set([]);
@@ -105,7 +166,12 @@ export class CalendarPlan {
       return [];
     }
     const start = fromDateKey(startedOn);
-    return Array.from({ length: PLAN_WEEKS }, (_, index): PlanWeek => {
+    const lastOffset = Math.max(
+      0,
+      ...this.items().map((item) => daysBetween(start, fromDateKey(item.date))),
+    );
+    const span = Math.max(PLAN_WEEKS, Math.ceil((lastOffset + 1) / 7));
+    return Array.from({ length: span }, (_, index): PlanWeek => {
       const from = addDays(start, index * 7);
       return {
         index,
@@ -115,10 +181,13 @@ export class CalendarPlan {
           const offset = daysBetween(start, fromDateKey(item.date));
           return offset >= index * 7 && offset < index * 7 + 7;
         }),
-        contentDays: schedule.slots.map((slot) => ({
-          date: toDateKey(addDays(from, (slot.weekday - mondayFirstWeekday(from) + 7) % 7)),
-          time: slot.time,
-        })),
+        contentDays:
+          index < PLAN_WEEKS
+            ? schedule.slots.map((slot) => ({
+                date: toDateKey(addDays(from, (slot.weekday - mondayFirstWeekday(from) + 7) % 7)),
+                time: slot.time,
+              }))
+            : [],
       };
     });
   }

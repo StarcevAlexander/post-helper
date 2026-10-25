@@ -111,10 +111,12 @@ describe('CalendarScreen', () => {
     });
     await fixture.whenStable();
 
-    const buttons = element.querySelectorAll<HTMLAnchorElement>('.item__kit .item__button');
+    const buttons = element.querySelectorAll<HTMLAnchorElement>('.item__kit a[href^="/kit/"]');
     expect(buttons.length).toBe(1);
     expect(buttons[0].textContent).toContain('Открыть комплект');
     expect(element.querySelectorAll('.item__kit .item__status').length).toBe(11);
+    expect(element.querySelectorAll('.item__kit .item__move').length).toBe(12);
+    expect(element.querySelectorAll('.item__kit a[href^="/replace/"]').length).toBe(12);
 
     expect(buttons[0].getAttribute('href')).toBe(`/kit/${first.id}`);
   });

@@ -7,9 +7,12 @@ import {
   INTAKE_MAX_REFERENCES,
   INTAKE_PLATFORM_LABELS,
   INTAKE_TEXTS,
+  MAX_BEST_POST_LENGTH,
   MONTH_REVIEW_INTAKE_TEXTS,
+  MONTH_REVIEW_STATS_TEXTS,
+  STAT_PATTERN,
 } from '../../constants';
-import { IntakeGoalId } from '../../models';
+import { IntakeGoalId, IntakeStatField } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Intake } from '../../services/intake';
 import { fieldValue } from '../../utils/form-events';
@@ -27,11 +30,27 @@ export class IntakeScreen {
 
   protected readonly texts = INTAKE_TEXTS;
   protected readonly reviewTexts = MONTH_REVIEW_INTAKE_TEXTS;
+  protected readonly statsTexts = MONTH_REVIEW_STATS_TEXTS;
   protected readonly goals = INTAKE_GOALS;
   protected readonly maxLinks = INTAKE_MAX_LINKS;
   protected readonly maxReferences = INTAKE_MAX_REFERENCES;
   protected readonly maxNote = INTAKE_MAX_NOTE_LENGTH;
+  protected readonly maxBestPost = MAX_BEST_POST_LENGTH;
   protected readonly hasPlan = this.plan.hasPlan;
+  protected readonly statLines = computed(() => {
+    const stats = this.intake.request()?.stats;
+    const lines: string[] = [];
+    if (stats?.followers !== undefined) {
+      lines.push(`${MONTH_REVIEW_STATS_TEXTS.followersLine}: ${stats.followers}`);
+    }
+    if (stats?.reach !== undefined) {
+      lines.push(`${MONTH_REVIEW_STATS_TEXTS.reachLine}: ${stats.reach}`);
+    }
+    if (stats?.bestPost) {
+      lines.push(`${MONTH_REVIEW_STATS_TEXTS.bestPostLine}: ${stats.bestPost}`);
+    }
+    return lines;
+  });
   protected readonly rows = computed(() =>
     this.intake.draft().links.map((url, index) => {
       const platform = detectPlatform(url);
@@ -87,6 +106,15 @@ export class IntakeScreen {
 
   protected onNoteInput(event: Event): void {
     this.intake.setNote(fieldValue(event));
+  }
+
+  protected onStatInput(field: IntakeStatField, event: Event): void {
+    this.intake.setStat(field, fieldValue(event));
+  }
+
+  protected statInvalid(field: Exclude<IntakeStatField, 'bestPost'>): true | undefined {
+    const value = this.intake.draft().stats[field].trim();
+    return value !== '' && !STAT_PATTERN.test(value) ? true : undefined;
   }
 
   protected isChosen(id: IntakeGoalId): boolean {

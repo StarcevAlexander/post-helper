@@ -126,6 +126,7 @@ describe('Intake', () => {
       goals: ['reach', 'check'],
       note: 'Без танцев',
       city: '',
+      stats: { followers: '', reach: '', bestPost: '' },
     });
 
     intake.cancelEdit();
@@ -178,6 +179,7 @@ describe('Intake', () => {
       goals: ['reach', 'check'],
       note: '',
       city: '',
+      stats: { followers: '', reach: '', bestPost: '' },
     });
   });
 
@@ -247,6 +249,52 @@ describe('Intake', () => {
     expect(intake.reviewWaiting()).toBe(true);
     expect(intake.reviewing()).toBe(true);
     expect(intake.reviewMode()).toBe(false);
+  });
+
+  it('sends the month numbers with the review request and refuses garbage', async () => {
+    vi.spyOn(TestBed.inject(Sync), 'pull').mockResolvedValue();
+    const pending = intake.refresh();
+    http
+      .expectOne({ method: 'GET', url: intakeUrl })
+      .flush(request({ status: 'ready', readyAt: '2026-10-23T10:00:00Z' }));
+    await pending;
+    intake.askForReview();
+
+    intake.setStat('followers', '12 abc');
+    expect(intake.statsValid()).toBe(false);
+    expect(intake.canSubmit()).toBe(false);
+    intake.setStat('followers', ' 340 ');
+    intake.setStat('reach', '');
+    intake.setStat('bestPost', ' Сторис про спину ');
+    expect(intake.canSubmit()).toBe(true);
+
+    const sending = intake.submit();
+    const sent = http.expectOne({ method: 'POST', url: intakeUrl });
+    expect(sent.request.body).toMatchObject({
+      review: true,
+      stats: { followers: 340, bestPost: 'Сторис про спину' },
+    });
+    expect((sent.request.body as { stats: object }).stats).not.toHaveProperty('reach');
+    sent.flush(request({ review: true, stats: { followers: 340, bestPost: 'Сторис про спину' } }));
+    await sending;
+
+    intake.edit();
+    expect(intake.draft().stats).toEqual({
+      followers: '340',
+      reach: '',
+      bestPost: 'Сторис про спину',
+    });
+  });
+
+  it('does not send empty numbers and never sends them outside the review', async () => {
+    fillDraft();
+    intake.setStat('followers', '100');
+
+    const pending = intake.submit();
+    const sent = http.expectOne({ method: 'POST', url: intakeUrl });
+    expect(sent.request.body).not.toHaveProperty('stats');
+    sent.flush(request());
+    await pending;
   });
 
   it('does not mark an ordinary request as a review', async () => {

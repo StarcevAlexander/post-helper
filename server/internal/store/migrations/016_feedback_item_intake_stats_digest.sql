@@ -1,0 +1,9 @@
+ALTER TABLE feedback ADD COLUMN item_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE feedback ADD COLUMN item_label TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE intake_requests ADD COLUMN stats JSONB;
+
+CREATE TABLE digest_sent (
+    key TEXT PRIMARY KEY,
+    sent_at TIMESTAMPTZ NOT NULL
+);

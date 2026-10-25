@@ -8,6 +8,7 @@ export interface TodayEntry {
   captionText?: string;
   refLabel?: string;
   refStale: boolean;
+  ideaRequested: boolean;
 }
 
 export interface TodayCopyFeedback {

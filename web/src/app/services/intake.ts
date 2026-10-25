@@ -8,8 +8,17 @@ import {
   INTAKE_POLL_MS,
   INTAKE_SEEN_STORAGE_KEY,
   INTAKE_TEXTS,
+  MAX_BEST_POST_LENGTH,
+  STAT_PATTERN,
 } from '../constants';
-import { IntakeDraft, IntakeGoalId, IntakeRequest } from '../models';
+import {
+  IntakeDraft,
+  IntakeGoalId,
+  IntakeRequest,
+  IntakeStatField,
+  IntakeStats,
+  IntakeStatsDraft,
+} from '../models';
 import { browserTimeZone } from '../utils/time-zone';
 import { Account } from './account';
 import { ApiClient } from './api-client';
@@ -28,8 +37,54 @@ function readSeenReadyAt(): string | undefined {
   }
 }
 
+function emptyStats(): IntakeStatsDraft {
+  return { followers: '', reach: '', bestPost: '' };
+}
+
+function statsDraftOf(stats: IntakeStats | undefined): IntakeStatsDraft {
+  return {
+    followers: stats?.followers === undefined ? '' : String(stats.followers),
+    reach: stats?.reach === undefined ? '' : String(stats.reach),
+    bestPost: stats?.bestPost ?? '',
+  };
+}
+
+function statNumber(value: string): number | undefined {
+  const trimmed = value.trim();
+  return trimmed === '' ? undefined : Number(trimmed);
+}
+
+function statsValid(stats: IntakeStatsDraft): boolean {
+  return (
+    [stats.followers, stats.reach].every(
+      (value) => value.trim() === '' || STAT_PATTERN.test(value.trim()),
+    ) && stats.bestPost.length <= MAX_BEST_POST_LENGTH
+  );
+}
+
+function statsOf(draft: IntakeStatsDraft): IntakeStats | undefined {
+  const followers = statNumber(draft.followers);
+  const reach = statNumber(draft.reach);
+  const bestPost = draft.bestPost.trim();
+  if (followers === undefined && reach === undefined && bestPost === '') {
+    return undefined;
+  }
+  return {
+    ...(followers === undefined ? {} : { followers }),
+    ...(reach === undefined ? {} : { reach }),
+    ...(bestPost === '' ? {} : { bestPost }),
+  };
+}
+
 function emptyDraft(): IntakeDraft {
-  return { links: [''], references: referenceSlots([]), goals: [], note: '', city: '' };
+  return {
+    links: [''],
+    references: referenceSlots([]),
+    goals: [],
+    note: '',
+    city: '',
+    stats: emptyStats(),
+  };
 }
 
 function draftOf(request: IntakeRequest, withNote: boolean): IntakeDraft {
@@ -39,6 +94,7 @@ function draftOf(request: IntakeRequest, withNote: boolean): IntakeDraft {
     goals: [...request.goals],
     note: withNote ? (request.note ?? '') : '',
     city: request.city ?? '',
+    stats: withNote ? statsDraftOf(request.stats) : emptyStats(),
   };
 }
 
@@ -72,13 +128,15 @@ export class Intake {
   readonly reviewing = computed(() =>
     this.showForm() ? this.reviewMode() : this.request()?.review === true,
   );
+  readonly statsValid = computed(() => statsValid(this.draft().stats));
   readonly canSubmit = computed(() => {
     const draft = this.draft();
     return (
       !this.busy() &&
       draft.goals.length > 0 &&
       draft.links.some((link) => link.trim().length > 0) &&
-      draft.note.length <= INTAKE_MAX_NOTE_LENGTH
+      draft.note.length <= INTAKE_MAX_NOTE_LENGTH &&
+      (!this.reviewMode() || this.statsValid())
     );
   });
 
@@ -113,6 +171,7 @@ export class Intake {
     this.error.set(undefined);
     try {
       const draft = this.draft();
+      const stats = this.reviewMode() ? statsOf(draft.stats) : undefined;
       this.request.set(
         await this.api.submitIntake({
           links: draft.links.map((link) => link.trim()).filter(Boolean),
@@ -122,6 +181,7 @@ export class Intake {
           city: draft.city.trim(),
           timeZone: browserTimeZone(),
           ...(this.reviewMode() ? { review: true } : {}),
+          ...(stats ? { stats } : {}),
         }),
       );
       this.editing.set(false);
@@ -225,6 +285,10 @@ export class Intake {
     this.draft.update((draft) => ({ ...draft, note: value }));
   }
 
+  setStat(field: IntakeStatField, value: string): void {
+    this.draft.update((draft) => ({ ...draft, stats: { ...draft.stats, [field]: value } }));
+  }
+
   stop(): void {
     clearTimeout(this.timer);
     this.timer = undefined;
@@ -271,6 +335,7 @@ export class Intake {
       draft.goals.length === 0 &&
       draft.note === '' &&
       draft.city === '' &&
+      Object.values(draft.stats).every((value) => value === '') &&
       draft.links.every((link) => link === '') &&
       draft.references.every((link) => link === '')
     );

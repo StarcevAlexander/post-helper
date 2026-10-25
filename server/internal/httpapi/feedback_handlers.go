@@ -41,6 +41,20 @@ func (h *feedbackHandler) submit(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, MsgFeedbackLongContact)
 		return
 	}
+	itemID, err := feedback.CleanItemID(body.ItemID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, MsgBadRequest)
+		return
+	}
+	itemLabel := ""
+	if itemID != "" {
+		item, ok := calendarItemOf(r.Context(), h.accounts, identity.MasterID, itemID)
+		if !ok {
+			writeError(w, http.StatusNotFound, MsgRefsNoItem)
+			return
+		}
+		itemLabel = clipRunes(item.Label(), feedback.MaxItemLabelRunes)
+	}
 
 	now := time.Now()
 	recent, err := h.feedback.CountSince(r.Context(), identity.MasterID, now.Add(-time.Hour))
@@ -70,6 +84,8 @@ func (h *feedbackHandler) submit(w http.ResponseWriter, r *http.Request) {
 		Email:      email,
 		Contact:    contact,
 		Text:       text,
+		ItemID:     itemID,
+		ItemLabel:  itemLabel,
 		CreatedAt:  now,
 	})
 	if err != nil {
@@ -87,13 +103,13 @@ func (h *feedbackHandler) announce(ctx context.Context, message feedback.Message
 		return
 	}
 	text := feedback.Announcement(message)
-	go func() {
+	safeGo(h.logger, "notify owner about feedback", func() {
 		notifyCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), intake.TelegramTimeout)
 		defer cancel()
 		if err := h.notifier.Notify(notifyCtx, text); err != nil {
 			h.logger.Error("notify owner about feedback failed", slog.Any("error", err))
 		}
-	}()
+	})
 }
 
 func (h *feedbackHandler) list(w http.ResponseWriter, r *http.Request) {

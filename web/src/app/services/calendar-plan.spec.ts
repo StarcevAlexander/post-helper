@@ -79,6 +79,48 @@ describe('CalendarPlan', () => {
     expect(plan.items()[3].done).toBe(false);
   });
 
+  it('moves a publication to the next free day after it and undoes the move', () => {
+    plan.load(samplePlan(TODAY));
+    const [first, second] = [...plan.items()].sort((a, b) => a.date.localeCompare(b.date));
+
+    const result = plan.reschedule(first.id, '2026-10-19');
+    const moved = plan.items().find((item) => item.id === first.id)!;
+
+    expect(result).toEqual({ id: first.id, from: first.date, to: '2026-10-24' });
+    expect(moved.date).toBe('2026-10-24');
+    expect(moved.movedFrom).toBe(first.date);
+    expect(plan.items().find((item) => item.id === second.id)?.date).toBe(second.date);
+
+    plan.undoMove(first.id);
+    const restored = plan.items().find((item) => item.id === first.id)!;
+    expect(restored.date).toBe(first.date);
+    expect(restored).not.toHaveProperty('movedFrom');
+  });
+
+  it('grows the week list when a publication is moved past the fourth week', () => {
+    plan.load(samplePlan(TODAY));
+    const last = [...plan.items()].sort((a, b) => b.date.localeCompare(a.date))[0];
+
+    plan.moveTo(last.id, '2026-11-18');
+
+    expect(plan.weeks().length).toBe(5);
+    expect(plan.weeks()[4].items.map((item) => item.id)).toEqual([last.id]);
+    expect(plan.weeks()[4].contentDays).toEqual([]);
+  });
+
+  it('keeps the first origin when a publication is moved twice', () => {
+    plan.load(samplePlan(TODAY));
+    const first = [...plan.items()].sort((a, b) => a.date.localeCompare(b.date))[0];
+
+    plan.reschedule(first.id, '2026-10-19');
+    plan.reschedule(first.id, '2026-10-19');
+    const moved = plan.items().find((item) => item.id === first.id)!;
+
+    expect(moved.date).toBe('2026-10-25');
+    expect(moved.movedFrom).toBe(first.date);
+    expect(plan.reschedule('missing', '2026-10-19')).toBeUndefined();
+  });
+
   it('forgets everything on reset', () => {
     plan.load(samplePlan(TODAY));
 

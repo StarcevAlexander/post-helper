@@ -18,6 +18,13 @@ export interface PlanItem {
   pillar: string;
   idea: string;
   done: boolean;
+  movedFrom?: string;
+}
+
+export interface RescheduleResult {
+  id: string;
+  from: string;
+  to?: string;
 }
 
 export interface PlanWeek {

@@ -165,6 +165,16 @@
   }
 }
 
+.stat__label {
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.field[aria-invalid='true'] {
+  border-color: var(--danger, #b3261e);
+}
+
 .field--note {
   flex: none;
   width: 100%;

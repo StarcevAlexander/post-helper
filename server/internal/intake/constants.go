@@ -19,6 +19,8 @@ const (
 	MaxURLRunes      = 300
 	MaxNoteRunes     = 2000
 	MaxReplyRunes    = 1000
+	MaxBestPostRunes = 300
+	MaxStatValue     = 100_000_000
 	MinPathRunes     = 2
 	TelegramTimeout  = 10 * time.Second
 	TelegramBaseURL  = "https://api.telegram.org"
@@ -47,6 +49,7 @@ var (
 	ErrBadGoal    = errors.New("unknown goal")
 	ErrNoGoals    = errors.New("no goals")
 	ErrLongText   = errors.New("text is too long")
+	ErrBadStats   = errors.New("month stats are out of range")
 )
 
 var platformHosts = map[string]string{

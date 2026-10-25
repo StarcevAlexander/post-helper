@@ -102,6 +102,29 @@ describe('mergeBundles', () => {
     ]);
   });
 
+  it('keeps a publication moved on the phone while the owner left its day alone', () => {
+    const merged = mergeBundles(
+      { calendar: remoteCalendar },
+      {
+        calendar: {
+          ...remoteCalendar,
+          items: [
+            { ...remoteCalendar.items[0], date: '2026-10-24', movedFrom: '2026-10-21' },
+            { ...remoteCalendar.items[1], date: '2026-10-30', movedFrom: '2026-10-22' },
+          ],
+        },
+      },
+    );
+
+    expect(merged.calendar).toEqual({
+      ...remoteCalendar,
+      items: [
+        { ...remoteCalendar.items[0], date: '2026-10-24', movedFrom: '2026-10-21' },
+        remoteCalendar.items[1],
+      ],
+    });
+  });
+
   it('falls back to whichever side has the data', () => {
     const merged = mergeBundles({ monthReviews: [{ id: 'm1' }] }, { calendar: localCalendar });
 

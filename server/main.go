@@ -16,6 +16,7 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/audit"
 	"post-helper/server/internal/config"
+	"post-helper/server/internal/digest"
 	"post-helper/server/internal/feedback"
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/intake"
@@ -72,6 +73,7 @@ func run() error {
 	var feedbackStore feedback.Store = feedback.NewMemory()
 	var pushStore push.Store = push.NewMemory()
 	var reminderSent reminders.Sent = reminders.NewMemory()
+	var digestSent digest.Sent = digest.NewMemory()
 	var pingDatabase func(context.Context) error
 	if cfg.DatabaseURL != "" {
 		openCtx, cancel := context.WithTimeout(context.Background(), databaseOpenTimeout)
@@ -89,6 +91,7 @@ func run() error {
 		feedbackStore = feedback.NewPostgres(postgres.Pool())
 		pushStore = push.NewPostgres(postgres.Pool())
 		reminderSent = reminders.NewPostgres(postgres.Pool())
+		digestSent = digest.NewPostgres(postgres.Pool())
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
 		slog.SetDefault(logger)
 		pingDatabase = postgres.Pool().Ping
@@ -107,6 +110,7 @@ func run() error {
 	} else if cfg.TelegramToken != "" || cfg.TelegramChatID != "" {
 		slog.Warn("only one of TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID is set: owner notifications are off")
 	}
+	ownerLocation := reminderLocation(cfg.ReminderTimezone)
 	var pusher push.Sender
 	if service := push.New(pushStore, cfg.VapidPublicKey, cfg.VapidPrivateKey, cfg.VapidSubject); service != nil {
 		pusher = service
@@ -114,11 +118,25 @@ func run() error {
 			Accounts: accountStore,
 			Sender:   pusher,
 			Sent:     reminderSent,
-			Location: reminderLocation(cfg.ReminderTimezone),
+			Location: ownerLocation,
 			Logger:   logger,
 		}).Run(ctxRetention)
 	} else {
 		slog.Warn("VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not set: push notifications are off")
+	}
+	var weeklyDigest httpapi.DigestSender
+	if notifier != nil {
+		scheduler := &digest.Scheduler{
+			Accounts: accountStore,
+			Pushes:   pushStore,
+			Intakes:  intakeStore,
+			Notifier: notifier,
+			Sent:     digestSent,
+			Location: ownerLocation,
+			Logger:   logger,
+		}
+		weeklyDigest = scheduler
+		go scheduler.Run(ctxRetention)
 	}
 	var yandexLogin yandex.Exchanger
 	yandexClientID := ""
@@ -132,6 +150,7 @@ func run() error {
 	defer stop()
 
 	options := httpapi.Options{
+		Digest:         weeklyDigest,
 		Shutdown:       stop,
 		Yandex:         yandexLogin,
 		YandexClientID: yandexClientID,

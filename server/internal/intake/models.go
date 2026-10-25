@@ -10,6 +10,12 @@ type Network struct {
 	URL      string `json:"url"`
 }
 
+type Stats struct {
+	Followers *int   `json:"followers,omitempty"`
+	Reach     *int   `json:"reach,omitempty"`
+	BestPost  string `json:"bestPost,omitempty"`
+}
+
 type Draft struct {
 	Networks   []Network
 	References []Network
@@ -17,6 +23,7 @@ type Draft struct {
 	Note       string
 	City       string
 	Review     bool
+	Stats      *Stats
 }
 
 type Request struct {
@@ -29,6 +36,7 @@ type Request struct {
 	GoalTitles     []string  `json:"goalTitles,omitempty"`
 	Note           string    `json:"note,omitempty"`
 	Review         bool      `json:"review,omitempty"`
+	Stats          *Stats    `json:"stats,omitempty"`
 	City           string    `json:"city,omitempty"`
 	MasterTimezone string    `json:"masterTimezone,omitempty"`
 	Status         string    `json:"status"`
