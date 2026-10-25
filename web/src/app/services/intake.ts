@@ -161,7 +161,10 @@ export class Intake {
     return this.ready() && readyAt !== undefined && readyAt !== this.seenReadyAt();
   });
   readonly reviewWaiting = computed(() => this.request()?.review === true && this.pending());
-  readonly showForm = computed(() => this.request() === undefined || this.editing());
+  readonly connecting = computed(() => !this.account.signedIn());
+  readonly showForm = computed(
+    () => this.editing() || (this.loaded() && this.request() === undefined),
+  );
   readonly reviewing = computed(() =>
     this.showForm() ? this.reviewMode() : this.request()?.review === true,
   );
@@ -200,6 +203,14 @@ export class Intake {
       this.handleFailure(error, INTAKE_TEXTS.loadFailed);
     }
     this.schedule();
+  }
+
+  async retry(): Promise<void> {
+    if (this.connecting()) {
+      await this.account.refresh();
+      return;
+    }
+    await this.refresh();
   }
 
   async submit(): Promise<boolean> {

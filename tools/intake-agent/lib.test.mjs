@@ -38,6 +38,8 @@ const intake = {
   goals: ['reach'],
   goalTitles: ['Увеличить охваты'],
   note: 'Не показываю лица. Свободна по вторникам.',
+  city: 'Иркутск',
+  schedule: { shootDays: [1], shootTime: '12:00', publishTime: '19:30' },
   status: 'new',
   updatedAt: '2026-10-24T02:45:59+08:00',
 };
@@ -269,6 +271,14 @@ describe('buildPrompt', () => {
   it('puts the intake into a data block with the wishes', () => {
     assert.match(prompt, /<<<ЗАЯВКА[\s\S]*Не показываю лица[\s\S]*ЗАЯВКА>>>/);
     assert.match(prompt, /t\.me\/shkolammru/);
+  });
+
+  it('passes the city and the schedule of the master with weekday names', () => {
+    assert.match(prompt, /"city": "Иркутск"/);
+    assert.match(prompt, /"shootDays": \[\s*"вторник"\s*\]/);
+    assert.match(prompt, /"publishTime": "19:30"/);
+    assert.match(prompt, /schedule.*обязателен/);
+    assert.doesNotMatch(buildPrompt({ ...intake, city: '', schedule: undefined }, { guide: '', tomorrow: '2026-10-25' }), /"city"|"schedule"/);
   });
 
   it('builds a fix prompt that lists the problems', () => {

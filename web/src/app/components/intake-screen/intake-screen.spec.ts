@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { API_DEV_URL, API_INTAKE_PATH, INTAKE_GOALS, INTAKE_TEXTS } from '../../constants';
 import { IntakeRequest } from '../../models';
 import { Access } from '../../services/access';
+import { Account } from '../../services/account';
 import { Intake } from '../../services/intake';
 import { IntakeScreen } from './intake-screen';
 
@@ -50,7 +51,10 @@ describe('IntakeScreen', () => {
   });
 
   async function render() {
+    TestBed.inject(Account).info.set({ name: 'Анна', retentionDays: 1095 });
     const fixture = TestBed.createComponent(IntakeScreen);
+    await fixture.whenStable();
+    intake.loaded.set(true);
     await fixture.whenStable();
     return fixture;
   }
@@ -59,6 +63,17 @@ describe('IntakeScreen', () => {
     element.value = value;
     element.dispatchEvent(new Event('input'));
   }
+
+  it('hides the form and offers a retry while the server is unreachable', async () => {
+    const fixture = TestBed.createComponent(IntakeScreen);
+    await fixture.whenStable();
+    const html = fixture.nativeElement as HTMLElement;
+
+    expect(html.querySelector('textarea')).toBeNull();
+    expect(html.textContent).toContain(INTAKE_TEXTS.connecting);
+    const retry = html.querySelector<HTMLButtonElement>('.screen__secondary');
+    expect(retry?.textContent).toContain(INTAKE_TEXTS.retry);
+  });
 
   it('offers every goal and a field for wishes and recommendations', async () => {
     const fixture = await render();
@@ -186,7 +201,7 @@ describe('IntakeScreen', () => {
   });
 
   it('lets the master pick shooting days and times and shows them in the sent request', async () => {
-    const fixture = TestBed.createComponent(IntakeScreen);
+    const fixture = await render();
     fixture.detectChanges();
     const element: HTMLElement = fixture.nativeElement;
     const tuesday = element.querySelector<HTMLButtonElement>('button.day[aria-label="Вторник"]');

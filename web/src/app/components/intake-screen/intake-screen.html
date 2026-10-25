@@ -1,5 +1,14 @@
 <div class="screen__body">
-  @if (intake.showForm()) {
+  @if (!intake.loaded() && !intake.editing()) {
+    <p class="headline" role="status">
+      {{ intake.connecting() ? texts.connecting : (intake.error() ?? texts.loading) }}
+    </p>
+    @if (intake.connecting() || intake.error()) {
+      <button type="button" class="screen__secondary" (click)="intake.retry()">
+        {{ texts.retry }}
+      </button>
+    }
+  } @else if (intake.showForm()) {
     <p class="screen__text">{{ intake.reviewing() ? reviewTexts.intro : texts.intro }}</p>
 
     <section class="section">

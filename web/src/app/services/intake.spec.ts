@@ -5,6 +5,7 @@ import { Router, provideRouter } from '@angular/router';
 import {
   API_DEV_URL,
   API_INTAKE_PATH,
+  API_ME_PATH,
   INTAKE_MAX_LINKS,
   INTAKE_MAX_REFERENCES,
   INTAKE_MIN_REFERENCES,
@@ -60,6 +61,34 @@ describe('Intake', () => {
     intake.setNote('  Не показывать лицо  ');
   }
 
+  async function loadEmpty(): Promise<void> {
+    const pending = intake.refresh();
+    http
+      .expectOne({ method: 'GET', url: intakeUrl })
+      .flush(null, { status: 204, statusText: 'No Content' });
+    await pending;
+  }
+
+  it('hides the form until the state of the request is known and offers a retry', async () => {
+    expect(intake.showForm()).toBe(false);
+    expect(intake.connecting()).toBe(true);
+
+    const pending = intake.refresh();
+    http.expectOne({ method: 'GET', url: intakeUrl }).error(new ProgressEvent('error'));
+    await pending;
+
+    expect(intake.loaded()).toBe(false);
+    expect(intake.showForm()).toBe(false);
+    expect(intake.error()).toBeDefined();
+
+    const retried = intake.retry();
+    const attempts = http.match({ method: 'GET', url: `${API_DEV_URL}${API_ME_PATH}` });
+    expect(attempts.length).toBeGreaterThan(0);
+    attempts.forEach((attempt) => attempt.error(new ProgressEvent('error')));
+    await retried;
+    expect(intake.connecting()).toBe(true);
+  });
+
   it('does not allow sending without a link or a goal', () => {
     expect(intake.canSubmit()).toBe(false);
     intake.setLink(0, 'vk.com/anna');
@@ -71,6 +100,7 @@ describe('Intake', () => {
   });
 
   it('sends cleaned links, goals and the wishes', async () => {
+    await loadEmpty();
     fillDraft();
 
     const pending = intake.submit();
@@ -90,6 +120,7 @@ describe('Intake', () => {
   });
 
   it('keeps the form and shows the server message when sending fails', async () => {
+    await loadEmpty();
     fillDraft();
 
     const pending = intake.submit();
