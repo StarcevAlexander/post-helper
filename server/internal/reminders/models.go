@@ -3,6 +3,8 @@ package reminders
 import (
 	"context"
 	"time"
+
+	"post-helper/server/internal/push"
 )
 
 type Reminder struct {
@@ -11,6 +13,7 @@ type Reminder struct {
 	Title string
 	Body  string
 	URL   string
+	Topic push.Topic
 }
 
 type Sent interface {

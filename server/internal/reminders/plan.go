@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"post-helper/server/internal/push"
 )
 
 func Due(raw json.RawMessage, now time.Time, location *time.Location) []Reminder {
@@ -41,6 +43,7 @@ func all(plan calendar, location *time.Location) []Reminder {
 					Title: TitleContentDay,
 					Body:  BodyContentDay,
 					URL:   URLToday,
+					Topic: push.Topic{Kind: push.KindContentDay, PlanStart: plan.StartedOn, Date: day.Format(DateLayout), Time: slot.Time},
 				})
 			}
 		}
@@ -63,6 +66,7 @@ func all(plan calendar, location *time.Location) []Reminder {
 			Title: TitlePublication,
 			Body:  body,
 			URL:   URLToday,
+			Topic: push.Topic{Kind: push.KindPublication, PlanStart: plan.StartedOn, ItemID: item.ID, Date: item.Date},
 		})
 	}
 	return reminders

@@ -78,7 +78,7 @@ func (s *Scheduler) remind(ctx context.Context, master accounts.Master, now time
 			continue
 		}
 		sendCtx, cancel := context.WithTimeout(ctx, SendTimeout)
-		sent, err := s.Sender.Send(sendCtx, masterID, push.Message{Title: reminder.Title, Body: reminder.Body, URL: reminder.URL})
+		sent, err := s.Sender.Send(sendCtx, masterID, push.Message{Title: reminder.Title, Body: reminder.Body, URL: reminder.URL, Topic: reminder.Topic})
 		cancel()
 		if err != nil {
 			s.Logger.Error("reminders: push failed", slog.String("key", reminder.Key), slog.Any("error", err))

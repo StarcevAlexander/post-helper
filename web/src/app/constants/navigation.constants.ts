@@ -5,6 +5,7 @@ import { INTAKE_TEXTS } from './intake.constants';
 import { KIT_TITLE } from './kit.constants';
 import { MEDIA_TEXTS } from './media.constants';
 import { MONTH_REVIEW_TEXTS } from './month-review.constants';
+import { NOTICE_TEXTS } from './notice.constants';
 import { RECOMMENDATION_TEXTS } from './recommendation.constants';
 import { REFS_TEXTS } from './refs.constants';
 import { CALENDAR_TITLE } from './schedule.constants';
@@ -36,6 +37,7 @@ export const ROUTE_TITLES = {
   refs: REFS_TEXTS.title,
   content: MEDIA_TEXTS.contentTitle,
   settings: SETTINGS_TITLE,
+  notifications: NOTICE_TEXTS.title,
   tutorial: TUTORIAL_TEXTS.title,
   faq: FAQ_TEXTS.title,
   feedback: FEEDBACK_TEXTS.title,

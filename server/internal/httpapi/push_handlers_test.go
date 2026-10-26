@@ -190,7 +190,8 @@ func TestPlanDeliveryPushesMaster(t *testing.T) {
 	}
 	pusher.mu.Lock()
 	defer pusher.mu.Unlock()
-	if pusher.masters[0] != master.ID || pusher.messages[0].Title != PushPlanTitle {
+	if pusher.masters[0] != master.ID || pusher.messages[0].Title != PushPlanTitle ||
+		pusher.messages[0].Topic.Kind != push.KindPlan || pusher.messages[0].Topic.PlanStart != "2026-10-23" {
 		t.Errorf("pushed %+v to %v", pusher.messages, pusher.masters)
 	}
 }
@@ -340,7 +341,7 @@ func TestMasterIsNotifiedWhenTheLastReferenceIsReady(t *testing.T) {
 	fixture.upload(t, fixture.claim(t).ID)
 	message := fixture.expectPush(t)
 
-	if message.Title != PushRefsTitle || message.URL != PushRefsURL {
+	if message.Title != PushRefsTitle || message.URL != PushRefsURL || message.Topic.Kind != push.KindRefs || message.Topic.PlanStart == "" {
 		t.Errorf("message = %+v", message)
 	}
 	fixture.pusher.mu.Lock()

@@ -34,6 +34,7 @@ func CleanMessage(title, body, target string) (Message, error) {
 		Title: strings.TrimSpace(title),
 		Body:  strings.TrimSpace(body),
 		URL:   strings.TrimSpace(target),
+		Topic: Topic{Kind: KindMessage},
 	}
 	if message.Title == "" || utf8.RuneCountInString(message.Title) > MaxTitleRunes {
 		return Message{}, ErrInvalidMessage

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +67,24 @@ func (h *mediaHandler) notifyWhenReady(ctx context.Context, itemID string) {
 	if err != nil || active > 0 || done == 0 {
 		return
 	}
-	h.pushes.notify(ctx, masterID, push.Message{Title: PushMediaTitle, Body: PushMediaBody, URL: PushMediaURL})
+	h.pushes.notify(ctx, masterID, push.Message{
+		Title: PushMediaTitle, Body: PushMediaBody, URL: PushMediaURL,
+		Topic: push.Topic{Kind: push.KindMedia, PlanStart: planStart(ctx, h.accounts, masterID), ItemIDs: h.readyKeys(ctx, masterID)},
+	})
+}
+
+func (h *mediaHandler) readyKeys(ctx context.Context, masterID string) []string {
+	items, err := h.media.List(ctx, masterID)
+	if err != nil {
+		return nil
+	}
+	var keys []string
+	for _, item := range items {
+		if item.Status == media.StatusDone && !slices.Contains(keys, item.Key) {
+			keys = append(keys, item.Key)
+		}
+	}
+	return keys
 }
 
 func (h *mediaHandler) dropFiles(ctx context.Context, refs ...string) {

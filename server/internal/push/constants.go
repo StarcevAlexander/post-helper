@@ -20,6 +20,15 @@ const (
 	LocalHostName             = "localhost"
 )
 
+const (
+	KindPlan        = "plan"
+	KindRefs        = "refs"
+	KindMedia       = "media"
+	KindContentDay  = "content"
+	KindPublication = "publication"
+	KindMessage     = "message"
+)
+
 var blockedHostSuffixes = []string{".localhost", ".local", ".ts.net"}
 
 const (

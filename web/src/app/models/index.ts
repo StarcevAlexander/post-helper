@@ -15,3 +15,4 @@ export * from './refs.models';
 export * from './push.models';
 export * from './oauth.models';
 export * from './media.models';
+export * from './notice.models';

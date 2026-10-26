@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"post-helper/server/internal/media"
+	"post-helper/server/internal/push"
 )
 
 var (
@@ -232,7 +233,8 @@ func TestMediaFlowFromUploadToTheReadyFile(t *testing.T) {
 	fixture.pusher.mu.Lock()
 	pushed, pushedTo := fixture.pusher.messages, fixture.pusher.masters
 	fixture.pusher.mu.Unlock()
-	if len(pushed) != 1 || pushed[0].Title != PushMediaTitle || pushed[0].Body != PushMediaBody || pushed[0].URL != PushMediaURL || pushedTo[0] != master.ID {
+	if len(pushed) != 1 || pushed[0].Title != PushMediaTitle || pushed[0].Body != PushMediaBody || pushed[0].URL != PushMediaURL || pushedTo[0] != master.ID ||
+		pushed[0].Topic.Kind != push.KindMedia || len(pushed[0].Topic.ItemIDs) != 1 || pushed[0].Topic.ItemIDs[0] != item.Key {
 		t.Errorf("pushes = %+v to %v", pushed, pushedTo)
 	}
 	if fixture.files.Has(media.RefOf(master.ID, item.ID, "source", "video/quicktime")) {

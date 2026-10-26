@@ -12,6 +12,7 @@ import (
 	"post-helper/server/internal/accounts"
 	"post-helper/server/internal/auth"
 	"post-helper/server/internal/intake"
+	"post-helper/server/internal/notices"
 	"post-helper/server/internal/places"
 	"post-helper/server/internal/plan"
 	"post-helper/server/internal/push"
@@ -246,7 +247,11 @@ func (h *intakeHandler) deliverPlan(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if h.pushes != nil {
-		h.pushes.notify(r.Context(), id, push.Message{Title: PushPlanTitle, Body: PushPlanBody, URL: PushPlanURL})
+		calendar, _ := notices.PlanOf(merged.Data)
+		h.pushes.notify(r.Context(), id, push.Message{
+			Title: PushPlanTitle, Body: PushPlanBody, URL: PushPlanURL,
+			Topic: push.Topic{Kind: push.KindPlan, PlanStart: calendar.StartedOn},
+		})
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"version": saved.Version, "items": len(merged.Items)})
 }

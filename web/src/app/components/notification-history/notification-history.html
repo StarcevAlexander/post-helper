@@ -1,0 +1,43 @@
+<div class="screen__body">
+  <p class="screen__hint">{{ texts.intro }}</p>
+
+  @if (notices.loading() && rows().length === 0) {
+    <p class="screen__hint" role="status">{{ texts.loading }}</p>
+  } @else if (notices.error()) {
+    <p class="screen__hint screen__hint--error" role="alert">{{ notices.error() }}</p>
+    <button type="button" class="screen__primary" (click)="onRetry()">{{ texts.retry }}</button>
+  } @else {
+    <ul class="list">
+      @for (row of rows(); track row.notice.id) {
+        <li class="notice" [class.notice--faded]="row.notice.state !== 'actual'">
+          <p class="notice__when">{{ row.when }}</p>
+          <p class="notice__title">{{ row.notice.title }}</p>
+          @if (row.notice.body) {
+            <p class="notice__body">{{ row.notice.body }}</p>
+          }
+          @if (row.note) {
+            <p class="notice__note" [class.notice__note--done]="row.notice.state === 'done'">
+              {{ row.note }}
+            </p>
+          }
+          @if (row.canOpen) {
+            <button
+              type="button"
+              class="notice__more"
+              [disabled]="checking() !== undefined"
+              [attr.aria-busy]="checking() === row.notice.id"
+              (click)="onMore(row.notice.id)"
+            >
+              {{ checking() === row.notice.id ? texts.checking : texts.more }}
+            </button>
+          }
+          @if (failed() === row.notice.id) {
+            <p class="screen__hint screen__hint--error" role="alert">{{ texts.checkFailed }}</p>
+          }
+        </li>
+      } @empty {
+        <li class="screen__hint">{{ texts.empty }}</li>
+      }
+    </ul>
+  }
+</div>

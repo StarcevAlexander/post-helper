@@ -47,7 +47,8 @@ func TestNothingIsDueBeforeTheLeadTime(t *testing.T) {
 func TestTheContentDayIsRemindedAnHourBefore(t *testing.T) {
 	due := Due(json.RawMessage(calendarJSON), moment("2026-10-27", "17:30"), irkutsk)
 
-	if len(due) != 1 || due[0].Key != "content:2026-10-27:18:30" || due[0].Title != TitleContentDay || due[0].URL != URLToday {
+	if len(due) != 1 || due[0].Key != "content:2026-10-27:18:30" || due[0].Title != TitleContentDay || due[0].URL != URLToday ||
+		due[0].Topic.Kind != push.KindContentDay || due[0].Topic.Date != "2026-10-27" || due[0].Topic.Time != "18:30" || due[0].Topic.PlanStart == "" {
 		t.Fatalf("due = %+v", due)
 	}
 }
@@ -55,7 +56,8 @@ func TestTheContentDayIsRemindedAnHourBefore(t *testing.T) {
 func TestAPublicationIsRemindedFifteenMinutesBeforeWithItsIdea(t *testing.T) {
 	due := Due(json.RawMessage(calendarJSON), moment("2026-10-27", "18:45"), irkutsk)
 
-	if len(due) != 1 || due[0].Key != "item:a:2026-10-27" || due[0].Title != TitlePublication || due[0].Body != "Сторис: Почему болит спина" {
+	if len(due) != 1 || due[0].Key != "item:a:2026-10-27" || due[0].Title != TitlePublication || due[0].Body != "Сторис: Почему болит спина" ||
+		due[0].Topic.Kind != push.KindPublication || due[0].Topic.ItemID != "a" || due[0].Topic.Date != "2026-10-27" {
 		t.Fatalf("due = %+v", due)
 	}
 }

@@ -14,6 +14,7 @@ import {
   TUTORIAL_TEXTS,
   APPEARANCE_TITLE,
   MAX_SCALE,
+  NOTICE_TEXTS,
   MIN_SCALE,
   PUSH_TEXTS,
   SCALE_SECTION_TITLE,
@@ -67,6 +68,7 @@ export class SettingsPanel {
   protected readonly tutorialTitle = TUTORIAL_TEXTS.open;
   protected readonly faqTitle = FAQ_TEXTS.open;
   protected readonly feedbackTitle = FEEDBACK_TEXTS.open;
+  protected readonly noticesTitle = NOTICE_TEXTS.title;
   protected readonly themeTitle = THEME_SECTION_TITLE;
   protected readonly scaleTitle = SCALE_SECTION_TITLE;
   protected readonly themes = THEMES;

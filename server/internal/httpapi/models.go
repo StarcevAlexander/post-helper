@@ -13,6 +13,7 @@ import (
 	"post-helper/server/internal/feedback"
 	"post-helper/server/internal/intake"
 	"post-helper/server/internal/media"
+	"post-helper/server/internal/notices"
 	"post-helper/server/internal/places"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
@@ -38,6 +39,8 @@ type Options struct {
 	Feedback       feedback.Store
 	PushStore      push.Store
 	Pusher         push.Sender
+	Notices        notices.Store
+	Location       *time.Location
 	Yandex         yandex.Exchanger
 	YandexClientID string
 	Shutdown       func()
@@ -201,6 +204,18 @@ type MediaUploadMeta struct {
 	Idea    string `json:"idea"`
 	Overlay string `json:"overlay"`
 	Note    string `json:"note"`
+}
+
+type NoticeView struct {
+	ID      string    `json:"id"`
+	Kind    string    `json:"kind"`
+	Title   string    `json:"title"`
+	Body    string    `json:"body"`
+	SentAt  time.Time `json:"sentAt"`
+	State   string    `json:"state"`
+	Reason  string    `json:"reason,omitempty"`
+	Link    string    `json:"link,omitempty"`
+	MovedTo string    `json:"movedTo,omitempty"`
 }
 
 type MediaStatus struct {

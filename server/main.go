@@ -21,6 +21,7 @@ import (
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/intake"
 	"post-helper/server/internal/media"
+	"post-helper/server/internal/notices"
 	"post-helper/server/internal/places"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
@@ -76,6 +77,7 @@ func run() error {
 	var feedbackStore feedback.Store = feedback.NewMemory()
 	var pushStore push.Store = push.NewMemory()
 	var reminderSent reminders.Sent = reminders.NewMemory()
+	var noticeStore notices.Store = notices.NewMemory()
 	var digestSent digest.Sent = digest.NewMemory()
 	var pingDatabase func(context.Context) error
 	if cfg.DatabaseURL != "" {
@@ -100,6 +102,7 @@ func run() error {
 		feedbackStore = feedback.NewPostgres(postgres.Pool())
 		pushStore = push.NewPostgres(postgres.Pool())
 		reminderSent = reminders.NewPostgres(postgres.Pool())
+		noticeStore = notices.NewPostgres(postgres.Pool())
 		digestSent = digest.NewPostgres(postgres.Pool())
 		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
 		slog.SetDefault(logger)
@@ -111,7 +114,7 @@ func run() error {
 
 	ctxRetention, stopRetention := context.WithCancel(context.Background())
 	defer stopRetention()
-	go runRetention(ctxRetention, accountStore, history, cfg.RetentionDays, mediaStore, mediaFiles, cfg.MediaKeepDays)
+	go runRetention(ctxRetention, accountStore, history, cfg.RetentionDays, mediaStore, mediaFiles, cfg.MediaKeepDays, noticeStore)
 
 	var notifier intake.Notifier
 	if telegram := intake.NewTelegram(cfg.TelegramToken, cfg.TelegramChatID); telegram != nil {
@@ -122,7 +125,7 @@ func run() error {
 	ownerLocation := reminderLocation(cfg.ReminderTimezone)
 	var pusher push.Sender
 	if service := push.New(pushStore, cfg.VapidPublicKey, cfg.VapidPrivateKey, cfg.VapidSubject); service != nil {
-		pusher = service
+		pusher = &notices.Recorder{Sender: service, Store: noticeStore, Logger: logger}
 		go (&reminders.Scheduler{
 			Accounts: accountStore,
 			Sender:   pusher,
@@ -168,6 +171,8 @@ func run() error {
 		Feedback:       feedbackStore,
 		PushStore:      pushStore,
 		Pusher:         pusher,
+		Notices:        noticeStore,
+		Location:       ownerLocation,
 		Auditor:        audit.NewClaude(cfg.APIKey, cfg.Model),
 		Refs:           refsStore,
 		Media:          mediaStore,
@@ -224,12 +229,13 @@ func run() error {
 	}
 }
 
-func runRetention(ctx context.Context, accountStore accounts.Store, logStore store.Store, days int, mediaStore media.Store, mediaFiles media.Files, mediaKeepDays int) {
+func runRetention(ctx context.Context, accountStore accounts.Store, logStore store.Store, days int, mediaStore media.Store, mediaFiles media.Files, mediaKeepDays int, noticeStore notices.Store) {
 	purge := func() {
 		purgeCtx, cancel := context.WithTimeout(ctx, retentionTimeout)
 		defer cancel()
 		purgeLogs(purgeCtx, logStore)
 		purgeMedia(purgeCtx, mediaStore, mediaFiles, mediaKeepDays)
+		purgeNotices(purgeCtx, noticeStore)
 		if days > 0 {
 			purgeAccounts(purgeCtx, accountStore, days)
 		}
@@ -266,6 +272,15 @@ func purgeMedia(ctx context.Context, mediaStore media.Store, mediaFiles media.Fi
 		slog.Error("media files purge failed", slog.Any("error", err))
 	}
 	slog.Info("media retention purge done", slog.Int("files", len(refs)), slog.Int("days", days))
+}
+
+func purgeNotices(ctx context.Context, noticeStore notices.Store) {
+	removed, err := noticeStore.Purge(ctx, time.Now().AddDate(0, 0, -notices.KeepDays))
+	if err != nil {
+		slog.Error("notification history purge failed", slog.Any("error", err))
+		return
+	}
+	slog.Info("notification history purge done", slog.Int64("removed", removed), slog.Int("days", notices.KeepDays))
 }
 
 func purgeLogs(ctx context.Context, logStore store.Store) {

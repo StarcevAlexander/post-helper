@@ -19,3 +19,4 @@ export * from './tutorial.constants';
 export * from './refs.constants';
 export * from './yandex.constants';
 export * from './media.constants';
+export * from './notice.constants';

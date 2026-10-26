@@ -21,6 +21,16 @@ type Message struct {
 	Title string
 	Body  string
 	URL   string
+	Topic Topic
+}
+
+type Topic struct {
+	Kind      string   `json:"kind"`
+	PlanStart string   `json:"planStart,omitempty"`
+	ItemID    string   `json:"itemId,omitempty"`
+	Date      string   `json:"date,omitempty"`
+	Time      string   `json:"time,omitempty"`
+	ItemIDs   []string `json:"itemIds,omitempty"`
 }
 
 type Store interface {

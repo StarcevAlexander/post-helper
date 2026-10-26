@@ -10,6 +10,7 @@ import (
 	"post-helper/server/internal/feedback"
 	"post-helper/server/internal/intake"
 	"post-helper/server/internal/media"
+	"post-helper/server/internal/notices"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/store"
@@ -25,6 +26,7 @@ type core struct {
 	files    media.Files
 	intake   intake.Store
 	feedback feedback.Store
+	notices  notices.Store
 	pushes   *pushHandler
 	refsOn   bool
 	keeper   *placeKeeper
@@ -67,6 +69,10 @@ func newCore(options Options) *core {
 	if feedbackStore == nil {
 		feedbackStore = feedback.NewMemory()
 	}
+	noticeStore := options.Notices
+	if noticeStore == nil {
+		noticeStore = notices.NewMemory()
+	}
 	return &core{
 		options:  options,
 		logger:   logger,
@@ -77,6 +83,7 @@ func newCore(options Options) *core {
 		files:    mediaFiles,
 		intake:   intakeStore,
 		feedback: feedbackStore,
+		notices:  noticeStore,
 		pushes:   &pushHandler{store: pushStore, sender: options.Pusher, accounts: people, logger: logger},
 		refsOn:   options.RefPlanner != nil,
 		keeper:   &placeKeeper{accounts: people, places: options.Places, logger: logger},
@@ -97,6 +104,14 @@ func (c *core) feedbackHandler() *feedbackHandler {
 
 func (c *core) intakeHandler() *intakeHandler {
 	return &intakeHandler{intake: c.intake, accounts: c.people, refs: c.refs, notifier: c.options.Notifier, pushes: c.pushes, refsOn: c.refsOn, places: c.options.Places, keeper: c.keeper, logger: c.logger}
+}
+
+func (c *core) noticesHandler() *noticesHandler {
+	location := c.options.Location
+	if location == nil {
+		location = time.Local
+	}
+	return &noticesHandler{notices: c.notices, accounts: c.people, media: c.media, refs: c.refs, location: location, logger: c.logger}
 }
 
 func NewHandler(options Options) http.Handler {
@@ -145,6 +160,9 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(IntakeSubmitRoute, protected(http.HandlerFunc(intakes.submit)))
 	mux.Handle(IntakeLatestRoute, protected(http.HandlerFunc(intakes.latest)))
 	mux.Handle(FeedbackSubmitRoute, protected(http.HandlerFunc(c.feedbackHandler().submit)))
+	notes := c.noticesHandler()
+	mux.Handle(NoticesListRoute, protected(http.HandlerFunc(notes.list)))
+	mux.Handle(NoticeGetRoute, protected(http.HandlerFunc(notes.get)))
 	return withCORS(options.AllowedOrigins, withLogging(c.logger, withRecover(c.logger, mux)))
 }
 

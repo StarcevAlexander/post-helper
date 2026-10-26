@@ -234,6 +234,14 @@ const (
 )
 
 const (
+	NoticesListRoute = "GET /api/notifications"
+	NoticeGetRoute   = "GET /api/notifications/{id}"
+
+	MsgNoticesFailed  = "Не удалось загрузить историю уведомлений"
+	MsgNoticeNotFound = "Уведомление не найдено: возможно, оно старше 60 дней"
+)
+
+const (
 	RefsMadeRoute = "POST /api/refs/made"
 	MsgRefsBusy   = "Референсы сейчас делаются, подтвердите чуть позже"
 )

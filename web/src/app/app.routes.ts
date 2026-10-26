@@ -115,6 +115,15 @@ const screens: Routes = [
       import('./components/settings-panel/settings-panel').then((m) => m.SettingsPanel),
   },
   {
+    path: 'settings/notifications',
+    title: ROUTE_TITLES.notifications,
+    data: { back: true },
+    loadComponent: () =>
+      import('./components/notification-history/notification-history').then(
+        (m) => m.NotificationHistory,
+      ),
+  },
+  {
     path: 'settings/:section',
     title: settingsTitle,
     data: { back: true },

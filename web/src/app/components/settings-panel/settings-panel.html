@@ -163,6 +163,19 @@
         @if (testNotification.notice()) {
           <p class="panel__hint" role="status">{{ testNotification.notice() }}</p>
         }
+        <a class="panel__item" routerLink="/settings/notifications">
+          {{ noticesTitle }}
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path
+              d="M9 5l7 7-7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </a>
       }
       <a class="panel__item" routerLink="/faq">
         {{ faqTitle }}

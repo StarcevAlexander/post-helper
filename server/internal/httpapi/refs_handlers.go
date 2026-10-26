@@ -41,7 +41,10 @@ func (h *refsHandler) notifyWhenReady(ctx context.Context, itemID string) {
 	if err != nil || active > 0 || done == 0 {
 		return
 	}
-	h.pushes.notify(ctx, masterID, push.Message{Title: PushRefsTitle, Body: PushRefsBody, URL: PushRefsURL})
+	h.pushes.notify(ctx, masterID, push.Message{
+		Title: PushRefsTitle, Body: PushRefsBody, URL: PushRefsURL,
+		Topic: push.Topic{Kind: push.KindRefs, PlanStart: planStart(ctx, h.accounts, masterID)},
+	})
 }
 
 func (h *refsHandler) order(w http.ResponseWriter, r *http.Request) {

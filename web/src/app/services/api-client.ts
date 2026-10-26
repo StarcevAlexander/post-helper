@@ -9,6 +9,7 @@ import {
   API_MEDIA_ITEMS_PATH,
   API_MEDIA_STATUS_PATH,
   API_MEDIA_UPLOAD_PATH,
+  API_NOTICES_PATH,
   API_PUSH_KEY_PATH,
   API_PUSH_SUBSCRIBE_PATH,
   API_PUSH_UNSUBSCRIBE_PATH,
@@ -44,6 +45,7 @@ import {
   IntakeSubmission,
   IntakeRequest,
   MediaStatus,
+  NoticeView,
   PushKeyResponse,
   PushSubscriptionPayload,
   ServerState,
@@ -139,6 +141,14 @@ export class ApiClient {
 
   async deleteMedia(id: string): Promise<void> {
     await this.send<{ ok: boolean }>('DELETE', `${API_MEDIA_ITEMS_PATH}/${encodeURIComponent(id)}`);
+  }
+
+  notices(): Promise<NoticeView[]> {
+    return this.send<NoticeView[]>('GET', API_NOTICES_PATH);
+  }
+
+  notice(id: string): Promise<NoticeView> {
+    return this.send<NoticeView>('GET', `${API_NOTICES_PATH}/${encodeURIComponent(id)}`);
   }
 
   me(): Promise<AccountInfo> {
