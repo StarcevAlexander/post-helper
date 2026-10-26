@@ -22,20 +22,25 @@ func (r *Recorder) PublicKey() string {
 }
 
 func (r *Recorder) Send(ctx context.Context, masterID string, message push.Message) (int, error) {
+	entry := Entry{
+		MasterID: masterID,
+		Title:    message.Title,
+		Body:     message.Body,
+		URL:      message.URL,
+		Topic:    message.Topic,
+	}
+	id, idErr := NewID()
+	if idErr == nil {
+		entry.ID = id
+		message.URL = OpenURLPrefix + id
+	}
 	sent, err := r.Sender.Send(ctx, masterID, message)
 	if err != nil || sent == 0 {
 		return sent, err
 	}
-	entry := Entry{
-		MasterID:  masterID,
-		Title:     message.Title,
-		Body:      message.Body,
-		URL:       message.URL,
-		Topic:     message.Topic,
-		Delivered: sent,
-		SentAt:    r.now(),
-	}
-	if entry.ID, err = NewID(); err == nil {
+	entry.Delivered, entry.SentAt = sent, r.now()
+	err = idErr
+	if err == nil {
 		err = r.Store.Add(context.WithoutCancel(ctx), entry)
 	}
 	if err != nil {

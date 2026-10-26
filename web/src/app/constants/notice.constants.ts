@@ -2,6 +2,11 @@ import { NoticeReason } from '../models';
 
 export const API_NOTICES_PATH = '/api/notifications';
 
+export const NOTICE_OPEN_ROUTES = {
+  history: '/settings/notifications',
+  home: '/',
+} as const;
+
 export const NOTICE_TIME_FORMAT = new Intl.DateTimeFormat('ru-RU', {
   day: 'numeric',
   month: 'short',
@@ -21,6 +26,7 @@ export const NOTICE_TEXTS = {
   checking: 'Проверяю…',
   checkFailed: 'Не удалось проверить, актуально ли это. Проверьте интернет и попробуйте ещё раз',
   movedTo: 'Публикация перенесена на',
+  opening: 'Открываю…',
 } as const;
 
 export const NOTICE_REASON_TEXTS: Record<Exclude<NoticeReason, 'moved'>, string> = {

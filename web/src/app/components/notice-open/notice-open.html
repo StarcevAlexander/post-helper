@@ -1,0 +1,9 @@
+<div class="screen__body">
+  @if (failed()) {
+    <p class="screen__hint screen__hint--error" role="alert">{{ texts.checkFailed }}</p>
+    <button type="button" class="screen__primary" (click)="retry()">{{ texts.retry }}</button>
+    <a class="screen__secondary" [routerLink]="historyLink">{{ texts.title }}</a>
+  } @else {
+    <p class="screen__hint" role="status">{{ texts.opening }}</p>
+  }
+</div>

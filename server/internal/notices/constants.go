@@ -30,5 +30,6 @@ const (
 	LinkShoot    = "/shoot/"
 
 	MessageURLPrefix = "./"
+	OpenURLPrefix    = "./#/notice/"
 	ScreenQuery      = "?screen="
 )

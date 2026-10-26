@@ -38,6 +38,7 @@ export const ROUTE_TITLES = {
   content: MEDIA_TEXTS.contentTitle,
   settings: SETTINGS_TITLE,
   notifications: NOTICE_TEXTS.title,
+  notice: NOTICE_TEXTS.title,
   tutorial: TUTORIAL_TEXTS.title,
   faq: FAQ_TEXTS.title,
   feedback: FEEDBACK_TEXTS.title,

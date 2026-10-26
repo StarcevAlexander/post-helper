@@ -22,3 +22,5 @@ tools/browser/bridge.log
 tools/browser/state.json
 tools/media/worker.log
 server/media/
+tools/bin/
+*.log.pid

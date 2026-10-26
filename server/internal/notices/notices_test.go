@@ -83,11 +83,13 @@ func TestPlanOf(t *testing.T) {
 type stubSender struct {
 	delivered int
 	err       error
+	got       push.Message
 }
 
-func (s stubSender) PublicKey() string { return "key" }
+func (s *stubSender) PublicKey() string { return "key" }
 
-func (s stubSender) Send(context.Context, string, push.Message) (int, error) {
+func (s *stubSender) Send(_ context.Context, _ string, message push.Message) (int, error) {
+	s.got = message
 	return s.delivered, s.err
 }
 
@@ -98,7 +100,7 @@ func TestRecorderKeepsOnlyDeliveredNotifications(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	message := push.Message{Title: "План готов", Body: "Откройте", URL: "./", Topic: push.Topic{Kind: push.KindPlan, PlanStart: "2026-10-26"}}
 
-	for _, sender := range []stubSender{{delivered: 0}, {err: errors.New("down")}} {
+	for _, sender := range []*stubSender{{delivered: 0}, {err: errors.New("down")}} {
 		recorder := &Recorder{Sender: sender, Store: store, Logger: logger}
 		_, _ = recorder.Send(ctx, "m1", message)
 	}
@@ -106,14 +108,18 @@ func TestRecorderKeepsOnlyDeliveredNotifications(t *testing.T) {
 		t.Fatalf("undelivered pushes were recorded: %+v", entries)
 	}
 
-	recorder := &Recorder{Sender: stubSender{delivered: 2}, Store: store, Logger: logger, Now: func() time.Time { return at }}
+	sender := &stubSender{delivered: 2}
+	recorder := &Recorder{Sender: sender, Store: store, Logger: logger, Now: func() time.Time { return at }}
 	if sent, err := recorder.Send(ctx, "m1", message); sent != 2 || err != nil {
 		t.Fatalf("Send = %d, %v", sent, err)
 	}
 	entries, _ := store.List(ctx, "m1", ListLimit)
 	if len(entries) != 1 || entries[0].ID == "" || entries[0].Title != "План готов" || entries[0].Delivered != 2 ||
-		!entries[0].SentAt.Equal(at) || entries[0].Topic.PlanStart != "2026-10-26" {
+		!entries[0].SentAt.Equal(at) || entries[0].Topic.PlanStart != "2026-10-26" || entries[0].URL != "./" {
 		t.Fatalf("entries = %+v", entries)
+	}
+	if sender.got.URL != OpenURLPrefix+entries[0].ID || sender.got.Title != "План готов" {
+		t.Errorf("the push must open its own entry, got %q", sender.got.URL)
 	}
 	if recorder.PublicKey() != "key" {
 		t.Fatal("public key is not passed through")
