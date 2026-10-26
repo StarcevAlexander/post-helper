@@ -32,12 +32,20 @@ func noticeView(entry notices.Entry, verdict notices.Verdict) NoticeView {
 
 func (h *noticesHandler) list(w http.ResponseWriter, r *http.Request) {
 	identity, _ := auth.FromContext(r.Context())
-	entries, err := h.notices.List(r.Context(), identity.MasterID, notices.ListLimit)
+	h.writeList(w, r, identity.MasterID)
+}
+
+func (h *noticesHandler) adminList(w http.ResponseWriter, r *http.Request) {
+	h.writeList(w, r, r.PathValue("id"))
+}
+
+func (h *noticesHandler) writeList(w http.ResponseWriter, r *http.Request, masterID string) {
+	entries, err := h.notices.List(r.Context(), masterID, notices.ListLimit)
 	if err != nil {
 		h.problem(w, err)
 		return
 	}
-	facts, err := h.facts(r.Context(), identity.MasterID)
+	facts, err := h.facts(r.Context(), masterID)
 	if err != nil {
 		h.problem(w, err)
 		return

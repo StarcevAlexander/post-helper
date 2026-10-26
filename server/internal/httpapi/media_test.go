@@ -832,3 +832,28 @@ func TestRedoRejections(t *testing.T) {
 		t.Errorf("redo over the limit = %d %s", limit.Code, limit.Body)
 	}
 }
+
+func TestTheOwnerDownloadsTheResultAndTheSourceOfAnyMaster(t *testing.T) {
+	fixture := newMediaFixture(t, true)
+	code, _ := fixture.master(t, "Анна")
+	uploaded := fixture.uploadMov(t, code)
+
+	if got := fixture.call(http.MethodGet, "/api/admin/media/"+uploaded.ID+"/file", "", "").Code; got != http.StatusNotFound {
+		t.Errorf("result before processing = %d", got)
+	}
+	fixture.claim(t)
+	fixture.finishClaimed(t, uploaded.ID, false)
+	waitPush(t, fixture.pusher)
+
+	result := fixture.call(http.MethodGet, "/api/admin/media/"+uploaded.ID+"/file", "", "")
+	if result.Code != http.StatusOK || !bytes.Equal(result.Body.Bytes(), mp4Bytes) || result.Header().Get("Content-Type") != "video/mp4" {
+		t.Errorf("result = %d %q", result.Code, result.Header().Get("Content-Type"))
+	}
+	source := fixture.call(http.MethodGet, "/api/admin/media/"+uploaded.ID+"/file?of=source", "", "")
+	if source.Code != http.StatusOK || !bytes.Equal(source.Body.Bytes(), movBytes) {
+		t.Errorf("source = %d", source.Code)
+	}
+	if got := fixture.call(http.MethodGet, "/api/admin/media/missing/file", "", "").Code; got != http.StatusNotFound {
+		t.Errorf("missing = %d", got)
+	}
+}

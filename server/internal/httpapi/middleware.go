@@ -83,13 +83,21 @@ func withLocalOnly(next http.Handler) http.Handler {
 }
 
 func localRequest(r *http.Request) bool {
+	if !loopbackHost(r.Host) {
+		return false
+	}
+	read := r.Method == http.MethodGet || r.Method == http.MethodHead
+	if read && (r.URL.Path == AdminPageRoot || strings.HasPrefix(r.URL.Path, AdminPagePrefix)) {
+		return true
+	}
+	site := r.Header.Get(HeaderFetchSite)
+	if site == FetchSiteSameOrigin && read {
+		return true
+	}
 	if _, present := r.Header[HeaderOrigin]; present {
 		return false
 	}
-	if site := r.Header.Get(HeaderFetchSite); site != "" && site != FetchSiteNone {
-		return false
-	}
-	return loopbackHost(r.Host)
+	return site == "" || site == FetchSiteNone
 }
 
 func loopbackHost(hostport string) bool {

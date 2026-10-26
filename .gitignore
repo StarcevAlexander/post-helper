@@ -24,3 +24,4 @@ tools/media/worker.log
 server/media/
 tools/bin/
 *.log.pid
+tools/owner/media/

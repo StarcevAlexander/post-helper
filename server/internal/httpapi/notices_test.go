@@ -6,6 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -144,5 +146,37 @@ func TestADeliveredPushLandsInTheHistory(t *testing.T) {
 	if len(views) != 1 || views[0].Title != "Привет" || views[0].Kind != push.KindMessage ||
 		views[0].State != notices.StateActual || views[0].Link != "/calendar" {
 		t.Fatalf("views = %+v", views)
+	}
+}
+
+func TestTheOwnerSeesTheNotificationHistoryOfAMaster(t *testing.T) {
+	fixture := newNoticesFixture(t)
+	_, master := fixture.master(t, "Анна")
+	fixture.add(t, master.ID, "hello", time.Now(), push.Topic{Kind: push.KindMessage})
+
+	response := fixture.call(http.MethodGet, "/api/admin/masters/"+master.ID+"/notifications", "", "")
+	var views []NoticeView
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &views) != nil || len(views) != 1 || views[0].ID != "hello" {
+		t.Fatalf("admin notifications = %d %s", response.Code, response.Body)
+	}
+}
+
+func TestTheAdminPageIsServedOnTheAdminPort(t *testing.T) {
+	admin := NewAdminHandler(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	for path, want := range map[string]string{"/admin/": "<title>Помощник: админка</title>", "/admin/admin.js": "function renderMaster", "/admin/admin.css": ".masters"} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		request.Host = "127.0.0.1:8081"
+		recorder := httptest.NewRecorder()
+		admin.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), want) || recorder.Header().Get("Content-Security-Policy") == "" {
+			t.Errorf("%s = %d", path, recorder.Code)
+		}
+	}
+	request := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	request.Host = "127.0.0.1:8081"
+	recorder := httptest.NewRecorder()
+	admin.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusMovedPermanently || recorder.Header().Get("Location") != "/admin/" {
+		t.Errorf("/admin = %d %q", recorder.Code, recorder.Header().Get("Location"))
 	}
 }

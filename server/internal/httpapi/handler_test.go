@@ -119,6 +119,11 @@ func TestAdminPortRejectsBrowserAndForeignHosts(t *testing.T) {
 		{"empty origin header", "/api/admin/masters", "127.0.0.1:8081", map[string]string{"Origin": ""}, http.StatusForbidden},
 		{"cross site", "/api/admin/masters", "127.0.0.1:8081", map[string]string{"Sec-Fetch-Site": "cross-site"}, http.StatusForbidden},
 		{"same site", "/api/admin/masters", "127.0.0.1:8081", map[string]string{"Sec-Fetch-Site": "same-site"}, http.StatusForbidden},
+		{"admin page reads its own data", "/api/admin/masters", "127.0.0.1:8081", map[string]string{"Sec-Fetch-Site": "same-origin"}, http.StatusOK},
+		{"admin page with a same origin header", "/api/admin/masters", "127.0.0.1:8081", map[string]string{"Sec-Fetch-Site": "same-origin", "Origin": "http://127.0.0.1:8081"}, http.StatusOK},
+		{"the page itself opens from a link", "/admin/", "127.0.0.1:8081", map[string]string{"Sec-Fetch-Site": "cross-site"}, http.StatusOK},
+		{"the page never opens on a foreign host", "/admin/", "evil.example:8081", nil, http.StatusForbidden},
+		{"same origin on a foreign host", "/api/admin/masters", "evil.example:8081", map[string]string{"Sec-Fetch-Site": "same-origin"}, http.StatusForbidden},
 		{"rebinding host", "/api/admin/masters", "evil.example:8081", nil, http.StatusForbidden},
 		{"lookalike host", "/api/admin/masters", "127.0.0.1.evil.example", nil, http.StatusForbidden},
 		{"health stays open", "/healthz", "evil.example", nil, http.StatusNoContent},
@@ -136,6 +141,20 @@ func TestAdminPortRejectsBrowserAndForeignHosts(t *testing.T) {
 				t.Errorf("status = %d, want %d", recorder.Code, tt.want)
 			}
 		})
+	}
+}
+
+func TestTheAdminPageCannotChangeAnything(t *testing.T) {
+	admin := NewAdminHandler(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	request := httptest.NewRequest(http.MethodPost, "/api/admin/masters", strings.NewReader(`{"name":"x"}`))
+	request.Host = "127.0.0.1:8081"
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	recorder := httptest.NewRecorder()
+
+	admin.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Errorf("same origin write = %d", recorder.Code)
 	}
 }
 

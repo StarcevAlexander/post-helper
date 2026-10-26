@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { describeMedia, mediaOf, pickMasters, savedName } from './media-list.mjs';
 import { buildReviewStats, describeReviewStats } from './review-stats.mjs';
 
 const HELP = `Управление «Помощником» из консоли (интерфейса владельца в приложении нет).
@@ -28,11 +29,16 @@ const HELP = `Управление «Помощником» из консоли 
                                                       записать населённый пункт мастера и часовой пояс (без зоны её определит нейросеть)
   node tools/owner/owner.mjs push <id> "Заголовок" ["Текст"] [--url "./?screen=today"]
                                                       отправить мастеру уведомление на телефон (если он включил их в настройках)
+  node tools/owner/owner.mjs media [id или часть имени] [--save [папка]] [--source]
+                                                      что мастера сняли и отправили в обработку: статус, текст, пожелания переделки;
+                                                      --save скачивает готовые файлы (по умолчанию в tools/owner/media), --source ещё и оригиналы
   node tools/owner/owner.mjs digest                    прислать себе в Telegram недельный дайджест сейчас (сам он уходит по понедельникам в 9:00)
 
 Настройка: сервер по умолчанию http://127.0.0.1:8081 (локальный админский порт), другой адрес задаётся OWNER_SERVER в окружении или в tools/owner/.env`;
 
 const DEFAULT_SERVER = 'http://127.0.0.1:8081';
+
+const DEFAULT_MEDIA_DIR = join(dirname(fileURLToPath(import.meta.url)), 'media');
 
 const MEDIA_TYPES = {
   '.png': 'image/png',
@@ -57,12 +63,72 @@ function readEnv() {
   return values;
 }
 
-async function call(method, path, body) {
+function serverUrl() {
   const env = readEnv();
   const server = (env.OWNER_SERVER ?? DEFAULT_SERVER).replace(/\/+$/, '');
   if (!/^https?:\/\//.test(server)) {
     throw new Error('OWNER_SERVER должен начинаться с http:// или https://');
   }
+  return server;
+}
+
+async function download(path, file) {
+  const response = await fetch(`${serverUrl()}${path}`);
+  if (!response.ok) {
+    return false;
+  }
+  writeFileSync(file, Buffer.from(await response.arrayBuffer()));
+  return true;
+}
+
+function parseMediaArguments(args) {
+  const options = { query: undefined, save: undefined, source: false };
+  for (let index = 0; index < args.length; index += 1) {
+    const next = args[index + 1];
+    if (args[index] === '--save') {
+      const folder = next && !next.startsWith('--') ? next : undefined;
+      options.save = folder ?? DEFAULT_MEDIA_DIR;
+      index += folder ? 1 : 0;
+    } else if (args[index] === '--source') {
+      options.source = true;
+    } else {
+      options.query = args[index];
+    }
+  }
+  return options;
+}
+
+async function showMedia(args) {
+  const options = parseMediaArguments(args);
+  const masters = pickMasters((await call('GET', MASTERS)) ?? [], options.query);
+  if (masters.length === 0) {
+    return console.log(`Мастер «${options.query}» не найден`);
+  }
+  const items = mediaOf((await call('GET', '/api/admin/media')) ?? [], masters);
+  if (items.length === 0) {
+    return console.log(options.query ? 'Этот мастер ничего не отправлял в обработку' : 'Загрузок пока нет');
+  }
+  console.log(items.map(describeMedia).join('\n\n'));
+  if (!options.save) {
+    return undefined;
+  }
+  let saved = 0;
+  for (const item of items) {
+    const folder = join(options.save, item.masterId);
+    mkdirSync(folder, { recursive: true });
+    const base = `/api/admin/media/${encodeURIComponent(item.id)}/file`;
+    if (item.status === 'done' && (await download(base, join(folder, savedName(item, false))))) {
+      saved += 1;
+    }
+    if (options.source && (await download(`${base}?of=source`, join(folder, savedName(item, true))))) {
+      saved += 1;
+    }
+  }
+  return console.log(`\nСохранено файлов: ${saved}, папка: ${options.save}`);
+}
+
+async function call(method, path, body) {
+  const server = serverUrl();
   const form = body instanceof FormData;
   const headers = {};
   if (!form) {
@@ -280,6 +346,8 @@ async function main([command, id, extra, ...rest]) {
       const stats = buildReviewStats(await call('GET', `${MASTERS}/${id}/export`), toLocalDateKey(new Date()));
       return console.log(extra === '--json' ? JSON.stringify(stats, null, 2) : describeReviewStats(stats));
     }
+    case 'media':
+      return showMedia([id, extra, ...rest].filter((value) => value !== undefined));
     case 'digest': {
       const sent = await call('POST', '/api/admin/digest');
       return console.log(`Отправлено в Telegram:\n\n${sent.text}`);

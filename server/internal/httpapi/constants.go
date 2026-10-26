@@ -277,13 +277,14 @@ type DigestResponse struct {
 }
 
 const (
-	HeaderOrigin      = "Origin"
-	HeaderFetchSite   = "Sec-Fetch-Site"
-	FetchSiteNone     = "none"
-	LoopbackHostV4    = "127.0.0.1"
-	LoopbackHostName  = "localhost"
-	LoopbackHostV6    = "::1"
-	MsgAdminForbidden = "Админский порт доступен только локальным скриптам"
+	HeaderOrigin        = "Origin"
+	HeaderFetchSite     = "Sec-Fetch-Site"
+	FetchSiteNone       = "none"
+	FetchSiteSameOrigin = "same-origin"
+	LoopbackHostV4      = "127.0.0.1"
+	LoopbackHostName    = "localhost"
+	LoopbackHostV6      = "::1"
+	MsgAdminForbidden   = "Админский порт доступен только локальным скриптам"
 )
 
 const (
@@ -309,6 +310,19 @@ const (
 	AgentMediaResultRoute = "POST /api/agent/media/{id}/result"
 	AgentMediaFailRoute   = "POST /api/agent/media/{id}/fail"
 	AdminMediaRoute       = "GET /api/admin/media"
+	AdminMediaFileRoute   = "GET /api/admin/media/{id}/file"
+	AdminNoticesRoute     = "GET /api/admin/masters/{id}/notifications"
+	AdminPageRoute        = "GET /admin/"
+	AdminPageRootRoute    = "GET /admin"
+
+	AdminPageDir          = "admin"
+	AdminPagePrefix       = "/admin/"
+	AdminPageRoot         = "/admin"
+	AdminPageCacheControl = "no-store"
+	AdminPageCSP          = "default-src 'self'; img-src 'self' blob:; media-src 'self' blob:; style-src 'self'; script-src 'self'; frame-ancestors 'none'"
+
+	MediaFileQuery  = "of"
+	MediaFileSource = "source"
 
 	FieldFile    = "file"
 	FieldPreview = "preview"

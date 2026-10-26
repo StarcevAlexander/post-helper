@@ -210,6 +210,10 @@ func NewAdminHandler(options Options) http.Handler {
 	mux.HandleFunc(AgentMediaResultRoute, mediaAgent.result)
 	mux.HandleFunc(AgentMediaFailRoute, mediaAgent.fail)
 	mux.HandleFunc(AdminMediaRoute, mediaAgent.list)
+	mux.HandleFunc(AdminMediaFileRoute, mediaAgent.adminFile)
+	mux.HandleFunc(AdminNoticesRoute, c.noticesHandler().adminList)
+	mux.Handle(AdminPageRoute, adminPage())
+	mux.Handle(AdminPageRootRoute, http.RedirectHandler(AdminPagePrefix, http.StatusMovedPermanently))
 	if options.Shutdown != nil {
 		mux.HandleFunc(AdminShutdownRoute, func(w http.ResponseWriter, _ *http.Request) {
 			c.logger.Warn("shutdown requested through the admin port")

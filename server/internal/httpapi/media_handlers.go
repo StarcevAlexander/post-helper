@@ -645,6 +645,36 @@ func (h *mediaAgentHandler) fail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+func (h *mediaAgentHandler) adminFile(w http.ResponseWriter, r *http.Request) {
+	item, err := h.media.Find(r.Context(), r.PathValue("id"))
+	if errors.Is(err, media.ErrNotFound) {
+		writeError(w, http.StatusNotFound, MsgMediaNotFound)
+		return
+	}
+	if err != nil {
+		h.problem(w, http.StatusInternalServerError, MsgMediaFailed, err)
+		return
+	}
+	if r.URL.Query().Get(MediaFileQuery) == MediaFileSource {
+		if item.SourceRef == "" {
+			writeError(w, http.StatusNotFound, MsgMediaNotFound)
+			return
+		}
+		h.serve(w, r, item.SourceRef, item.Source.Type, "source"+media.Extension(item.Source.Type), item.CreatedAt)
+		return
+	}
+	if item.Status != media.StatusDone || item.ResultRef == "" {
+		writeError(w, http.StatusNotFound, MsgMediaNotFound)
+		return
+	}
+	siblings, err := h.media.List(r.Context(), item.MasterID)
+	if err != nil {
+		h.problem(w, http.StatusInternalServerError, MsgMediaFailed, err)
+		return
+	}
+	h.serve(w, r, item.ResultRef, item.Result.Type, resultFileName(item, siblings), item.FinishedAt)
+}
+
 func (h *mediaAgentHandler) list(w http.ResponseWriter, r *http.Request) {
 	items, err := h.media.Recent(r.Context(), media.MaxAdminList)
 	if err != nil {
