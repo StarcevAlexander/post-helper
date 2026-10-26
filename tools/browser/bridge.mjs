@@ -60,7 +60,7 @@ const HELP = `Лекарь связки Claude Code с расширением Cl
 
   check      проверить связку пробным запросом и сказать, что сломано
   fix        то же и починить: запустить или перезапустить Chrome
-  run        тихая проверка для задачи планировщика: пишет только в лог и Telegram
+  run        постоянный процесс для задачи планировщика: проверяет раз в час, пишет в лог и Telegram, окна не держит
   install    поставить задачу ${TASK_NAME}: проверка раз в ${CHECK_EVERY_MINUTES} мин без окна
   uninstall  снять задачу
   status     состояние задачи, связки и последние строки лога`;
@@ -356,7 +356,7 @@ async function fix() {
   }
 }
 
-async function run() {
+async function runOnce() {
   if (!(await tunnelUp())) {
     writeLog('tunnel is down, check skipped (the Happ start script handles the tunnel)');
     return;
@@ -371,6 +371,17 @@ async function run() {
   }
   showVerdict(verdict);
   await updateState(verdict, true);
+}
+
+async function run() {
+  for (;;) {
+    try {
+      await runOnce();
+    } catch (error) {
+      writeLog(`bridge check failed: ${error.message}`);
+    }
+    await sleep(CHECK_EVERY_MINUTES * 60 * 1000);
+  }
 }
 
 async function install() {
