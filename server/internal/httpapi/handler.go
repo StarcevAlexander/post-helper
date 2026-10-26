@@ -9,6 +9,7 @@ import (
 	"post-helper/server/internal/auth"
 	"post-helper/server/internal/feedback"
 	"post-helper/server/internal/intake"
+	"post-helper/server/internal/media"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
 	"post-helper/server/internal/store"
@@ -20,6 +21,8 @@ type core struct {
 	history  store.Store
 	people   accounts.Store
 	refs     refs.Store
+	media    media.Store
+	files    media.Files
 	intake   intake.Store
 	feedback feedback.Store
 	pushes   *pushHandler
@@ -44,6 +47,14 @@ func newCore(options Options) *core {
 	if refsStore == nil {
 		refsStore = refs.NewMemory()
 	}
+	mediaStore := options.Media
+	if mediaStore == nil {
+		mediaStore = media.NewMemory()
+	}
+	mediaFiles := options.MediaFiles
+	if mediaFiles == nil {
+		mediaFiles = media.NewMemoryFiles()
+	}
 	pushStore := options.PushStore
 	if pushStore == nil {
 		pushStore = push.NewMemory()
@@ -62,6 +73,8 @@ func newCore(options Options) *core {
 		history:  history,
 		people:   people,
 		refs:     refsStore,
+		media:    mediaStore,
+		files:    mediaFiles,
 		intake:   intakeStore,
 		feedback: feedbackStore,
 		pushes:   &pushHandler{store: pushStore, sender: options.Pusher, accounts: people, logger: logger},
@@ -72,6 +85,10 @@ func newCore(options Options) *core {
 
 func (c *core) refsHandler() *refsHandler {
 	return &refsHandler{refs: c.refs, accounts: c.people, intakes: c.intake, planner: c.options.RefPlanner, pushes: c.pushes, logger: c.logger}
+}
+
+func (c *core) mediaHandler() *mediaHandler {
+	return &mediaHandler{media: c.media, files: c.files, planner: c.options.MediaPlanner, accounts: c.people, intakes: c.intake, pushes: c.pushes, logger: c.logger}
 }
 
 func (c *core) feedbackHandler() *feedbackHandler {
@@ -89,6 +106,7 @@ func NewHandler(options Options) http.Handler {
 	state := &stateHandler{accounts: c.people, logger: c.logger}
 	jobs := &auditJobsHandler{accounts: c.people, intakes: c.intake, keeper: c.keeper, logger: c.logger}
 	refsMaster := c.refsHandler()
+	mediaMaster := c.mediaHandler()
 	intakes := c.intakeHandler()
 	signIn := &authHandler{
 		accounts:       c.people,
@@ -119,6 +137,11 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(RefsStatusRoute, protected(http.HandlerFunc(refsMaster.status)))
 	mux.Handle(RefsMadeRoute, protected(http.HandlerFunc(refsMaster.made)))
 	mux.Handle(RefsFileRoute, protected(http.HandlerFunc(refsMaster.file)))
+	mux.Handle(MediaUploadRoute, protected(http.HandlerFunc(mediaMaster.upload)))
+	mux.Handle(MediaStatusRoute, protected(http.HandlerFunc(mediaMaster.status)))
+	mux.Handle(MediaFileRoute, protected(http.HandlerFunc(mediaMaster.file)))
+	mux.Handle(MediaThumbRoute, protected(http.HandlerFunc(mediaMaster.thumb)))
+	mux.Handle(MediaDeleteRoute, protected(http.HandlerFunc(mediaMaster.remove)))
 	mux.Handle(IntakeSubmitRoute, protected(http.HandlerFunc(intakes.submit)))
 	mux.Handle(IntakeLatestRoute, protected(http.HandlerFunc(intakes.latest)))
 	mux.Handle(FeedbackSubmitRoute, protected(http.HandlerFunc(c.feedbackHandler().submit)))
@@ -161,6 +184,13 @@ func NewAdminHandler(options Options) http.Handler {
 		mux.HandleFunc(AgentRefsResultRoute, refsAgent.result)
 		mux.HandleFunc(AgentRefsFailRoute, refsAgent.fail)
 	}
+	mediaAgent := &mediaAgentHandler{mediaHandler: *c.mediaHandler()}
+	mux.HandleFunc(AgentMediaNextRoute, mediaAgent.next)
+	mux.HandleFunc(AgentMediaSourceRoute, mediaAgent.source)
+	mux.HandleFunc(AgentMediaPlanRoute, mediaAgent.plan)
+	mux.HandleFunc(AgentMediaResultRoute, mediaAgent.result)
+	mux.HandleFunc(AgentMediaFailRoute, mediaAgent.fail)
+	mux.HandleFunc(AdminMediaRoute, mediaAgent.list)
 	if options.Shutdown != nil {
 		mux.HandleFunc(AdminShutdownRoute, func(w http.ResponseWriter, _ *http.Request) {
 			c.logger.Warn("shutdown requested through the admin port")

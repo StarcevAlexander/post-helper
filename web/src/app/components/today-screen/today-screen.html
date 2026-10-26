@@ -107,6 +107,14 @@
                   {{ entry.refLabel }}
                 </a>
               }
+              @if (entry.contentLabel) {
+                <a class="entry__button" [routerLink]="['/content', entry.item.id]">
+                  {{ entry.contentLabel }}
+                </a>
+              }
+              @if (entry.contentPending) {
+                <span class="entry__status" role="status">{{ mediaTexts.contentPending }}</span>
+              }
               @if (!entry.item.done) {
                 <button
                   type="button"

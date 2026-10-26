@@ -1,10 +1,14 @@
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpEvent, HttpHeaders } from '@angular/common/http';
 import { Service, inject, isDevMode } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { Observable, catchError, firstValueFrom, throwError } from 'rxjs';
 import {
   API_CLIENT_ERROR_PATH,
   API_FEEDBACK_PATH,
   API_INTAKE_PATH,
+  API_MEDIA_FILES_PATH,
+  API_MEDIA_ITEMS_PATH,
+  API_MEDIA_STATUS_PATH,
+  API_MEDIA_UPLOAD_PATH,
   API_PUSH_KEY_PATH,
   API_PUSH_SUBSCRIBE_PATH,
   API_PUSH_UNSUBSCRIBE_PATH,
@@ -39,6 +43,7 @@ import {
   FeedbackSubmission,
   IntakeSubmission,
   IntakeRequest,
+  MediaStatus,
   PushKeyResponse,
   PushSubscriptionPayload,
   ServerState,
@@ -101,21 +106,39 @@ export class ApiClient {
     return this.send<{ ok: boolean }>('POST', API_REFS_MADE_PATH, { key });
   }
 
-  async refFile(id: string): Promise<Blob> {
+  refFile(id: string): Promise<Blob> {
+    return this.fetchBlob(`${API_REFS_FILES_PATH}/${encodeURIComponent(id)}`);
+  }
+
+  uploadMedia(form: FormData): Observable<HttpEvent<MediaStatus>> {
     const baseUrl = isDevMode() ? API_DEV_URL : API_PRODUCTION_URL;
     if (!baseUrl) {
-      throw new ApiError(API_MESSAGES.notConfigured);
+      return throwError(() => new ApiError(API_MESSAGES.notConfigured));
     }
-    try {
-      return await firstValueFrom(
-        this.http.get(`${baseUrl}${API_REFS_FILES_PATH}/${encodeURIComponent(id)}`, {
-          responseType: 'blob',
-          headers: new HttpHeaders({ Authorization: `Bearer ${this.access.password()}` }),
-        }),
-      );
-    } catch (error) {
-      throw this.toApiError(error);
-    }
+    return this.http
+      .request<MediaStatus>('POST', `${baseUrl}${API_MEDIA_UPLOAD_PATH}`, {
+        body: form,
+        headers: new HttpHeaders({ Authorization: `Bearer ${this.access.password()}` }),
+        reportProgress: true,
+        observe: 'events',
+      })
+      .pipe(catchError((error: unknown) => throwError(() => this.toApiError(error))));
+  }
+
+  mediaStatuses(): Promise<MediaStatus[]> {
+    return this.send<MediaStatus[]>('GET', API_MEDIA_STATUS_PATH);
+  }
+
+  mediaFile(id: string): Promise<Blob> {
+    return this.fetchBlob(`${API_MEDIA_FILES_PATH}/${encodeURIComponent(id)}`);
+  }
+
+  mediaThumb(id: string): Promise<Blob> {
+    return this.fetchBlob(`${API_MEDIA_FILES_PATH}/${encodeURIComponent(id)}/thumb`);
+  }
+
+  async deleteMedia(id: string): Promise<void> {
+    await this.send<{ ok: boolean }>('DELETE', `${API_MEDIA_ITEMS_PATH}/${encodeURIComponent(id)}`);
   }
 
   me(): Promise<AccountInfo> {
@@ -144,6 +167,23 @@ export class ApiClient {
 
   saveState(baseVersion: number, data: SyncBundle): Promise<ServerState> {
     return this.send<ServerState>('PUT', API_STATE_PATH, { baseVersion, data });
+  }
+
+  private async fetchBlob(path: string): Promise<Blob> {
+    const baseUrl = isDevMode() ? API_DEV_URL : API_PRODUCTION_URL;
+    if (!baseUrl) {
+      throw new ApiError(API_MESSAGES.notConfigured);
+    }
+    try {
+      return await firstValueFrom(
+        this.http.get(`${baseUrl}${path}`, {
+          responseType: 'blob',
+          headers: new HttpHeaders({ Authorization: `Bearer ${this.access.password()}` }),
+        }),
+      );
+    } catch (error) {
+      throw this.toApiError(error);
+    }
   }
 
   private async send<T>(

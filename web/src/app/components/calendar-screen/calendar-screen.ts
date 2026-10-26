@@ -21,6 +21,7 @@ import { CalendarWeekView } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { IdeaRequests } from '../../services/idea-requests';
 import { Kits } from '../../services/kits';
+import { Media } from '../../services/media';
 import { Refs } from '../../services/refs';
 import { Reschedule } from '../../services/reschedule';
 import { fromDateKey } from '../../utils/date-utils';
@@ -35,6 +36,7 @@ export class CalendarScreen {
   protected readonly plan = inject(CalendarPlan);
   protected readonly kits = inject(Kits);
   protected readonly refs = inject(Refs);
+  private readonly media = inject(Media);
   protected readonly reschedule = inject(Reschedule);
   protected readonly ideas = inject(IdeaRequests);
   protected readonly refsTexts = REFS_TEXTS;
@@ -62,6 +64,7 @@ export class CalendarScreen {
         hasKit: this.kits.kitFor(item) !== undefined,
         refLabel: this.refLabel(item.id),
         refStale: this.refs.byKey().get(item.id)?.stale ?? false,
+        contentLabel: this.media.contentLabel(item.id),
         ideaRequested: this.ideas.requested(item),
       })),
     })),

@@ -20,4 +20,7 @@ type Config struct {
 	AdminPort        string
 	ReminderTimezone string
 	AllowMemoryStore bool
+
+	MediaDir      string
+	MediaKeepDays int
 }

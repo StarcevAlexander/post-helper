@@ -25,6 +25,11 @@
               <span class="entry__when">{{ texts.publication }}: {{ entry.when }}</span>
             </span>
           </label>
+          @if (entry.contentLabel) {
+            <a class="entry__button" [routerLink]="['/content', entry.item.id]">{{
+              entry.contentLabel
+            }}</a>
+          }
           <p class="entry__progress">
             @if (entry.marks.length > 0) {
               {{ texts.progress }} {{ doneCount(entry) }} {{ texts.of }} {{ entry.marks.length }}.
@@ -32,6 +37,8 @@
             {{ texts.readyHint }}
           </p>
         </header>
+
+        <app-media-note [itemId]="entry.item.id" />
 
         @if (entry.units.length > 0) {
           @for (unit of entry.units; track unit.mark) {
@@ -57,12 +64,24 @@
                 </span>
               </label>
               <app-ref-gallery [itemId]="entry.item.id" [index]="unit.index" />
+              <app-media-capture
+                [item]="entry.item"
+                [unit]="unit.mark"
+                [overlay]="unit.overlay ?? ''"
+                [note]="media.noteFor(entry.item.id)"
+              />
             </section>
           }
           <app-ref-gallery [itemId]="entry.item.id" [fromIndex]="entry.units.length" />
         } @else {
           <p class="screen__hint">{{ texts.noKit }}</p>
           <app-ref-gallery [itemId]="entry.item.id" />
+          <app-media-capture
+            [item]="entry.item"
+            unit=""
+            overlay=""
+            [note]="media.noteFor(entry.item.id)"
+          />
         }
       </article>
     } @empty {

@@ -9,12 +9,14 @@ export interface ShootUnit {
   mark: string;
   index: number;
   title: string;
+  overlay?: string;
   lines: ShootLine[];
 }
 
 export interface ShootEntry {
   item: PlanItem;
   title: string;
+  contentLabel?: string;
   when: string;
   units: ShootUnit[];
   readyMark: string;

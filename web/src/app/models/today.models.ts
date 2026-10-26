@@ -8,6 +8,8 @@ export interface TodayEntry {
   captionText?: string;
   refLabel?: string;
   refStale: boolean;
+  contentLabel?: string;
+  contentPending: boolean;
   ideaRequested: boolean;
 }
 

@@ -7,6 +7,7 @@ import { PublicationKit, RefStatus } from '../../models';
 import { samplePlan } from '../../testing/plan-fixture';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
+import { Media } from '../../services/media';
 import { Refs } from '../../services/refs';
 import { ShootScreen } from './shoot-screen';
 
@@ -229,6 +230,75 @@ describe('ShootScreen', () => {
     expect(element.textContent).toContain('ещё готовятся');
   });
 
+  it('puts the shooting block under every frame and passes the text on the frame', async () => {
+    const first = [...plan.weeks()[0].items].sort((a, b) =>
+      `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
+    )[0];
+    TestBed.inject(Kits).stored.set({
+      [first.id]: {
+        itemId: first.id,
+        format: first.format,
+        pillar: first.pillar,
+        idea: first.idea,
+        kit: { ...kit, frames: [kit.frames[0], { visual: 'Второй кадр', overlay: '' }] },
+      },
+    });
+    const media = TestBed.inject(Media);
+    media.setNote(first.id, 'Мой текст');
+    const upload = vi.spyOn(media, 'upload').mockResolvedValue(undefined);
+
+    const { element } = await render();
+
+    const entry = element.querySelector('.entry')!;
+    const units = entry.querySelectorAll('.unit');
+    expect(units.length).toBe(2);
+    expect(units[0].querySelector('app-media-capture')).not.toBeNull();
+    expect(units[1].querySelector('app-media-capture')).not.toBeNull();
+    const file = new File([new Uint8Array([1])], 'a.jpg', { type: 'image/jpeg' });
+    const input = units[0].querySelector<HTMLInputElement>('input[capture]')!;
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    input.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    expect(upload).toHaveBeenCalledWith(
+      first,
+      file,
+      `${first.id}:frame:0`,
+      'Смотрите',
+      'Мой текст',
+    );
+    expect(element.textContent).toContain('кнопка «Снять»');
+  });
+
+  it('gives a publication without a kit one shooting block for the whole publication', async () => {
+    const { element } = await render();
+
+    const entry = element.querySelector('.entry')!;
+    expect(entry.querySelectorAll('app-media-capture').length).toBe(1);
+    expect(entry.querySelector('.unit')).toBeNull();
+  });
+
+  it('links to the finished content when there is some', async () => {
+    const first = plan.weeks()[0].items[0];
+    TestBed.inject(Media).statuses.set([
+      {
+        id: 'm1',
+        key: first.id,
+        unit: '',
+        kind: 'photo',
+        format: first.format,
+        status: 'done',
+        error: '',
+        createdAt: '2026-10-26T10:00:00Z',
+        source: { name: 'a.jpg', type: 'image/jpeg', size: 1 },
+      },
+    ]);
+
+    const { element } = await render();
+
+    const link = element.querySelector<HTMLAnchorElement>('.entry__header a.entry__button')!;
+    expect(link.textContent).toContain('Готовый контент (1)');
+    expect(link.getAttribute('href')).toBe(`/content/${first.id}`);
+  });
   it('says so when the week is not in the plan', async () => {
     const { element } = await render('9');
 

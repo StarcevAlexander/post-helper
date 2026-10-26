@@ -12,6 +12,7 @@ import (
 	"post-helper/server/internal/audit"
 	"post-helper/server/internal/feedback"
 	"post-helper/server/internal/intake"
+	"post-helper/server/internal/media"
 	"post-helper/server/internal/places"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
@@ -27,6 +28,9 @@ type Options struct {
 	Digest         DigestSender
 	Auditor        audit.Generator
 	Refs           refs.Store
+	Media          media.Store
+	MediaFiles     media.Files
+	MediaPlanner   media.Planner
 	RefPlanner     refs.Generator
 	Places         places.Resolver
 	Intake         intake.Store
@@ -187,4 +191,65 @@ type AdminPushRequest struct {
 
 type AdminPushResponse struct {
 	Sent int `json:"sent"`
+}
+
+type MediaUploadMeta struct {
+	Key     string `json:"key"`
+	Unit    string `json:"unit"`
+	Format  string `json:"format"`
+	Pillar  string `json:"pillar"`
+	Idea    string `json:"idea"`
+	Overlay string `json:"overlay"`
+	Note    string `json:"note"`
+}
+
+type MediaStatus struct {
+	ID         string        `json:"id"`
+	Key        string        `json:"key"`
+	Unit       string        `json:"unit"`
+	Note       string        `json:"note"`
+	Kind       string        `json:"kind"`
+	Format     string        `json:"format"`
+	Status     string        `json:"status"`
+	Error      string        `json:"error"`
+	CreatedAt  time.Time     `json:"createdAt"`
+	FinishedAt *time.Time    `json:"finishedAt,omitempty"`
+	Source     media.Source  `json:"source"`
+	Result     *media.Result `json:"result,omitempty"`
+}
+
+type MediaAdminStatus struct {
+	MediaStatus
+	MasterID string `json:"masterId"`
+}
+
+type AgentMediaItem struct {
+	ID         string `json:"id"`
+	Key        string `json:"key"`
+	Unit       string `json:"unit"`
+	Kind       string `json:"kind"`
+	Format     string `json:"format"`
+	SourceType string `json:"sourceType"`
+	SourceName string `json:"sourceName"`
+	SourceSize int64  `json:"sourceSize"`
+	Idea       string `json:"idea"`
+	Pillar     string `json:"pillar"`
+	Overlay    string `json:"overlay"`
+	Note       string `json:"note"`
+	Attempts   int    `json:"attempts"`
+}
+
+type MediaPlanRequest struct {
+	Width      int             `json:"width"`
+	Height     int             `json:"height"`
+	DurationMs int             `json:"durationMs"`
+	Segments   []media.Segment `json:"segments"`
+}
+
+type MediaResultRequest struct {
+	Width      int    `json:"width"`
+	Height     int    `json:"height"`
+	DurationMs int    `json:"durationMs"`
+	Subtitled  bool   `json:"subtitled"`
+	Note       string `json:"note"`
 }

@@ -1,0 +1,164 @@
+<div class="screen__body">
+  <header class="screen__header">
+    <h2 class="screen__title">{{ heading() }}</h2>
+    @if (subheading()) {
+      <p class="screen__subtitle">{{ subheading() }}</p>
+    }
+  </header>
+
+  @if (item(); as plan) {
+    <p class="screen__hint">{{ texts.contentHint }}</p>
+
+    @for (entry of entries(); track entry.status.id) {
+      <article class="entry" [attr.data-state]="entry.status.status">
+        @if (entry.status.status === 'done') {
+          @switch (entry.media.state) {
+            @case ('ready') {
+              @if (entry.status.kind === 'video') {
+                <video
+                  class="entry__media"
+                  controls
+                  playsinline
+                  preload="metadata"
+                  [src]="entry.media.url"
+                  [attr.poster]="entry.poster"
+                  [style.aspect-ratio]="entry.ratio"
+                  [attr.aria-label]="texts.videoLabel"
+                ></video>
+              } @else {
+                <img
+                  class="entry__media"
+                  [src]="entry.media.url"
+                  [style.aspect-ratio]="entry.ratio"
+                  [alt]="texts.photoAlt"
+                />
+              }
+            }
+            @case ('failed') {
+              <button
+                type="button"
+                class="entry__placeholder"
+                [style.aspect-ratio]="entry.ratio"
+                (click)="retry(entry.status)"
+              >
+                {{ texts.loadFailed }}
+              </button>
+            }
+            @default {
+              <p class="entry__placeholder" role="status" [style.aspect-ratio]="entry.ratio">
+                {{ texts.loading }}
+              </p>
+            }
+          }
+          <p class="entry__note">{{ entry.label }}</p>
+          <div class="entry__actions">
+            @if (canShare) {
+              <button type="button" class="entry__button" (click)="onSave(entry.status)">
+                {{ texts.save }}
+              </button>
+            }
+            @if (entry.media.state === 'ready') {
+              <a class="entry__button" [href]="entry.media.url" [attr.download]="entry.fileName">
+                {{ texts.download }}
+              </a>
+            }
+            @if (confirming() !== entry.status.id) {
+              <button
+                type="button"
+                class="entry__button entry__button--danger"
+                (click)="askRemove(entry.status.id)"
+              >
+                {{ texts.remove }}
+              </button>
+            }
+          </div>
+        } @else {
+          <p class="entry__state" role="status">{{ entry.label }}</p>
+          @if (entry.status.status === 'failed' && confirming() !== entry.status.id) {
+            <div class="entry__actions">
+              <button
+                type="button"
+                class="entry__button entry__button--danger"
+                (click)="onRemove(entry.status.id)"
+              >
+                {{ texts.remove }}
+              </button>
+            </div>
+          }
+        }
+        @if (confirming() === entry.status.id) {
+          <div class="entry__confirm" role="group" [attr.aria-label]="texts.confirmRemove">
+            <p class="entry__note">{{ texts.confirmRemove }}</p>
+            <div class="entry__actions">
+              <button
+                type="button"
+                class="entry__button entry__button--danger"
+                (click)="onRemove(entry.status.id)"
+              >
+                {{ texts.confirmYes }}
+              </button>
+              <button type="button" class="entry__button" (click)="cancelRemove()">
+                {{ texts.confirmNo }}
+              </button>
+            </div>
+          </div>
+        }
+      </article>
+    } @empty {
+      @if (!hasUploads()) {
+        <section class="empty">
+          <p class="screen__hint">{{ texts.empty }}</p>
+          @if (shootWeek() !== undefined) {
+            <a class="screen__secondary" [routerLink]="['/shoot', shootWeek()]">
+              {{ texts.openShoot }}
+            </a>
+          }
+        </section>
+      }
+    }
+
+    @if (media.error(); as message) {
+      <p class="screen__error" role="alert">{{ message }}</p>
+    }
+
+    @if (salesCaption()) {
+      <section class="caption">
+        <div class="caption__header">
+          <h3 class="caption__title">{{ texts.salesTitle }}</h3>
+          <button type="button" class="screen__secondary caption__copy" (click)="onCopySales()">
+            {{ texts.copyCaption }}
+          </button>
+        </div>
+        <p class="caption__text">{{ salesText() }}</p>
+      </section>
+    }
+
+    @if (caption()) {
+      <section class="caption">
+        <div class="caption__header">
+          <h3 class="caption__title">{{ texts.captionTitle }}</h3>
+          <button type="button" class="screen__secondary caption__copy" (click)="onCopyCaption()">
+            {{ texts.copyCaption }}
+          </button>
+        </div>
+        <p class="caption__text">{{ caption() }}</p>
+      </section>
+    }
+
+    <p class="feedback" role="status" aria-live="polite">{{ feedback() }}</p>
+
+    <section class="more">
+      <h3 class="more__title">{{ texts.shootMore }}</h3>
+      <app-media-note [itemId]="plan.id" />
+      <app-media-capture
+        [item]="plan"
+        [note]="media.noteFor(plan.id)"
+        unit=""
+        overlay=""
+        [listStored]="false"
+      />
+    </section>
+  } @else {
+    <p class="screen__hint">{{ texts.missing }}</p>
+  }
+</div>

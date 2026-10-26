@@ -26,6 +26,47 @@ func TestLoad(t *testing.T) {
 		}
 	})
 
+	t.Run("media defaults", func(t *testing.T) {
+		t.Setenv(EnvAPIKey, "key")
+		t.Setenv(EnvMediaDir, "")
+		t.Setenv(EnvMediaKeepDays, "")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.MediaDir != DefaultMediaDir || cfg.MediaKeepDays != DefaultMediaKeepDays {
+			t.Errorf("media = %q, %d", cfg.MediaDir, cfg.MediaKeepDays)
+		}
+	})
+
+	t.Run("media custom", func(t *testing.T) {
+		t.Setenv(EnvAPIKey, "key")
+		t.Setenv(EnvMediaDir, " D:/ph-media ")
+		t.Setenv(EnvMediaKeepDays, "7")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.MediaDir != "D:/ph-media" || cfg.MediaKeepDays != 7 {
+			t.Errorf("media = %q, %d", cfg.MediaDir, cfg.MediaKeepDays)
+		}
+	})
+
+	t.Run("media bad keep days", func(t *testing.T) {
+		t.Setenv(EnvAPIKey, "key")
+		t.Setenv(EnvMediaKeepDays, "-3")
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.MediaKeepDays != DefaultMediaKeepDays {
+			t.Errorf("keep days = %d", cfg.MediaKeepDays)
+		}
+	})
+
 	t.Run("custom origins", func(t *testing.T) {
 		t.Setenv(EnvAPIKey, "key")
 		t.Setenv(EnvAllowedOrigins, " https://a.example , https://b.example ")

@@ -1,6 +1,10 @@
 package httpapi
 
-import "time"
+import (
+	"time"
+
+	"post-helper/server/internal/media"
+)
 
 const (
 	HealthRoute = "GET /healthz"
@@ -282,4 +286,41 @@ const (
 	HealthPingTimeout         = 3 * time.Second
 	MsgTooManyClientErrors    = "Слишком много отчётов об ошибках, подождите"
 	MsgPlanRefsFailed         = "План сохранён, но заказать референсы не удалось: повторите отправку плана"
+)
+
+const (
+	MediaUploadRoute      = "POST /api/media/upload"
+	MediaStatusRoute      = "GET /api/media/status"
+	MediaFileRoute        = "GET /api/media/files/{id}"
+	MediaThumbRoute       = "GET /api/media/files/{id}/thumb"
+	MediaDeleteRoute      = "DELETE /api/media/{id}"
+	AgentMediaNextRoute   = "GET /api/agent/media/next"
+	AgentMediaSourceRoute = "GET /api/agent/media/{id}/source"
+	AgentMediaPlanRoute   = "POST /api/agent/media/{id}/plan"
+	AgentMediaResultRoute = "POST /api/agent/media/{id}/result"
+	AgentMediaFailRoute   = "POST /api/agent/media/{id}/fail"
+	AdminMediaRoute       = "GET /api/admin/media"
+
+	FieldFile    = "file"
+	FieldPreview = "preview"
+	FieldThumb   = "thumb"
+
+	MaxMediaFormOverhead int64 = 2 << 20
+	MaxMediaUploadBytes  int64 = media.MaxSourceBytes + MaxMediaFormOverhead
+	MaxMediaPlanBytes    int64 = media.MaxPreviewBytes + MaxMediaFormOverhead
+	MaxMediaResultBytes  int64 = media.MaxResultBytes + media.MaxThumbBytes + MaxMediaFormOverhead
+
+	MediaCacheControl = "private, max-age=86400"
+	MediaNoSniff      = "nosniff"
+
+	MsgMediaNotFound  = "Файл не найден"
+	MsgMediaTooMany   = "Слишком много загрузок: удалите ненужное в готовом контенте"
+	MsgMediaState     = "Файл уже в другом состоянии"
+	MsgMediaFailed    = "Не удалось обработать файл, попробуйте ещё раз"
+	MsgMediaNoFile    = "Приложите одно фото или видео"
+	MsgMediaBadResult = "Готовый файл должен быть JPEG для фото или MP4 для видео"
+
+	PushMediaTitle = "Контент готов"
+	PushMediaBody  = "Снятое обработано и ждёт в приложении: откройте «Сегодня», скачайте и публикуйте."
+	PushMediaURL   = "./"
 )

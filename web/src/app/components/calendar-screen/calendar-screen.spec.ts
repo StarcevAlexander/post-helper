@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { samplePlan } from '../../testing/plan-fixture';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
+import { Media } from '../../services/media';
 import { Refs } from '../../services/refs';
 import { CalendarScreen } from './calendar-screen';
 
@@ -57,6 +58,32 @@ describe('CalendarScreen', () => {
     expect(element.querySelector('.item--done')).toBeTruthy();
   });
 
+  it('links a publication to its finished content', async () => {
+    const { fixture, element } = setUp();
+    await fixture.whenStable();
+    const [first] = TestBed.inject(CalendarPlan).items();
+
+    TestBed.inject(Media).statuses.set([
+      {
+        id: 'm1',
+        key: first.id,
+        unit: '',
+        kind: 'photo',
+        format: first.format,
+        status: 'done',
+        error: '',
+        createdAt: '2026-10-26T10:00:00Z',
+        source: { name: 'a.jpg', type: 'image/jpeg', size: 1 },
+      },
+    ]);
+    fixture.detectChanges();
+
+    const links = Array.from(element.querySelectorAll<HTMLAnchorElement>('.item a')).filter(
+      (link) => link.textContent?.includes('Готовый контент (1)'),
+    );
+    expect(links.length).toBe(1);
+    expect(links[0].getAttribute('href')).toBe(`/content/${first.id}`);
+  });
   it('shows the state of the references next to each publication and warns about overdue ones', async () => {
     const { fixture, element } = setUp();
     await fixture.whenStable();

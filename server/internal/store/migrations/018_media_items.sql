@@ -1,0 +1,35 @@
+CREATE TABLE media_items (
+    id TEXT PRIMARY KEY,
+    master_id TEXT NOT NULL REFERENCES masters (id) ON DELETE CASCADE,
+    item_key TEXT NOT NULL,
+    unit TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL,
+    format TEXT NOT NULL,
+    pillar TEXT NOT NULL DEFAULT '',
+    idea TEXT NOT NULL DEFAULT '',
+    overlay TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    caption TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    claimed_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    source_name TEXT NOT NULL DEFAULT '',
+    source_type TEXT NOT NULL DEFAULT '',
+    source_size BIGINT NOT NULL DEFAULT 0,
+    source_ref TEXT NOT NULL DEFAULT '',
+    result_type TEXT NOT NULL DEFAULT '',
+    result_size BIGINT NOT NULL DEFAULT 0,
+    result_width INTEGER NOT NULL DEFAULT 0,
+    result_height INTEGER NOT NULL DEFAULT 0,
+    result_duration_ms INTEGER NOT NULL DEFAULT 0,
+    result_subtitled BOOLEAN NOT NULL DEFAULT false,
+    result_note TEXT NOT NULL DEFAULT '',
+    result_ref TEXT NOT NULL DEFAULT '',
+    thumb_ref TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX media_items_status_created_idx ON media_items (status, created_at);
+CREATE INDEX media_items_master_created_idx ON media_items (master_id, created_at);

@@ -20,3 +20,5 @@ tools/intake-agent/agent.log
 web/ng-serve.log
 tools/browser/bridge.log
 tools/browser/state.json
+tools/media/worker.log
+server/media/

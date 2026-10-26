@@ -1,4 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
   CONTENT_DAY_WEEK_LABEL,
   DAY_FORMAT,
@@ -13,12 +14,15 @@ import {
 import { PlanItem, ShootEntry, ShootUnit, ShootWeekView } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { Kits } from '../../services/kits';
+import { Media } from '../../services/media';
 import { ShootProgress } from '../../services/shoot-progress';
 import { fromDateKey } from '../../utils/date-utils';
+import { MediaCapture } from '../media-capture/media-capture';
+import { MediaNote } from '../media-note/media-note';
 import { RefGallery } from '../ref-gallery/ref-gallery';
 
 @Component({
-  imports: [RefGallery],
+  imports: [MediaCapture, MediaNote, RefGallery, RouterLink],
   selector: 'app-shoot-screen',
   styleUrl: './shoot-screen.scss',
   templateUrl: './shoot-screen.html',
@@ -28,6 +32,7 @@ export class ShootScreen {
 
   private readonly plan = inject(CalendarPlan);
   private readonly kits = inject(Kits);
+  protected readonly media = inject(Media);
   protected readonly progress = inject(ShootProgress);
 
   protected readonly texts = SHOOT_TEXTS;
@@ -74,6 +79,7 @@ export class ShootScreen {
       mark: `${item.id}:frame:${index}`,
       index,
       title: `${frameLabel} ${index + 1}`,
+      overlay: frame.overlay,
       lines: [
         ...(frame.visual ? [{ label: this.visualLabel, text: frame.visual }] : []),
         ...(frame.overlay ? [{ label: this.overlayLabel, text: frame.overlay }] : []),
@@ -83,6 +89,7 @@ export class ShootScreen {
     return {
       item,
       title: `${FORMAT_LABELS[item.format]}: ${item.idea}`,
+      contentLabel: this.media.contentLabel(item.id),
       when: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time} · ${item.pillar}`,
       units,
       readyMark: `${item.id}:ready`,

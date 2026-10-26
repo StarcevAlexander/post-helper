@@ -66,6 +66,11 @@
                       {{ view.refLabel }}
                     </a>
                   }
+                  @if (view.contentLabel) {
+                    <a class="item__button" [routerLink]="['/content', view.item.id]">
+                      {{ view.contentLabel }}
+                    </a>
+                  }
                   @if (!view.item.done) {
                     <button
                       type="button"

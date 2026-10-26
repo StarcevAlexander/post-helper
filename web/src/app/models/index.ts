@@ -14,3 +14,4 @@ export * from './today.models';
 export * from './refs.models';
 export * from './push.models';
 export * from './oauth.models';
+export * from './media.models';

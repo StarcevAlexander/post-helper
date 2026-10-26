@@ -4,6 +4,7 @@ import {
   DAY_FORMAT,
   FORMAT_LABELS,
   IDEA_REQUEST_TEXTS,
+  MEDIA_TEXTS,
   PUSH_TEXTS,
   REFS_TEXTS,
   RESCHEDULE_TEXTS,
@@ -21,6 +22,7 @@ import {
 import { CalendarPlan } from '../../services/calendar-plan';
 import { IdeaRequests } from '../../services/idea-requests';
 import { Kits } from '../../services/kits';
+import { Media } from '../../services/media';
 import { PushNotifications } from '../../services/push-notifications';
 import { Refs } from '../../services/refs';
 import { Reschedule } from '../../services/reschedule';
@@ -40,12 +42,14 @@ export class TodayScreen {
   protected readonly plan = inject(CalendarPlan);
   protected readonly kits = inject(Kits);
   protected readonly refs = inject(Refs);
+  protected readonly media = inject(Media);
   protected readonly push = inject(PushNotifications);
   protected readonly reschedule = inject(Reschedule);
   protected readonly ideas = inject(IdeaRequests);
   protected readonly texts = TODAY_TEXTS;
   protected readonly shootTexts = SHOOT_TEXTS;
   protected readonly pushTexts = PUSH_TEXTS;
+  protected readonly mediaTexts = MEDIA_TEXTS;
   protected readonly moveTexts = RESCHEDULE_TEXTS;
   protected readonly ideaTexts = IDEA_REQUEST_TEXTS;
   protected readonly offerPush = computed(
@@ -127,6 +131,8 @@ export class TodayScreen {
             : `${REFS_TEXTS.open} (${ref.files.length})`
           : undefined,
       refStale: ref?.stale ?? false,
+      contentLabel: this.media.contentLabel(item.id),
+      contentPending: this.media.contentPending(item.id),
       ideaRequested: this.ideas.requested(item),
     };
   }

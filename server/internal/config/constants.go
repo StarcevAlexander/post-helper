@@ -26,6 +26,10 @@ const (
 	DefaultPort          = "8080"
 	DefaultModel         = "claude-sonnet-5-5"
 	DotEnvFileName       = ".env"
+	EnvMediaDir          = "MEDIA_DIR"
+	EnvMediaKeepDays     = "MEDIA_KEEP_DAYS"
+	DefaultMediaDir      = "media"
+	DefaultMediaKeepDays = 30
 )
 
 var DefaultAllowedOrigins = []string{

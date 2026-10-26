@@ -82,6 +82,13 @@ const screens: Routes = [
     loadComponent: () => import('./components/refs-screen/refs-screen').then((m) => m.RefsScreen),
   },
   {
+    path: 'content/:id',
+    title: ROUTE_TITLES.content,
+    data: { back: true },
+    loadComponent: () =>
+      import('./components/content-screen/content-screen').then((m) => m.ContentScreen),
+  },
+  {
     path: 'tutorial',
     title: ROUTE_TITLES.tutorial,
     loadComponent: () =>

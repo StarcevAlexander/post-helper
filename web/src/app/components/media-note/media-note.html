@@ -1,0 +1,14 @@
+<div class="note">
+  <label class="note__label" [for]="'media-note-' + itemId()">{{ texts.noteLabel }}</label>
+  <textarea
+    class="note__input"
+    rows="3"
+    [id]="'media-note-' + itemId()"
+    [maxLength]="maxLength"
+    [attr.aria-describedby]="'media-note-hint-' + itemId()"
+    [value]="value()"
+    (input)="onInput(note)"
+    #note
+  ></textarea>
+  <p class="note__hint" [id]="'media-note-hint-' + itemId()">{{ texts.noteHint }}</p>
+</div>

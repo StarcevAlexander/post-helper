@@ -1,0 +1,84 @@
+<div class="capture">
+  <div class="capture__actions">
+    <button
+      type="button"
+      class="capture__button capture__button--primary"
+      [attr.aria-label]="texts.captureLabel"
+      (click)="camera.click()"
+    >
+      {{ texts.capture }}
+    </button>
+    <button
+      type="button"
+      class="capture__button"
+      [attr.aria-label]="texts.galleryLabel"
+      (click)="gallery.click()"
+    >
+      {{ texts.gallery }}
+    </button>
+  </div>
+  <input
+    #camera
+    type="file"
+    hidden
+    capture="environment"
+    tabindex="-1"
+    [accept]="accept"
+    (change)="onPick(camera)"
+  />
+  <input
+    #gallery
+    type="file"
+    hidden
+    multiple
+    tabindex="-1"
+    [accept]="accept"
+    (change)="onPick(gallery)"
+  />
+
+  @if (tiles().length > 0) {
+    <ul class="tiles">
+      @for (tile of tiles(); track tile.id) {
+        <li class="tile" [attr.data-state]="tile.state">
+          @if (tile.thumb.state === 'ready') {
+            <img class="tile__media" [src]="tile.thumb.url" [alt]="texts.tileAlt" />
+          } @else if (tile.thumb.state === 'failed' && tile.status) {
+            <button
+              type="button"
+              class="tile__media tile__media--button"
+              [attr.aria-label]="texts.loadFailed"
+              (click)="retryThumb(tile.status)"
+            >
+              !
+            </button>
+          } @else {
+            <span class="tile__media" aria-hidden="true"></span>
+          }
+          <div class="tile__body">
+            <p class="tile__label" role="status">{{ tile.label }}</p>
+            @if (tile.state === 'uploading') {
+              <progress
+                class="tile__progress"
+                max="100"
+                [value]="tile.progress"
+                [attr.aria-label]="texts.uploading"
+              ></progress>
+            }
+            <div class="tile__actions">
+              @if (tile.state === 'done') {
+                <a class="tile__button" [routerLink]="['/content', item().id]">
+                  {{ texts.open }}
+                </a>
+              }
+              @if (tile.state === 'failed') {
+                <button type="button" class="tile__button" (click)="onRemove(tile)">
+                  {{ tile.status ? texts.remove : texts.dismiss }}
+                </button>
+              }
+            </div>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

@@ -8,6 +8,7 @@ import { samplePlan } from '../../testing/plan-fixture';
 import { CalendarPlan } from '../../services/calendar-plan';
 import { IdeaRequests } from '../../services/idea-requests';
 import { Kits } from '../../services/kits';
+import { Media } from '../../services/media';
 import { PushNotifications } from '../../services/push-notifications';
 import { TodayScreen } from './today-screen';
 
@@ -211,6 +212,32 @@ describe('TodayScreen', () => {
     expect(element.querySelector('.shoot a')?.getAttribute('href')).toBe('/shoot/0');
   });
 
+  it('links to the finished content and tells while it is being processed', async () => {
+    const { item, fixture, element } = await openOnFirstPublication();
+    const base = {
+      key: item.id,
+      unit: '',
+      kind: 'video' as const,
+      format: item.format,
+      error: '',
+      createdAt: '2026-10-26T10:00:00Z',
+      source: { name: 'a.mov', type: 'video/quicktime', size: 1 },
+    };
+    expect(element.textContent).not.toContain('Готовый контент');
+    expect(element.textContent).not.toContain('Контент обрабатывается');
+
+    TestBed.inject(Media).statuses.set([
+      { ...base, id: 'm1', status: 'done' },
+      { ...base, id: 'm2', status: 'running' },
+    ]);
+    fixture.detectChanges();
+
+    const link = Array.from(element.querySelectorAll<HTMLAnchorElement>('a')).find((candidate) =>
+      candidate.textContent?.includes('Готовый контент (1)'),
+    );
+    expect(link?.getAttribute('href')).toBe(`/content/${item.id}`);
+    expect(element.textContent).toContain('Контент обрабатывается');
+  });
   it('does not show the shooting card on an ordinary day', async () => {
     const { element } = await openOnFirstPublication();
 

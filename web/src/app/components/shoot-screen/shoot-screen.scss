@@ -222,3 +222,21 @@
   text-decoration: line-through;
   opacity: 0.6;
 }
+
+.entry__button {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.875rem;
+  border: 0.0625rem solid var(--accent-strong);
+  border-radius: 1.375rem;
+  color: var(--accent-strong);
+  font-size: 0.875rem;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}

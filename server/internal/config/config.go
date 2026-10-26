@@ -31,6 +31,9 @@ func Load() (Config, error) {
 		AdminPort:        valueOr(strings.TrimSpace(os.Getenv(EnvAdminPort)), DefaultAdminPort),
 		ReminderTimezone: strings.TrimSpace(os.Getenv(EnvReminderTimezone)),
 		AllowMemoryStore: strings.TrimSpace(os.Getenv(EnvAllowMemoryStore)) == AllowMemoryStoreOn,
+
+		MediaDir:      valueOr(strings.TrimSpace(os.Getenv(EnvMediaDir)), DefaultMediaDir),
+		MediaKeepDays: positive(os.Getenv(EnvMediaKeepDays), DefaultMediaKeepDays),
 	}
 
 	var problems []error

@@ -20,6 +20,7 @@ import (
 	"post-helper/server/internal/feedback"
 	"post-helper/server/internal/httpapi"
 	"post-helper/server/internal/intake"
+	"post-helper/server/internal/media"
 	"post-helper/server/internal/places"
 	"post-helper/server/internal/push"
 	"post-helper/server/internal/refs"
@@ -30,8 +31,8 @@ import (
 
 const (
 	readHeaderTimeout = 10 * time.Second
-	readTimeout       = 60 * time.Second
-	writeTimeout      = 150 * time.Second
+	readTimeout       = 10 * time.Minute
+	writeTimeout      = 10 * time.Minute
 	adminReadTimeout  = 5 * time.Minute
 	adminWriteTimeout = 5 * time.Minute
 	adminHost         = "127.0.0.1"
@@ -69,6 +70,8 @@ func run() error {
 	memoryAccounts.HistoryKeep = cfg.HistoryKeep
 	var accountStore accounts.Store = memoryAccounts
 	var refsStore refs.Store = refs.NewMemory()
+	var mediaStore media.Store = media.NewMemory()
+	var mediaFiles media.Files = media.NewMemoryFiles()
 	var intakeStore intake.Store = intake.NewMemory()
 	var feedbackStore feedback.Store = feedback.NewMemory()
 	var pushStore push.Store = push.NewMemory()
@@ -87,6 +90,12 @@ func run() error {
 		postgresAccounts.HistoryKeep = cfg.HistoryKeep
 		accountStore = postgresAccounts
 		refsStore = refs.NewPostgres(postgres.Pool())
+		mediaStore = media.NewPostgres(postgres.Pool())
+		diskFiles, err := media.NewDiskFiles(cfg.MediaDir)
+		if err != nil {
+			return fmt.Errorf("media: %w", err)
+		}
+		mediaFiles = diskFiles
 		intakeStore = intake.NewPostgres(postgres.Pool())
 		feedbackStore = feedback.NewPostgres(postgres.Pool())
 		pushStore = push.NewPostgres(postgres.Pool())
@@ -102,7 +111,7 @@ func run() error {
 
 	ctxRetention, stopRetention := context.WithCancel(context.Background())
 	defer stopRetention()
-	go runRetention(ctxRetention, accountStore, history, cfg.RetentionDays)
+	go runRetention(ctxRetention, accountStore, history, cfg.RetentionDays, mediaStore, mediaFiles, cfg.MediaKeepDays)
 
 	var notifier intake.Notifier
 	if telegram := intake.NewTelegram(cfg.TelegramToken, cfg.TelegramChatID); telegram != nil {
@@ -161,6 +170,9 @@ func run() error {
 		Pusher:         pusher,
 		Auditor:        audit.NewClaude(cfg.APIKey, cfg.Model),
 		Refs:           refsStore,
+		Media:          mediaStore,
+		MediaFiles:     mediaFiles,
+		MediaPlanner:   media.NewClaude(cfg.APIKey, cfg.Model),
 		RefPlanner:     refs.NewClaude(cfg.APIKey, cfg.Model),
 		Places:         places.NewClaude(cfg.APIKey, cfg.Model),
 		Accounts:       accountStore,
@@ -212,11 +224,12 @@ func run() error {
 	}
 }
 
-func runRetention(ctx context.Context, accountStore accounts.Store, logStore store.Store, days int) {
+func runRetention(ctx context.Context, accountStore accounts.Store, logStore store.Store, days int, mediaStore media.Store, mediaFiles media.Files, mediaKeepDays int) {
 	purge := func() {
 		purgeCtx, cancel := context.WithTimeout(ctx, retentionTimeout)
 		defer cancel()
 		purgeLogs(purgeCtx, logStore)
+		purgeMedia(purgeCtx, mediaStore, mediaFiles, mediaKeepDays)
 		if days > 0 {
 			purgeAccounts(purgeCtx, accountStore, days)
 		}
@@ -241,6 +254,18 @@ func purgeAccounts(ctx context.Context, accountStore accounts.Store, days int) {
 		return
 	}
 	slog.Info("retention purge done", slog.Int64("removed", removed), slog.Int("days", days))
+}
+
+func purgeMedia(ctx context.Context, mediaStore media.Store, mediaFiles media.Files, days int) {
+	refs, err := mediaStore.Purge(ctx, time.Now().AddDate(0, 0, -days))
+	if err != nil {
+		slog.Error("media retention purge failed", slog.Any("error", err))
+		return
+	}
+	if err := mediaFiles.Delete(ctx, refs...); err != nil {
+		slog.Error("media files purge failed", slog.Any("error", err))
+	}
+	slog.Info("media retention purge done", slog.Int("files", len(refs)), slog.Int("days", days))
 }
 
 func purgeLogs(ctx context.Context, logStore store.Store) {
