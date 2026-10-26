@@ -87,8 +87,12 @@ function writeLog(text) {
   const line = `${stamp()} ${text}\n`;
   if (quiet) {
     process.stdout.write(line);
-  } else {
+    return;
+  }
+  try {
     appendFileSync(logFile, line, 'utf8');
+  } catch {
+    process.stdout.write(`(log busy) ${line}`);
   }
 }
 

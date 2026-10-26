@@ -1,6 +1,6 @@
 {
   "name": "post-helper-web",
-  "version": "0.1.53",
+  "version": "0.1.54",
   "scripts": {
     "ng": "ng",
     "prepare": "node scripts/setup-hooks.mjs",
