@@ -9,7 +9,8 @@ param(
   [Parameter(Mandatory)]
   [string]$Log,
   [string]$Repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
-  [int]$KeepAliveMinutes = 5
+  [int]$KeepAliveMinutes = 5,
+  [string]$Arguments = ''
 )
 
 function Get-ScriptProcess {
@@ -19,7 +20,7 @@ function Get-ScriptProcess {
 
 if ($Action -eq 'run') {
   $node = (Get-Command node -ErrorAction Stop).Source
-  $command = "/c `"`"$node`" `"$Script`" >> `"$Log`" 2>&1`""
+  $command = "/c `"`"$node`" `"$Script`" $Arguments >> `"$Log`" 2>&1`""
   $process = Start-Process -FilePath 'cmd.exe' -ArgumentList $command -WorkingDirectory $Repo -WindowStyle Hidden -PassThru -Wait
   exit $process.ExitCode
 }
@@ -49,6 +50,7 @@ if ($Action -eq 'status') {
 }
 
 $argument = "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`" run -TaskName `"$TaskName`" -Script `"$Script`" -Log `"$Log`" -Repo `"$Repo`""
+if ($Arguments) { $argument += " -Arguments `"$Arguments`"" }
 $taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $argument -WorkingDirectory $Repo
 $atLogon = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $keepAlive = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes $KeepAliveMinutes)
