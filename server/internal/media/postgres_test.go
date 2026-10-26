@@ -64,15 +64,14 @@ func TestPostgresMediaLifecycle(t *testing.T) {
 	if err != nil || claimed.ID != first.ID || claimed.Attempts != 1 || claimed.Status != media.StatusRunning {
 		t.Fatalf("claim = %+v, %v", claimed, err)
 	}
-	if _, err := db.Complete(ctx, second.ID, media.Result{}, "r", "t", now); !errors.Is(err, media.ErrState) {
+	if err := db.Complete(ctx, second.ID, media.Result{}, "r", "t", now); !errors.Is(err, media.ErrState) {
 		t.Errorf("complete of a queued item: %v", err)
 	}
-	ref, err := db.Complete(ctx, first.ID, media.Result{Type: media.ResultVideoType, Size: 7, Width: 1080, Height: 1920, DurationMs: 9000, Subtitled: true, Note: "ок"}, "r.mp4", "t.jpg", now)
-	if err != nil || ref != first.SourceRef {
-		t.Fatalf("complete = %q, %v", ref, err)
+	if err := db.Complete(ctx, first.ID, media.Result{Type: media.ResultVideoType, Size: 7, Width: 1080, Height: 1920, DurationMs: 9000, Subtitled: true, Note: "ок"}, "r.mp4", "t.jpg", now); err != nil {
+		t.Fatalf("complete = %v", err)
 	}
 	done, err := db.Get(ctx, master.ID, first.ID)
-	if err != nil || done.Status != media.StatusDone || done.SourceRef != "" || done.ResultRef != "r.mp4" ||
+	if err != nil || done.Status != media.StatusDone || done.SourceRef != first.SourceRef || done.ResultRef != "r.mp4" ||
 		!done.Result.Subtitled || done.Result.Width != 1080 || !done.Result.Thumb || done.FinishedAt.IsZero() {
 		t.Fatalf("done = %+v, %v", done, err)
 	}

@@ -7,6 +7,7 @@ import {
   API_INTAKE_PATH,
   API_MEDIA_FILES_PATH,
   API_MEDIA_ITEMS_PATH,
+  API_MEDIA_REDO_SUFFIX,
   API_MEDIA_STATUS_PATH,
   API_MEDIA_UPLOAD_PATH,
   API_NOTICES_PATH,
@@ -137,6 +138,14 @@ export class ApiClient {
 
   mediaThumb(id: string): Promise<Blob> {
     return this.fetchBlob(`${API_MEDIA_FILES_PATH}/${encodeURIComponent(id)}/thumb`);
+  }
+
+  redoMedia(id: string, wish: string): Promise<MediaStatus> {
+    return this.send<MediaStatus>(
+      'POST',
+      `${API_MEDIA_ITEMS_PATH}/${encodeURIComponent(id)}${API_MEDIA_REDO_SUFFIX}`,
+      { wish },
+    );
   }
 
   async deleteMedia(id: string): Promise<void> {

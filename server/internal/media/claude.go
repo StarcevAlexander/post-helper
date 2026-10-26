@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -46,7 +47,7 @@ func (c *Claude) Plan(ctx context.Context, request Request) (Plan, error) {
 			text.WriteString(part.Text)
 		}
 	}
-	plan, err := ParsePlan(text.String(), request.Segments)
+	plan, err := parseFor(text.String(), request)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -72,6 +73,11 @@ func describeRequest(request Request) string {
 	} else {
 		text.WriteString("Текста мастера нет: caption оставь пустой строкой.\n")
 	}
+	if wish := strings.TrimSpace(request.Item.Wish); wish != "" {
+		fmt.Fprintf(&text, "Мастер уже видел прошлую обработку и просит переделать: %s\nЭто пожелание важнее твоих обычных правил: выполни его, если оно выполнимо пресетом, кадрированием, заголовком, субтитрами или подписью.\n", wish)
+	} else if request.Item.Redos > 0 {
+		text.WriteString("Мастер попросил переделать прошлую обработку без пояснений: попробуй другой пресет, другое кадрирование и другой заголовок.\n")
+	}
 	fmt.Fprintf(&text, "\nФайл: %s, %d×%d", kind, request.Width, request.Height)
 	if request.DurationMs > 0 {
 		fmt.Fprintf(&text, ", %.1f с", float64(request.DurationMs)/1000)
@@ -86,6 +92,14 @@ func describeRequest(request Request) string {
 		fmt.Fprintf(&text, "[%.2f - %.2f] %s\n", segment.Start, segment.End, segment.Text)
 	}
 	return text.String()
+}
+
+func parseFor(raw string, request Request) (Plan, error) {
+	plan, err := ParsePlan(raw, request.Segments)
+	if errors.Is(err, ErrBadPlan) && strings.TrimSpace(request.Item.Wish) != "" {
+		return ParsePlan(raw, nil)
+	}
+	return plan, err
 }
 
 func ParsePlan(raw string, segments []Segment) (Plan, error) {

@@ -143,6 +143,74 @@ button.entry__placeholder {
   }
 }
 
+.entry__button--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.entry__button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.entry__link {
+  min-height: 2.75rem;
+  padding: 0 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--danger-text);
+  font: inherit;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}
+
+.redo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--chip);
+}
+
+.redo__label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.redo__input {
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.4;
+  resize: vertical;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.0625rem;
+  }
+}
+
+.redo__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
 .entry__button--danger {
   border-color: var(--danger-text);
   color: var(--danger-text);

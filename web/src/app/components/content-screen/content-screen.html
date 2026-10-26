@@ -57,12 +57,18 @@
                 {{ texts.save }}
               </button>
             }
-            @if (entry.media.state === 'ready') {
+            @if (!canShare && entry.media.state === 'ready') {
               <a class="entry__button" [href]="entry.media.url" [attr.download]="entry.fileName">
                 {{ texts.download }}
               </a>
             }
-            @if (confirming() !== entry.status.id) {
+            @if (entry.status.canRedo) {
+              @if (redoing() !== entry.status.id) {
+                <button type="button" class="entry__button" (click)="openRedo(entry.status.id)">
+                  {{ texts.redo }}
+                </button>
+              }
+            } @else if (confirming() !== entry.status.id) {
               <button
                 type="button"
                 class="entry__button entry__button--danger"
@@ -72,6 +78,43 @@
               </button>
             }
           </div>
+          @if (redoing() === entry.status.id) {
+            <div class="redo" role="group" [attr.aria-label]="texts.redo">
+              <label class="redo__label" [for]="'redo-' + entry.status.id">{{
+                texts.redoLabel
+              }}</label>
+              <textarea
+                class="redo__input"
+                rows="3"
+                [id]="'redo-' + entry.status.id"
+                [maxLength]="maxWish"
+                [attr.aria-describedby]="'redo-hint-' + entry.status.id"
+                [value]="wish()"
+                (input)="onWishInput($event)"
+              ></textarea>
+              <p class="redo__hint" [id]="'redo-hint-' + entry.status.id">
+                {{ texts.redoHint }} {{ texts.redoLeft }} {{ maxRedos - entry.status.redos }}
+              </p>
+              <div class="entry__actions">
+                <button
+                  type="button"
+                  class="entry__button entry__button--primary"
+                  [disabled]="sending()"
+                  (click)="onRedo(entry.status.id)"
+                >
+                  {{ texts.redoSubmit }}
+                </button>
+                <button type="button" class="entry__button" (click)="closeRedo()">
+                  {{ texts.redoCancel }}
+                </button>
+                @if (confirming() !== entry.status.id) {
+                  <button type="button" class="entry__link" (click)="askRemove(entry.status.id)">
+                    {{ texts.removeFile }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
         } @else {
           <p class="entry__state" role="status">{{ entry.label }}</p>
           @if (entry.status.status === 'failed' && confirming() !== entry.status.id) {

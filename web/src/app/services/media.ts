@@ -201,6 +201,22 @@ export class Media {
     }
   }
 
+  async redo(id: string, wish: string): Promise<boolean> {
+    this.error.set(undefined);
+    try {
+      const queued = await this.api.redoMedia(id, wish.trim());
+      this.forget(id);
+      this.statuses.update((current) =>
+        current.map((status) => (status.id === id ? queued : status)),
+      );
+      this.schedulePoll();
+      return true;
+    } catch (error) {
+      this.handleFailure(error);
+      return false;
+    }
+  }
+
   urlFor(status: MediaStatus): Promise<string> {
     return this.urlOf(status.id, () => this.api.mediaFile(status.id));
   }

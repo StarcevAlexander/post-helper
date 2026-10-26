@@ -37,6 +37,9 @@ export interface MediaStatus {
   finishedAt?: string;
   source: MediaSource;
   result?: MediaResult;
+  wish?: string;
+  redos: number;
+  canRedo: boolean;
 }
 
 export interface MediaUploadMeta {

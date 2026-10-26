@@ -231,6 +231,13 @@ type MediaStatus struct {
 	FinishedAt *time.Time    `json:"finishedAt,omitempty"`
 	Source     media.Source  `json:"source"`
 	Result     *media.Result `json:"result,omitempty"`
+	Wish       string        `json:"wish,omitempty"`
+	Redos      int           `json:"redos"`
+	CanRedo    bool          `json:"canRedo"`
+}
+
+type MediaRedoRequest struct {
+	Wish string `json:"wish"`
 }
 
 type MediaAdminStatus struct {

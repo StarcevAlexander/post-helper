@@ -111,23 +111,23 @@ func TestFailRequeuesUntilTheLastAttemptOrFinal(t *testing.T) {
 	}
 }
 
-func TestCompleteMovesToDoneAndReleasesTheSource(t *testing.T) {
+func TestCompleteMovesToDoneAndKeepsTheSourceForARedo(t *testing.T) {
 	memory := NewMemory()
 	ctx := context.Background()
 	now := time.Now()
 	_ = memory.Create(ctx, sample("a", "m1", now), 0)
 
-	if _, err := memory.Complete(ctx, "a", Result{}, "r", "t", now); !errors.Is(err, ErrState) {
+	if err := memory.Complete(ctx, "a", Result{}, "r", "t", now); !errors.Is(err, ErrState) {
 		t.Errorf("complete of a queued item: %v", err)
 	}
 	_, _ = memory.Claim(ctx, now, Lease)
-	ref, err := memory.Complete(ctx, "a", Result{Type: ResultVideoType, Size: 5}, "m1/a-result.mp4", "m1/a-thumb.jpg", now)
+	err := memory.Complete(ctx, "a", Result{Type: ResultVideoType, Size: 5}, "m1/a-result.mp4", "m1/a-thumb.jpg", now)
 
-	if err != nil || ref != "m1/a-source.mov" {
-		t.Fatalf("complete = %q, %v", ref, err)
+	if err != nil {
+		t.Fatalf("complete = %v", err)
 	}
 	stored, _ := memory.Find(ctx, "a")
-	if stored.Status != StatusDone || stored.ResultRef != "m1/a-result.mp4" || stored.SourceRef != "" || stored.Source.Name != "a.mov" {
+	if stored.Status != StatusDone || stored.ResultRef != "m1/a-result.mp4" || stored.SourceRef != "m1/a-source.mov" || stored.Source.Name != "a.mov" {
 		t.Errorf("stored = %+v", stored)
 	}
 	active, done, _ := memory.Remaining(ctx, "m1")
@@ -210,5 +210,66 @@ func TestMemoryFilesRespectTheLimit(t *testing.T) {
 	_ = files.Delete(ctx, "m/a.bin")
 	if _, _, err := files.Open(ctx, "m/a.bin"); !errors.Is(err, ErrNoFile) {
 		t.Errorf("open after delete: %v", err)
+	}
+}
+
+func TestRedoQueuesADoneItemAgainWithTheWish(t *testing.T) {
+	memory := NewMemory()
+	ctx := context.Background()
+	now := time.Now()
+	_ = memory.Create(ctx, sample("a", "m1", now), 0)
+
+	if _, err := memory.Redo(ctx, "m1", "a", "ярче"); !errors.Is(err, ErrState) {
+		t.Errorf("redo of a queued item: %v", err)
+	}
+	_, _ = memory.Claim(ctx, now, Lease)
+	_ = memory.Complete(ctx, "a", Result{Type: ResultVideoType}, "m1/a-result.mp4", "", now)
+	if _, err := memory.Redo(ctx, "m2", "a", "ярче"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("redo by another master: %v", err)
+	}
+
+	item, err := memory.Redo(ctx, "m1", "a", "ярче")
+
+	if err != nil || item.Status != StatusQueued || item.Wish != "ярче" || item.Redos != 1 || item.Attempts != 0 || item.ResultRef == "" {
+		t.Fatalf("redo = %+v, %v", item, err)
+	}
+	claimed, _ := memory.Claim(ctx, now, Lease)
+	if claimed.ID != "a" || claimed.Wish != "ярче" {
+		t.Fatalf("claimed = %+v", claimed)
+	}
+}
+
+func TestAFailedRedoKeepsThePreviousResult(t *testing.T) {
+	memory := NewMemory()
+	ctx := context.Background()
+	now := time.Now()
+	_ = memory.Create(ctx, sample("a", "m1", now), 0)
+	_, _ = memory.Claim(ctx, now, Lease)
+	_ = memory.Complete(ctx, "a", Result{Type: ResultVideoType}, "m1/a-result.mp4", "", now)
+	_, _ = memory.Redo(ctx, "m1", "a", "")
+	_, _ = memory.Claim(ctx, now, Lease)
+
+	ref, err := memory.Fail(ctx, "a", "ffmpeg упал", true, now)
+
+	stored, _ := memory.Find(ctx, "a")
+	if err != nil || ref != "" || stored.Status != StatusDone || stored.ResultRef != "m1/a-result.mp4" ||
+		stored.SourceRef == "" || stored.Error != "ffmpeg упал" {
+		t.Fatalf("after a failed redo = %+v, ref %q, %v", stored, ref, err)
+	}
+}
+
+func TestRedoStopsAtTheLimit(t *testing.T) {
+	memory := NewMemory()
+	ctx := context.Background()
+	now := time.Now()
+	_ = memory.Create(ctx, sample("a", "m1", now), 0)
+	for range MaxRedos + 1 {
+		_, _ = memory.Claim(ctx, now, Lease)
+		_ = memory.Complete(ctx, "a", Result{Type: ResultVideoType}, "m1/a-result.mp4", "", now)
+		_, _ = memory.Redo(ctx, "m1", "a", "")
+	}
+
+	if _, err := memory.Redo(ctx, "m1", "a", ""); !errors.Is(err, ErrRedoLimit) {
+		t.Fatalf("redo over the limit: %v", err)
 	}
 }

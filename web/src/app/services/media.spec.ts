@@ -42,6 +42,8 @@ function status(overrides: Partial<MediaStatus> = {}): MediaStatus {
     error: '',
     createdAt: '2026-10-26T10:00:00Z',
     source: { name: 'IMG_0001.MOV', type: 'video/quicktime', size: 100 },
+    redos: 0,
+    canRedo: false,
     ...overrides,
   };
 }
@@ -216,6 +218,51 @@ describe('Media', () => {
 
     expect(await pending).toBe(true);
     expect(media.statuses().map((entry) => entry.id)).toEqual(['a2']);
+  });
+
+  it('sends a redo with the wish, forgets the old file and watches the queue again', async () => {
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:old'), revokeObjectURL: vi.fn() }),
+    );
+    const loaded = media.refresh();
+    http
+      .expectOne({ method: 'GET', url: statusUrl })
+      .flush([doneStatus({ canRedo: true }), doneStatus({ id: 'a2' })]);
+    await loaded;
+    const old = media.urlFor(media.statuses()[0]);
+    http.expectOne({ method: 'GET', url: fileUrl('a1') }).flush(new Blob([new Uint8Array([1])]));
+    await old;
+
+    const pending = media.redo('a1', '  ярче  ');
+    const request = http.expectOne({ method: 'POST', url: `${itemUrl('a1')}/redo` });
+    expect(request.request.body).toEqual({ wish: 'ярче' });
+    request.flush(status({ status: 'queued', redos: 1, wish: 'ярче' }));
+
+    expect(await pending).toBe(true);
+    expect(media.statuses().map((entry) => [entry.id, entry.status])).toEqual([
+      ['a1', 'queued'],
+      ['a2', 'done'],
+    ]);
+    expect(media.active()).toBe(true);
+    void media.urlFor(doneStatus());
+    http.expectOne({ method: 'GET', url: fileUrl('a1') }).flush(new Blob([new Uint8Array([2])]));
+    await vi.advanceTimersByTimeAsync(MEDIA_POLL_MS);
+    http.expectOne({ method: 'GET', url: statusUrl }).flush([doneStatus({ redos: 1 })]);
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it('shows the server message when a redo is refused', async () => {
+    const pending = media.redo('a1', '');
+    http.expectOne({ method: 'POST', url: `${itemUrl('a1')}/redo` }).flush(
+      {
+        error: 'Этот файл уже переделывали 3 раза. Если результат не нравится, снимите кадр заново',
+      },
+      { status: 409, statusText: 'Conflict' },
+    );
+
+    expect(await pending).toBe(false);
+    expect(media.error()).toContain('3 раза');
   });
 
   it('loads a file once and keeps its address, the poster comes from its own path', async () => {

@@ -42,9 +42,11 @@ func mediaView(item media.Item) MediaStatus {
 		ID: item.ID, Key: item.Key, Unit: item.Unit, Note: item.Note, Kind: item.Kind, Format: item.Format, Status: item.Status,
 		CreatedAt: item.CreatedAt.UTC(), Source: item.Source,
 	}
-	if item.Status == media.StatusFailed {
+	if item.Status == media.StatusFailed || item.Status == media.StatusDone {
 		view.Error = item.Error
 	}
+	view.Wish, view.Redos = item.Wish, item.Redos
+	view.CanRedo = item.Status == media.StatusDone && item.SourceRef != "" && item.Redos < media.MaxRedos
 	if item.Status == media.StatusDone {
 		finished := item.FinishedAt.UTC()
 		result := item.Result
@@ -336,6 +338,30 @@ func (h *mediaHandler) remove(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+func (h *mediaHandler) redo(w http.ResponseWriter, r *http.Request) {
+	identity, _ := auth.FromContext(r.Context())
+	r.Body = http.MaxBytesReader(w, r.Body, MaxPushBodyBytes)
+	var body MediaRedoRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, MsgBadRequest)
+		return
+	}
+	wish := clipRunes(strings.TrimSpace(body.Wish), media.MaxWishRunes)
+	item, err := h.media.Redo(r.Context(), identity.MasterID, r.PathValue("id"), wish)
+	switch {
+	case errors.Is(err, media.ErrNotFound):
+		writeError(w, http.StatusNotFound, MsgMediaNotFound)
+	case errors.Is(err, media.ErrRedoLimit):
+		writeError(w, http.StatusConflict, MsgMediaRedoLimit)
+	case errors.Is(err, media.ErrState):
+		writeError(w, http.StatusConflict, MsgMediaNoSource)
+	case err != nil:
+		h.problem(w, http.StatusInternalServerError, MsgMediaFailed, err)
+	default:
+		writeJSON(w, http.StatusOK, mediaView(item))
+	}
+}
+
 type mediaAgentHandler struct {
 	mediaHandler
 }
@@ -580,13 +606,19 @@ func (h *mediaAgentHandler) result(w http.ResponseWriter, r *http.Request) {
 		DurationMs: max(body.DurationMs, 0), Subtitled: body.Subtitled && item.Kind == media.KindVideo,
 		Thumb: thumbRef != "" || resultType == media.ResultPhotoType, Note: note,
 	}
-	sourceRef, err := h.media.Complete(r.Context(), item.ID, result, resultRef, thumbRef, time.Now())
+	err = h.media.Complete(r.Context(), item.ID, result, resultRef, thumbRef, time.Now())
 	if status, message := h.finish(err); message != "" {
 		h.dropFiles(r.Context(), resultRef, thumbRef)
 		writeError(w, status, message)
 		return
 	}
-	h.dropFiles(r.Context(), sourceRef)
+	var stale []string
+	for _, ref := range []string{item.ResultRef, item.ThumbRef} {
+		if ref != "" && ref != resultRef && ref != thumbRef {
+			stale = append(stale, ref)
+		}
+	}
+	h.dropFiles(r.Context(), stale...)
 	h.notifyWhenReady(r.Context(), item.ID)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

@@ -222,6 +222,8 @@ describe('TodayScreen', () => {
       error: '',
       createdAt: '2026-10-26T10:00:00Z',
       source: { name: 'a.mov', type: 'video/quicktime', size: 1 },
+      redos: 0,
+      canRedo: false,
     };
     expect(element.textContent).not.toContain('Готовый контент');
     expect(element.textContent).not.toContain('Контент обрабатывается');

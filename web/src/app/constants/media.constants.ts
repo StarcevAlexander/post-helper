@@ -8,6 +8,12 @@ export const API_MEDIA_FILES_PATH = '/api/media/files';
 
 export const API_MEDIA_ITEMS_PATH = '/api/media';
 
+export const API_MEDIA_REDO_SUFFIX = '/redo';
+
+export const MAX_MEDIA_WISH = 300;
+
+export const MAX_MEDIA_REDOS = 3;
+
 export const MEDIA_POLL_MS = 20000;
 
 export const MEDIA_ACCEPT = 'image/*,video/*';
@@ -69,6 +75,16 @@ export const MEDIA_TEXTS = {
   download: 'Скачать',
   saved: 'Файл сохранён',
   saveFailed: 'Не удалось сохранить файл',
+  redo: 'Переделать',
+  redoLabel: 'Что изменить',
+  redoHint:
+    'Например: ярче, теплее, другой заголовок, без субтитров. Можно оставить пустым, тогда я просто попробую по-другому.',
+  redoSubmit: 'Переделать',
+  redoCancel: 'Отмена',
+  redoLeft: 'Переделать можно ещё раз:',
+  redoing: 'Переделываю по вашему пожеланию',
+  redoFailed: 'Переделать не получилось, осталась прежняя версия',
+  removeFile: 'Удалить файл',
   confirmRemove: 'Удалить этот файл насовсем?',
   confirmYes: 'Да, удалить',
   confirmNo: 'Отмена',

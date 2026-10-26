@@ -5,6 +5,8 @@ import {
   FORMAT_LABELS,
   MEDIA_FEEDBACK_MS,
   MEDIA_FORMAT_RATIOS,
+  MAX_MEDIA_REDOS,
+  MAX_MEDIA_WISH,
   MEDIA_TEXTS,
 } from '../../constants';
 import { MediaContentView, MediaStatus, MediaTileLoad } from '../../models';
@@ -13,6 +15,7 @@ import { Kits } from '../../services/kits';
 import { Media } from '../../services/media';
 import { copyText } from '../../utils/clipboard';
 import { fromDateKey } from '../../utils/date-utils';
+import { fieldValue } from '../../utils/form-events';
 import { captionWithHashtags } from '../../utils/kit-text';
 import { MediaNote } from '../media-note/media-note';
 import { MediaCapture } from '../media-capture/media-capture';
@@ -35,6 +38,11 @@ export class ContentScreen {
   protected readonly loads = signal<Record<string, MediaTileLoad>>({});
   protected readonly posters = signal<Record<string, string>>({});
   protected readonly confirming = signal<string | undefined>(undefined);
+  protected readonly redoing = signal<string | undefined>(undefined);
+  protected readonly wish = signal('');
+  protected readonly sending = signal(false);
+  protected readonly maxWish = MAX_MEDIA_WISH;
+  protected readonly maxRedos = MAX_MEDIA_REDOS;
   protected readonly feedback = signal('');
 
   protected readonly item = computed(() =>
@@ -131,6 +139,36 @@ export class ContentScreen {
     this.confirming.set(id);
   }
 
+  protected openRedo(id: string): void {
+    this.confirming.set(undefined);
+    this.wish.set('');
+    this.redoing.set(id);
+  }
+
+  protected closeRedo(): void {
+    this.redoing.set(undefined);
+  }
+
+  protected onWishInput(event: Event): void {
+    this.wish.set(fieldValue(event).slice(0, MAX_MEDIA_WISH));
+  }
+
+  protected async onRedo(id: string): Promise<void> {
+    if (this.sending()) {
+      return;
+    }
+    this.sending.set(true);
+    try {
+      if (await this.media.redo(id, this.wish())) {
+        this.redoing.set(undefined);
+        this.loads.update(({ [id]: _, ...rest }) => rest);
+        this.posters.update(({ [id]: _, ...rest }) => rest);
+      }
+    } finally {
+      this.sending.set(false);
+    }
+  }
+
   protected cancelRemove(): void {
     this.confirming.set(undefined);
   }
@@ -143,11 +181,11 @@ export class ContentScreen {
   private labelFor(status: MediaStatus): string {
     switch (status.status) {
       case 'queued':
-        return this.texts.queued;
+        return status.redos > 0 ? this.texts.redoing : this.texts.queued;
       case 'running':
-        return this.texts.running;
+        return status.redos > 0 ? this.texts.redoing : this.texts.running;
       case 'done':
-        return status.result?.note || this.texts.done;
+        return status.error ? this.texts.redoFailed : status.result?.note || this.texts.done;
       case 'failed':
         return status.error ? `${this.texts.failed}: ${status.error}` : this.texts.failed;
     }

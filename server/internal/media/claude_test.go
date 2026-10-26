@@ -169,3 +169,26 @@ func TestRequestShowsTheMasterNoteOrSaysThereIsNone(t *testing.T) {
 		t.Errorf("without = %s", without)
 	}
 }
+
+func TestAWishMayDropTheSubtitles(t *testing.T) {
+	raw := `{"preset":"bright","focus":"center","title":"","subtitles":[],"note":"Убрал субтитры"}`
+	spoken := []Segment{{Start: 0, End: 2, Text: "привет"}}
+
+	if _, err := parseFor(raw, Request{Segments: spoken}); err == nil {
+		t.Error("without a wish the speech must stay in the subtitles")
+	}
+	plan, err := parseFor(raw, Request{Segments: spoken, Item: Item{Wish: "без субтитров"}})
+	if err != nil || len(plan.Subtitles) != 0 || plan.Preset != PresetBright {
+		t.Fatalf("plan = %+v, %v", plan, err)
+	}
+}
+
+func TestTheWishGoesIntoTheRequest(t *testing.T) {
+	text := describeRequest(Request{Item: Item{Kind: KindVideo, Wish: "ярче"}})
+	if !strings.Contains(text, "просит переделать: ярче") {
+		t.Errorf("request = %s", text)
+	}
+	if text := describeRequest(Request{Item: Item{Kind: KindVideo, Redos: 1}}); !strings.Contains(text, "без пояснений") {
+		t.Errorf("request without a wish = %s", text)
+	}
+}

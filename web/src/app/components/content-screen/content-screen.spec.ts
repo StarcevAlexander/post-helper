@@ -66,6 +66,8 @@ describe('ContentScreen', () => {
       error: '',
       createdAt: '2026-10-26T10:00:00Z',
       source: { name: 'IMG_0001.MOV', type: 'video/quicktime', size: 100 },
+      redos: 0,
+      canRedo: false,
       result,
       ...overrides,
     };
@@ -205,6 +207,80 @@ describe('ContentScreen', () => {
 
     expect(remove).toHaveBeenCalledWith('a1');
     expect(element.querySelector('.entry__confirm')).toBeNull();
+  });
+
+  it('hides the download link when the phone can save the file itself', async () => {
+    vi.stubGlobal('navigator', { share: vi.fn(), canShare: vi.fn(() => true) });
+    media.statuses.set([status()]);
+
+    const { fixture, element } = await render();
+    flushFiles();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(element.textContent).toContain('Сохранить в телефон');
+    expect(element.querySelector('a[download]')).toBeNull();
+  });
+
+  it('offers to redo instead of deleting and sends the wish', async () => {
+    const redo = vi.spyOn(media, 'redo').mockResolvedValue(true);
+    media.statuses.set([status({ canRedo: true, redos: 1 })]);
+    const { fixture, element } = await render();
+    flushFiles();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(element.querySelector('.entry__actions .entry__button--danger')).toBeNull();
+    const open = Array.from(element.querySelectorAll<HTMLButtonElement>('.entry__button')).find(
+      (candidate) => candidate.textContent?.trim() === 'Переделать',
+    )!;
+    open.click();
+    fixture.detectChanges();
+    const input = element.querySelector<HTMLTextAreaElement>('.redo textarea')!;
+    expect(element.querySelector('.redo')?.textContent).toContain('Переделать можно ещё раз: 2');
+    input.value = 'Сделай ярче';
+    input.dispatchEvent(new Event('input'));
+    element.querySelector<HTMLButtonElement>('.redo .entry__button--primary')!.click();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(element.querySelector('.redo')).toBeNull();
+    });
+
+    expect(redo).toHaveBeenCalledWith('a1', 'Сделай ярче');
+  });
+
+  it('still lets the master delete a file from the redo panel', async () => {
+    const remove = vi.spyOn(media, 'remove').mockResolvedValue(true);
+    media.statuses.set([status({ canRedo: true })]);
+    const { fixture, element } = await render();
+    flushFiles();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    Array.from(element.querySelectorAll<HTMLButtonElement>('.entry__button'))
+      .find((candidate) => candidate.textContent?.trim() === 'Переделать')!
+      .click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.redo .entry__link')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.entry__confirm .entry__button')!.click();
+
+    expect(remove).toHaveBeenCalledWith('a1');
+  });
+
+  it('tells that a redo is in progress and that a failed redo kept the old version', async () => {
+    media.statuses.set([
+      status({ id: 'q', status: 'queued', redos: 1, result: undefined }),
+      status({ id: 'd', redos: 1, error: 'Сбой' }),
+    ]);
+
+    const { element } = await render();
+    flushFiles();
+
+    expect(element.querySelector('.entry__state')?.textContent).toContain(
+      'Переделываю по вашему пожеланию',
+    );
+    expect(element.textContent).toContain('Переделать не получилось, осталась прежняя версия');
   });
 
   it('deletes a failed record at once', async () => {

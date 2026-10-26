@@ -28,6 +28,8 @@ function status(overrides: Partial<MediaStatus> = {}): MediaStatus {
     error: '',
     createdAt: '2026-10-26T10:00:00Z',
     source: { name: 'IMG_0001.MOV', type: 'video/quicktime', size: 100 },
+    redos: 0,
+    canRedo: false,
     ...overrides,
   };
 }

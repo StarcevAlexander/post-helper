@@ -157,6 +157,7 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(MediaFileRoute, protected(http.HandlerFunc(mediaMaster.file)))
 	mux.Handle(MediaThumbRoute, protected(http.HandlerFunc(mediaMaster.thumb)))
 	mux.Handle(MediaDeleteRoute, protected(http.HandlerFunc(mediaMaster.remove)))
+	mux.Handle(MediaRedoRoute, protected(http.HandlerFunc(mediaMaster.redo)))
 	mux.Handle(IntakeSubmitRoute, protected(http.HandlerFunc(intakes.submit)))
 	mux.Handle(IntakeLatestRoute, protected(http.HandlerFunc(intakes.latest)))
 	mux.Handle(FeedbackSubmitRoute, protected(http.HandlerFunc(c.feedbackHandler().submit)))

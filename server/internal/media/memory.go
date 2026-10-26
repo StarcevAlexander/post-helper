@@ -117,6 +117,10 @@ func (m *Memory) Expire(_ context.Context, now time.Time, lease time.Duration) (
 	var refs []string
 	for _, stored := range m.items {
 		if stored.Status == StatusRunning && now.Sub(stored.ClaimedAt) > lease && stored.Attempts >= MaxAttempts {
+			if stored.ResultRef != "" {
+				stored.Status, stored.FinishedAt, stored.Error = StatusDone, now, DefaultFailReason
+				continue
+			}
 			refs = appendRef(refs, stored.SourceRef)
 			stored.Status, stored.FinishedAt, stored.Error, stored.SourceRef = StatusFailed, now, DefaultFailReason, ""
 		}
@@ -145,20 +149,37 @@ func (m *Memory) Claim(_ context.Context, now time.Time, lease time.Duration) (I
 	return *chosen, nil
 }
 
-func (m *Memory) Complete(_ context.Context, id string, result Result, resultRef, thumbRef string, now time.Time) (string, error) {
+func (m *Memory) Complete(_ context.Context, id string, result Result, resultRef, thumbRef string, now time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	stored, ok := m.items[id]
 	if !ok {
-		return "", ErrNotFound
+		return ErrNotFound
 	}
 	if stored.Status != StatusRunning {
-		return "", ErrState
+		return ErrState
 	}
-	sourceRef := stored.SourceRef
 	stored.Status, stored.FinishedAt, stored.Error = StatusDone, now, ""
-	stored.Result, stored.ResultRef, stored.ThumbRef, stored.SourceRef = result, resultRef, thumbRef, ""
-	return sourceRef, nil
+	stored.Result, stored.ResultRef, stored.ThumbRef = result, resultRef, thumbRef
+	return nil
+}
+
+func (m *Memory) Redo(_ context.Context, masterID, id, wish string) (Item, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	stored, ok := m.items[id]
+	if !ok || stored.MasterID != masterID {
+		return Item{}, ErrNotFound
+	}
+	if stored.Status != StatusDone || stored.SourceRef == "" {
+		return Item{}, ErrState
+	}
+	if stored.Redos >= MaxRedos {
+		return Item{}, ErrRedoLimit
+	}
+	stored.Status, stored.Attempts, stored.Error, stored.Wish = StatusQueued, 0, "", wish
+	stored.Redos++
+	return *stored, nil
 }
 
 func (m *Memory) Fail(_ context.Context, id, reason string, final bool, now time.Time) (string, error) {
@@ -170,6 +191,10 @@ func (m *Memory) Fail(_ context.Context, id, reason string, final bool, now time
 	}
 	if stored.Status != StatusRunning {
 		return "", ErrState
+	}
+	if (final || stored.Attempts >= MaxAttempts) && stored.ResultRef != "" {
+		stored.Status, stored.FinishedAt, stored.Error = StatusDone, now, reason
+		return "", nil
 	}
 	if final || stored.Attempts >= MaxAttempts {
 		sourceRef := stored.SourceRef

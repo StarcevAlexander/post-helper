@@ -290,6 +290,8 @@ describe('ShootScreen', () => {
         error: '',
         createdAt: '2026-10-26T10:00:00Z',
         source: { name: 'a.jpg', type: 'image/jpeg', size: 1 },
+        redos: 0,
+        canRedo: false,
       },
     ]);
 

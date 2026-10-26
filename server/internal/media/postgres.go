@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const itemColumns = `id, master_id, item_key, unit, kind, format, pillar, idea, overlay, note, caption, status, attempts, error,
+const itemColumns = `id, master_id, item_key, unit, kind, format, pillar, idea, overlay, note, caption, wish, redos, status, attempts, error,
 	created_at, claimed_at, finished_at, source_name, source_type, source_size, source_ref,
 	result_type, result_size, result_width, result_height, result_duration_ms, result_subtitled, result_note,
 	result_ref, thumb_ref`
@@ -31,7 +31,7 @@ func scanItem(row scanner) (Item, error) {
 	var item Item
 	var claimed, finished *time.Time
 	err := row.Scan(&item.ID, &item.MasterID, &item.Key, &item.Unit, &item.Kind, &item.Format, &item.Pillar,
-		&item.Idea, &item.Overlay, &item.Note, &item.Caption, &item.Status, &item.Attempts, &item.Error, &item.CreatedAt, &claimed, &finished,
+		&item.Idea, &item.Overlay, &item.Note, &item.Caption, &item.Wish, &item.Redos, &item.Status, &item.Attempts, &item.Error, &item.CreatedAt, &claimed, &finished,
 		&item.Source.Name, &item.Source.Type, &item.Source.Size, &item.SourceRef,
 		&item.Result.Type, &item.Result.Size, &item.Result.Width, &item.Result.Height, &item.Result.DurationMs,
 		&item.Result.Subtitled, &item.Result.Note, &item.ResultRef, &item.ThumbRef)
@@ -141,7 +141,7 @@ func (p *Postgres) Expire(ctx context.Context, now time.Time, lease time.Duratio
 	}
 	defer func() { _ = transaction.Rollback(ctx) }()
 	rows, err := transaction.Query(ctx, `
-		SELECT id, source_ref FROM media_items
+		SELECT id, source_ref, result_ref FROM media_items
 		WHERE status = $1 AND claimed_at < $2 AND attempts >= $3 FOR UPDATE`,
 		StatusRunning, now.Add(-lease), MaxAttempts)
 	if err != nil {
@@ -149,13 +149,15 @@ func (p *Postgres) Expire(ctx context.Context, now time.Time, lease time.Duratio
 	}
 	var ids, refs []string
 	for rows.Next() {
-		var id, ref string
-		if err := rows.Scan(&id, &ref); err != nil {
+		var id, ref, result string
+		if err := rows.Scan(&id, &ref, &result); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		ids = append(ids, id)
-		refs = appendRef(refs, ref)
+		if result == "" {
+			refs = appendRef(refs, ref)
+		}
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
@@ -165,8 +167,10 @@ func (p *Postgres) Expire(ctx context.Context, now time.Time, lease time.Duratio
 		return nil, nil
 	}
 	if _, err := transaction.Exec(ctx, `
-		UPDATE media_items SET status = $2, finished_at = $3, error = $4, source_ref = ''
-		WHERE id = ANY($1)`, ids, StatusFailed, now, DefaultFailReason); err != nil {
+		UPDATE media_items SET finished_at = $3, error = $4,
+			status = CASE WHEN result_ref <> '' THEN $5 ELSE $2 END,
+			source_ref = CASE WHEN result_ref <> '' THEN source_ref ELSE '' END
+		WHERE id = ANY($1)`, ids, StatusFailed, now, DefaultFailReason, StatusDone); err != nil {
 		return nil, err
 	}
 	return refs, transaction.Commit(ctx)
@@ -187,33 +191,51 @@ func (p *Postgres) Claim(ctx context.Context, now time.Time, lease time.Duration
 	return item, err
 }
 
-func (p *Postgres) Complete(ctx context.Context, id string, result Result, resultRef, thumbRef string, now time.Time) (string, error) {
+func (p *Postgres) Complete(ctx context.Context, id string, result Result, resultRef, thumbRef string, now time.Time) error {
 	transaction, err := p.pool.Begin(ctx)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer func() { _ = transaction.Rollback(ctx) }()
-	var status, sourceRef string
-	err = transaction.QueryRow(ctx, `SELECT status, source_ref FROM media_items WHERE id = $1 FOR UPDATE`, id).Scan(&status, &sourceRef)
+	var status string
+	err = transaction.QueryRow(ctx, `SELECT status FROM media_items WHERE id = $1 FOR UPDATE`, id).Scan(&status)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrNotFound
+		return ErrNotFound
 	}
 	if err != nil {
-		return "", err
+		return err
 	}
 	if status != StatusRunning {
-		return "", ErrState
+		return ErrState
 	}
 	if _, err := transaction.Exec(ctx, `
-		UPDATE media_items SET status = $2, finished_at = $3, error = '', source_ref = '',
+		UPDATE media_items SET status = $2, finished_at = $3, error = '',
 			result_type = $4, result_size = $5, result_width = $6, result_height = $7, result_duration_ms = $8,
 			result_subtitled = $9, result_note = $10, result_ref = $11, thumb_ref = $12
 		WHERE id = $1`,
 		id, StatusDone, now, result.Type, result.Size, result.Width, result.Height, result.DurationMs,
 		result.Subtitled, result.Note, resultRef, thumbRef); err != nil {
-		return "", err
+		return err
 	}
-	return sourceRef, transaction.Commit(ctx)
+	return transaction.Commit(ctx)
+}
+
+func (p *Postgres) Redo(ctx context.Context, masterID, id, wish string) (Item, error) {
+	item, err := scanItem(p.pool.QueryRow(ctx, `
+		UPDATE media_items SET status = $3, attempts = 0, error = '', wish = $4, redos = redos + 1
+		WHERE id = $1 AND master_id = $2 AND status = $5 AND source_ref <> '' AND redos < $6
+		RETURNING `+itemColumns, id, masterID, StatusQueued, wish, StatusDone, MaxRedos))
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return item, err
+	}
+	current, err := p.Get(ctx, masterID, id)
+	switch {
+	case err != nil:
+		return Item{}, err
+	case current.Status == StatusDone && current.SourceRef != "" && current.Redos >= MaxRedos:
+		return Item{}, ErrRedoLimit
+	}
+	return Item{}, ErrState
 }
 
 func (p *Postgres) Fail(ctx context.Context, id, reason string, final bool, now time.Time) (string, error) {
@@ -222,10 +244,10 @@ func (p *Postgres) Fail(ctx context.Context, id, reason string, final bool, now 
 		return "", err
 	}
 	defer func() { _ = transaction.Rollback(ctx) }()
-	var status, sourceRef string
+	var status, sourceRef, resultRef string
 	var attempts int
-	err = transaction.QueryRow(ctx, `SELECT status, source_ref, attempts FROM media_items WHERE id = $1 FOR UPDATE`, id).
-		Scan(&status, &sourceRef, &attempts)
+	err = transaction.QueryRow(ctx, `SELECT status, source_ref, result_ref, attempts FROM media_items WHERE id = $1 FOR UPDATE`, id).
+		Scan(&status, &sourceRef, &resultRef, &attempts)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNotFound
 	}
@@ -234,6 +256,13 @@ func (p *Postgres) Fail(ctx context.Context, id, reason string, final bool, now 
 	}
 	if status != StatusRunning {
 		return "", ErrState
+	}
+	if (final || attempts >= MaxAttempts) && resultRef != "" {
+		if _, err := transaction.Exec(ctx, `UPDATE media_items SET status = $2, finished_at = $3, error = $4 WHERE id = $1`,
+			id, StatusDone, now, reason); err != nil {
+			return "", err
+		}
+		return "", transaction.Commit(ctx)
 	}
 	if final || attempts >= MaxAttempts {
 		if _, err := transaction.Exec(ctx, `

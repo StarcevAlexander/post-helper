@@ -36,6 +36,8 @@ type Item struct {
 	Overlay    string
 	Note       string
 	Caption    string
+	Wish       string
+	Redos      int
 	Status     string
 	Attempts   int
 	Error      string
@@ -95,7 +97,8 @@ type Store interface {
 	Recent(ctx context.Context, limit int) ([]Item, error)
 	Expire(ctx context.Context, now time.Time, lease time.Duration) ([]string, error)
 	Claim(ctx context.Context, now time.Time, lease time.Duration) (Item, error)
-	Complete(ctx context.Context, id string, result Result, resultRef, thumbRef string, now time.Time) (string, error)
+	Complete(ctx context.Context, id string, result Result, resultRef, thumbRef string, now time.Time) error
+	Redo(ctx context.Context, masterID, id, wish string) (Item, error)
 	Fail(ctx context.Context, id, reason string, final bool, now time.Time) (string, error)
 	Remaining(ctx context.Context, masterID string) (active, done int, err error)
 	MasterOf(ctx context.Context, id string) (string, error)

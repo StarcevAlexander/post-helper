@@ -237,8 +237,8 @@ func TestMediaFlowFromUploadToTheReadyFile(t *testing.T) {
 		pushed[0].Topic.Kind != push.KindMedia || len(pushed[0].Topic.ItemIDs) != 1 || pushed[0].Topic.ItemIDs[0] != item.Key {
 		t.Errorf("pushes = %+v to %v", pushed, pushedTo)
 	}
-	if fixture.files.Has(media.RefOf(master.ID, item.ID, "source", "video/quicktime")) {
-		t.Error("the source must be deleted after the result")
+	if !fixture.files.Has(media.RefOf(master.ID, item.ID, "source", "video/quicktime")) {
+		t.Error("the source must be kept after the result for a redo")
 	}
 
 	ready := fixture.statuses(t, code)[0]
@@ -741,5 +741,94 @@ func TestTheMasterNoteIsCut(t *testing.T) {
 	_ = json.Unmarshal(recorder.Body.Bytes(), &status)
 	if recorder.Code != http.StatusOK || len([]rune(status.Note)) != media.MaxMasterNote {
 		t.Errorf("status %d, note %d runes", recorder.Code, len([]rune(status.Note)))
+	}
+}
+
+func (f *mediaFixture) finishClaimed(t *testing.T, id string, thumb bool) {
+	t.Helper()
+	parts := []filePart{{FieldFile, "result.mp4", "video/mp4", mp4Bytes}}
+	if thumb {
+		parts = append(parts, filePart{FieldThumb, "thumb.jpg", "image/jpeg", jpegBytes})
+	}
+	if done := f.result(id, resultData, parts...); done.Code != http.StatusOK {
+		t.Fatalf("result = %d %s", done.Code, done.Body)
+	}
+}
+
+func TestRedoProcessesTheSameSourceAgainWithTheWish(t *testing.T) {
+	fixture := newMediaFixture(t, true)
+	code, master := fixture.master(t, "Анна")
+	uploaded := fixture.uploadMov(t, code)
+	fixture.claim(t)
+	fixture.finishClaimed(t, uploaded.ID, true)
+	waitPush(t, fixture.pusher)
+	if ready := fixture.statuses(t, code)[0]; !ready.CanRedo || ready.Redos != 0 {
+		t.Fatalf("ready = %+v", ready)
+	}
+
+	redo := fixture.call(http.MethodPost, "/api/media/"+uploaded.ID+"/redo", code, `{"wish":"  Сделай ярче и без субтитров  "}`)
+	var queued MediaStatus
+	if redo.Code != http.StatusOK || json.Unmarshal(redo.Body.Bytes(), &queued) != nil {
+		t.Fatalf("redo = %d %s", redo.Code, redo.Body)
+	}
+	if queued.Status != media.StatusQueued || queued.Wish != "Сделай ярче и без субтитров" || queued.Redos != 1 || queued.CanRedo || queued.Result != nil {
+		t.Fatalf("queued = %+v", queued)
+	}
+	if again := fixture.call(http.MethodPost, "/api/media/"+uploaded.ID+"/redo", code, `{}`); again.Code != http.StatusConflict {
+		t.Errorf("redo while queued = %d", again.Code)
+	}
+
+	item := fixture.claim(t)
+	planBody, planType := multipartBody(map[string]string{FieldData: planRequest})
+	if plan := fixture.send(http.MethodPost, "/api/agent/media/"+item.ID+"/plan", "", planBody, planType); plan.Code != http.StatusOK {
+		t.Fatalf("plan = %d %s", plan.Code, plan.Body)
+	}
+	if fixture.planner.request.Item.Wish != "Сделай ярче и без субтитров" {
+		t.Errorf("planner got wish %q", fixture.planner.request.Item.Wish)
+	}
+	fixture.finishClaimed(t, item.ID, false)
+	waitPush(t, fixture.pusher)
+
+	ready := fixture.statuses(t, code)[0]
+	if ready.Status != media.StatusDone || ready.Redos != 1 || !ready.CanRedo || ready.Error != "" || ready.Result == nil {
+		t.Fatalf("redone = %+v", ready)
+	}
+	if fixture.files.Has(media.RefOf(master.ID, item.ID, "thumb", media.PreviewMediaType)) {
+		t.Error("the old poster must be dropped when the redo has none")
+	}
+	if !fixture.files.Has(media.RefOf(master.ID, item.ID, "result", "video/mp4")) {
+		t.Error("the new result must be on disk")
+	}
+}
+
+func TestRedoRejections(t *testing.T) {
+	fixture := newMediaFixture(t, true)
+	code, _ := fixture.master(t, "Анна")
+	stranger, _ := fixture.master(t, "Вера")
+	uploaded := fixture.uploadMov(t, code)
+
+	if got := fixture.call(http.MethodPost, "/api/media/"+uploaded.ID+"/redo", code, `{}`).Code; got != http.StatusConflict {
+		t.Errorf("redo of a queued item = %d", got)
+	}
+	fixture.claim(t)
+	fixture.finishClaimed(t, uploaded.ID, false)
+	waitPush(t, fixture.pusher)
+	if got := fixture.call(http.MethodPost, "/api/media/"+uploaded.ID+"/redo", stranger, `{}`).Code; got != http.StatusNotFound {
+		t.Errorf("redo by another master = %d", got)
+	}
+	if got := fixture.call(http.MethodPost, "/api/media/"+uploaded.ID+"/redo", code, `not json`).Code; got != http.StatusBadRequest {
+		t.Errorf("redo with a broken body = %d", got)
+	}
+	for range media.MaxRedos {
+		if got := fixture.call(http.MethodPost, "/api/media/"+uploaded.ID+"/redo", code, `{}`).Code; got != http.StatusOK {
+			t.Fatalf("redo = %d", got)
+		}
+		fixture.claim(t)
+		fixture.finishClaimed(t, uploaded.ID, false)
+		waitPush(t, fixture.pusher)
+	}
+	limit := fixture.call(http.MethodPost, "/api/media/"+uploaded.ID+"/redo", code, `{}`)
+	if limit.Code != http.StatusConflict || !strings.Contains(limit.Body.String(), "3 раза") {
+		t.Errorf("redo over the limit = %d %s", limit.Code, limit.Body)
 	}
 }
