@@ -82,7 +82,7 @@ func (h *mediaHandler) problem(w http.ResponseWriter, status int, message string
 	writeError(w, status, message)
 }
 
-func parseMediaForm(w http.ResponseWriter, r *http.Request, limit int64) bool {
+func parseMediaForm(w http.ResponseWriter, r *http.Request, limit int64, logger *slog.Logger) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	if err := r.ParseMultipartForm(MaxFormMemory); err != nil {
 		var tooLarge *http.MaxBytesError
@@ -90,7 +90,13 @@ func parseMediaForm(w http.ResponseWriter, r *http.Request, limit int64) bool {
 			writeError(w, http.StatusRequestEntityTooLarge, MsgTooLarge)
 			return false
 		}
-		writeError(w, http.StatusBadRequest, MsgBadRequest)
+		logger.Warn("media form rejected",
+			slog.String("path", r.URL.Path),
+			slog.Int64("length", r.ContentLength),
+			slog.String("type", r.Header.Get("Content-Type")),
+			slog.String("agent", r.UserAgent()),
+			slog.Any("error", err))
+		writeError(w, http.StatusBadRequest, MsgMediaBadForm)
 		return false
 	}
 	return true
@@ -133,7 +139,7 @@ func (h *mediaHandler) upload(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, MsgMediaTooMany)
 		return
 	}
-	if !parseMediaForm(w, r, MaxMediaUploadBytes) {
+	if !parseMediaForm(w, r, MaxMediaUploadBytes, h.logger) {
 		return
 	}
 	defer func() { _ = r.MultipartForm.RemoveAll() }()
@@ -154,6 +160,11 @@ func (h *mediaHandler) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	header := headers[0]
+	if header.Size == 0 {
+		h.logger.Warn("media upload is empty", slog.String("name", header.Filename), slog.String("agent", r.UserAgent()))
+		writeError(w, http.StatusBadRequest, MsgMediaEmptyFile)
+		return
+	}
 	if header.Size > media.MaxSourceBytes {
 		writeError(w, http.StatusRequestEntityTooLarge, MsgTooLarge)
 		return
@@ -380,7 +391,7 @@ func (h *mediaAgentHandler) plan(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !parseMediaForm(w, r, MaxMediaPlanBytes) {
+	if !parseMediaForm(w, r, MaxMediaPlanBytes, h.logger) {
 		return
 	}
 	defer func() { _ = r.MultipartForm.RemoveAll() }()
@@ -469,7 +480,7 @@ func (h *mediaAgentHandler) result(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !parseMediaForm(w, r, MaxMediaResultBytes) {
+	if !parseMediaForm(w, r, MaxMediaResultBytes, h.logger) {
 		return
 	}
 	defer func() { _ = r.MultipartForm.RemoveAll() }()

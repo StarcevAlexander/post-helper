@@ -351,6 +351,7 @@ func TestMediaUploadRejections(t *testing.T) {
 		{"key too long", code, `{"key":"` + strings.Repeat("я", 81) + `","format":"post"}`, filePart{FieldFile, "a.jpg", "image/jpeg", jpegBytes}, http.StatusBadRequest},
 		{"bad json", code, `nope`, filePart{FieldFile, "a.jpg", "image/jpeg", jpegBytes}, http.StatusBadRequest},
 		{"wrong field", code, uploadMeta, filePart{"photo", "a.jpg", "image/jpeg", jpegBytes}, http.StatusBadRequest},
+		{"empty file", code, uploadMeta, filePart{FieldFile, "a.jpg", "image/jpeg", nil}, http.StatusBadRequest},
 		{"no login", "", uploadMeta, filePart{FieldFile, "a.jpg", "image/jpeg", jpegBytes}, http.StatusUnauthorized},
 	}
 	for _, test := range tests {

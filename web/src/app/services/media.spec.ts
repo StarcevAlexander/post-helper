@@ -142,9 +142,10 @@ describe('Media', () => {
     const file = new File([new Uint8Array([1, 2, 3])], 'IMG_0001.MOV', { type: 'video/quicktime' });
 
     const pending = media.upload(item, file, 'w1-mon:frame:0', 'Смотрите');
-    const request = http.expectOne({ method: 'POST', url: uploadUrl });
+    const request = await vi.waitFor(() => http.expectOne({ method: 'POST', url: uploadUrl }));
     const form = request.request.body as FormData;
     const meta = JSON.parse(form.get('data') as string) as MediaUploadMeta;
+    expect((form.get('file') as Blob).size).toBe(3);
     expect(meta).toEqual({
       key: 'w1-mon',
       unit: 'w1-mon:frame:0',
@@ -167,6 +168,15 @@ describe('Media', () => {
     expect(media.statuses().map((entry) => entry.id)).toEqual(['a1']);
   });
 
+  it('refuses an empty file without sending it', async () => {
+    const file = new File([], 'empty.mp4', { type: 'video/mp4' });
+
+    await media.upload(item, file, '', '');
+
+    http.expectNone(uploadUrl);
+    expect(media.uploads()[0].error).toContain('пустым');
+  });
+
   it('refuses a file over the limit without sending it', async () => {
     const file = new File(['x'], 'big.mp4', { type: 'video/mp4' });
     Object.defineProperty(file, 'size', { value: MEDIA_MAX_BYTES + 1 });
@@ -182,12 +192,10 @@ describe('Media', () => {
     const file = new File(['x'], 'IMG.jpg', { type: 'image/jpeg' });
 
     const pending = media.upload(item, file, '', '');
-    http
-      .expectOne({ method: 'POST', url: uploadUrl })
-      .flush(
-        { error: 'Слишком много загрузок: удалите ненужное в готовом контенте' },
-        { status: 409, statusText: 'Conflict' },
-      );
+    (await vi.waitFor(() => http.expectOne({ method: 'POST', url: uploadUrl }))).flush(
+      { error: 'Слишком много загрузок: удалите ненужное в готовом контенте' },
+      { status: 409, statusText: 'Conflict' },
+    );
     await pending;
 
     const [upload] = media.uploads();
@@ -296,7 +304,7 @@ describe('Media', () => {
 
     const file = new File(['x'], 'IMG.jpg', { type: 'image/jpeg' });
     const pending = media.upload(item, file, '', '', media.noteFor('w1-mon'));
-    const request = http.expectOne({ method: 'POST', url: uploadUrl });
+    const request = await vi.waitFor(() => http.expectOne({ method: 'POST', url: uploadUrl }));
     const meta = JSON.parse((request.request.body as FormData).get('data') as string);
     expect(meta.note).toBe('Свободно в пятницу, маникюр со скидкой');
     request.flush(status());

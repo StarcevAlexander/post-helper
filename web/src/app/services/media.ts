@@ -4,6 +4,7 @@ import { lastValueFrom, tap } from 'rxjs';
 import {
   MEDIA_FILE_EXTENSIONS,
   MEDIA_KIND_EXTENSIONS,
+  MEDIA_COPY_MAX_BYTES,
   MEDIA_MAX_BYTES,
   MEDIA_NOTE_MAX_LENGTH,
   MEDIA_NOTES_STORAGE_KEY,
@@ -100,6 +101,18 @@ export class Media {
     return (this.byKey().get(key) ?? []).some(isPending);
   }
 
+  private async readable(file: File): Promise<Blob | undefined> {
+    if (file.size > MEDIA_COPY_MAX_BYTES) {
+      return file;
+    }
+    try {
+      const copy = new Blob([await file.arrayBuffer()], { type: file.type });
+      return copy.size === file.size ? copy : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   async upload(
     item: PlanItem,
     file: File,
@@ -110,11 +123,24 @@ export class Media {
     this.uploadCounter += 1;
     const id = `upload-${this.uploadCounter}`;
     const entry: MediaUpload = { id, key: item.id, unit, name: file.name, progress: 0 };
+    if (file.size === 0) {
+      this.uploads.update((current) => [...current, { ...entry, error: MEDIA_TEXTS.emptyFile }]);
+      return;
+    }
     if (file.size > MEDIA_MAX_BYTES) {
       this.uploads.update((current) => [...current, { ...entry, error: MEDIA_TEXTS.tooLarge }]);
       return;
     }
     this.uploads.update((current) => [...current, entry]);
+    const payload = await this.readable(file);
+    if (!payload) {
+      this.uploads.update((current) =>
+        current.map((upload) =>
+          upload.id === id ? { ...upload, error: MEDIA_TEXTS.unreadable } : upload,
+        ),
+      );
+      return;
+    }
 
     const meta: MediaUploadMeta = {
       key: item.id,
@@ -127,7 +153,7 @@ export class Media {
     };
     const form = new FormData();
     form.append('data', JSON.stringify(meta));
-    form.append('file', file, file.name);
+    form.append('file', payload, file.name);
 
     try {
       const last = await lastValueFrom(

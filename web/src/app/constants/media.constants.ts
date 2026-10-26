@@ -20,6 +20,8 @@ export const MEDIA_NOTES_STORAGE_KEY = 'helper.media-notes';
 
 export const MEDIA_NOTE_MAX_LENGTH = 1000;
 
+export const MEDIA_COPY_MAX_BYTES = 120 * 1024 * 1024;
+
 export const MEDIA_FILE_EXTENSIONS: Record<string, string> = {
   'video/mp4': 'mp4',
   'image/jpeg': 'jpg',
@@ -50,6 +52,8 @@ export const MEDIA_TEXTS = {
   remove: 'Удалить',
   dismiss: 'Убрать',
   tooLarge: 'Файл больше 300 МБ. Сократите видео или выберите другой файл.',
+  emptyFile: 'Файл пришёл пустым. Откройте приложение заново и выберите его «Из галереи».',
+  unreadable: 'Не удалось прочитать файл. Откройте приложение заново и выберите его «Из галереи».',
   uploadFailed: 'Не удалось загрузить файл. Проверьте интернет и попробуйте ещё раз.',
   failedAction: 'Не удалось выполнить действие',
   contentTitle: 'Готовый контент',

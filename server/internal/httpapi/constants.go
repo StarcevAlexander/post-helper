@@ -313,6 +313,8 @@ const (
 	MediaCacheControl = "private, max-age=86400"
 	MediaNoSniff      = "nosniff"
 
+	MsgMediaBadForm   = "Не удалось принять файл: откройте приложение заново и попробуйте ещё раз"
+	MsgMediaEmptyFile = "Файл пришёл пустым: откройте приложение заново и выберите файл «Из галереи»"
 	MsgMediaNotFound  = "Файл не найден"
 	MsgMediaTooMany   = "Слишком много загрузок: удалите ненужное в готовом контенте"
 	MsgMediaState     = "Файл уже в другом состоянии"
