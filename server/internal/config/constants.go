@@ -21,7 +21,7 @@ const (
 	EnvAllowMemoryStore  = "ALLOW_MEMORY_STORE"
 	AllowMemoryStoreOn   = "1"
 	DefaultVapidSubject  = "https://starcevalexander.github.io/post-helper/"
-	DefaultRetentionDays = 1095
+	DefaultRetentionDays = 0
 	DefaultHistoryKeep   = 200
 	DefaultPort          = "8080"
 	DefaultModel         = "claude-sonnet-5-5"

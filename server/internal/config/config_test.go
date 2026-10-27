@@ -128,14 +128,14 @@ func TestLoadDotEnvMissingFile(t *testing.T) {
 func TestRetentionAndHistorySettings(t *testing.T) {
 	t.Setenv(EnvAPIKey, "key")
 
-	t.Run("defaults keep data for three years and 200 versions", func(t *testing.T) {
+	t.Run("defaults keep the log forever and 200 versions", func(t *testing.T) {
 		t.Setenv(EnvRetentionDays, "")
 		t.Setenv(EnvHistoryKeep, "")
 		cfg, err := Load()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if cfg.RetentionDays != 1095 || cfg.HistoryKeep != 200 {
+		if cfg.RetentionDays != 0 || cfg.HistoryKeep != 200 {
 			t.Errorf("cfg = %+v", cfg)
 		}
 	})

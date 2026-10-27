@@ -52,6 +52,14 @@ describe('SettingsPanel account block', () => {
     expect(element.textContent).not.toContain('Мастера и расходы');
   });
 
+  it('says the data is kept without a time limit when the server keeps it forever', async () => {
+    const element = await render({ name: 'Анна', retentionDays: 0 });
+
+    expect(element.querySelector('.account')?.textContent).toContain(
+      'Ваши данные хранятся без ограничения срока.',
+    );
+  });
+
   it('refreshes the account data each time the screen is opened', async () => {
     TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
     const http = TestBed.inject(HttpTestingController);
