@@ -7,14 +7,18 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"post-helper/server/internal/zai"
 )
 
 func Load() (Config, error) {
 	cfg := Config{
 		Port:           valueOr(os.Getenv(EnvPort), DefaultPort),
 		APIKey:         strings.TrimSpace(os.Getenv(EnvAPIKey)),
+		BaseURL:        valueOr(strings.TrimSpace(os.Getenv(EnvBaseURL)), zai.DefaultBaseURL),
 		AllowedOrigins: parseList(os.Getenv(EnvAllowedOrigins), DefaultAllowedOrigins),
 		Model:          valueOr(os.Getenv(EnvModel), DefaultModel),
+		VisionModel:    valueOr(os.Getenv(EnvVisionModel), DefaultVisionModel),
 		DatabaseURL:    strings.TrimSpace(os.Getenv(EnvDatabaseURL)),
 		RetentionDays:  nonNegative(os.Getenv(EnvRetentionDays), DefaultRetentionDays),
 		HistoryKeep:    positive(os.Getenv(EnvHistoryKeep), DefaultHistoryKeep),

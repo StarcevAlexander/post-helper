@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from '../agent/lib.mjs';
+import { SERVER_ENV_PATH, claudeEnv, parseArgs } from '../agent/lib.mjs';
 import { AGENT_DEFAULTS, PLAN_FILE, REPORTS_DIR, REPORT_FILE, STATE_FILE } from './constants.mjs';
 import {
   AgentError,
@@ -56,6 +56,7 @@ function runClaude(prompt, workDir, limits) {
   return new Promise((done) => {
     const child = spawn(claudeBinary(), buildClaudeArgs(workDir, limits), {
       cwd: workDir,
+      env: { ...process.env, ...claudeEnv(process.env, join(repoDir, ...SERVER_ENV_PATH)) },
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });

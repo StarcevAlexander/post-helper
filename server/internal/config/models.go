@@ -3,8 +3,10 @@ package config
 type Config struct {
 	Port            string
 	APIKey          string
+	BaseURL         string
 	AllowedOrigins  []string
 	Model           string
+	VisionModel     string
 	DatabaseURL     string
 	RetentionDays   int
 	HistoryKeep     int

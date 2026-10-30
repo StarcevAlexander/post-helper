@@ -58,7 +58,7 @@ func newMediaFixture(t *testing.T, withPlanner bool) *mediaFixture {
 		planner: &fakeMediaPlanner{plan: media.Plan{
 			Preset: media.PresetWarm, Focus: media.FocusTop, Title: "До и после",
 			Subtitles: []media.Segment{{Start: 0, End: 2.4, Text: "Привет!"}},
-			Note:      "Подровнял под 9:16, добавил тепла", Caption: "Гель-лак без сколов\nПишите в директ", Source: media.PlanSourceClaude,
+			Note:      "Подровнял под 9:16, добавил тепла", Caption: "Гель-лак без сколов\nПишите в директ", Source: media.PlanSourceAI,
 		}},
 		files:  media.NewMemoryFiles(),
 		store:  media.NewMemory(),
@@ -209,7 +209,7 @@ func TestMediaFlowFromUploadToTheReadyFile(t *testing.T) {
 	if plan.Code != http.StatusOK || json.Unmarshal(plan.Body.Bytes(), &made) != nil {
 		t.Fatalf("plan = %d %s", plan.Code, plan.Body)
 	}
-	if made.Preset != media.PresetWarm || made.Focus != media.FocusTop || made.Title != "До и после" || made.Source != media.PlanSourceClaude ||
+	if made.Preset != media.PresetWarm || made.Focus != media.FocusTop || made.Title != "До и после" || made.Source != media.PlanSourceAI ||
 		len(made.Subtitles) != 1 || made.Subtitles[0].Text != "Привет!" {
 		t.Errorf("plan = %+v", made)
 	}

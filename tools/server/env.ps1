@@ -2,7 +2,7 @@ $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $EnvFile = Join-Path $Repo 'server\.env'
 $DbUrlFile = 'C:\post-helper-db\database-url.txt'
 $Keys = @(
-  @{ Name = 'ANTHROPIC_API_KEY'; Secret = $true; Generate = 0 },
+  @{ Name = 'ZAI_API_KEY'; Secret = $true; Generate = 0 },
   @{ Name = 'TELEGRAM_BOT_TOKEN'; Secret = $true; Generate = 0 },
   @{ Name = 'TELEGRAM_CHAT_ID'; Secret = $false; Generate = 0 }
 )

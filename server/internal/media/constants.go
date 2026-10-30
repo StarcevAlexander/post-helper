@@ -39,7 +39,7 @@ const (
 )
 
 const (
-	PlanSourceClaude  = "claude"
+	PlanSourceAI      = "zai"
 	PlanSourceDefault = "default"
 )
 
@@ -67,6 +67,7 @@ const (
 	MaxSegments       = 400
 	MaxAdminList      = 200
 	MaxOutputTokens   = 8000
+	ReasoningEffort   = "low"
 	TimeTolerance     = 0.5
 	PlanTimeout       = 120 * time.Second
 	DefaultNote       = "Подогнал под формат публикации"

@@ -2,9 +2,11 @@ package config
 
 const (
 	EnvPort              = "PORT"
-	EnvAPIKey            = "ANTHROPIC_API_KEY"
+	EnvAPIKey            = "ZAI_API_KEY"
+	EnvBaseURL           = "ZAI_BASE_URL"
 	EnvAllowedOrigins    = "ALLOWED_ORIGINS"
 	EnvModel             = "HELPER_MODEL"
+	EnvVisionModel       = "HELPER_VISION_MODEL"
 	EnvDatabaseURL       = "DATABASE_URL"
 	EnvRetentionDays     = "RETENTION_DAYS"
 	EnvTelegramToken     = "TELEGRAM_BOT_TOKEN"
@@ -24,7 +26,8 @@ const (
 	DefaultRetentionDays = 0
 	DefaultHistoryKeep   = 200
 	DefaultPort          = "8080"
-	DefaultModel         = "claude-sonnet-5-5"
+	DefaultModel         = "glm-5.3"
+	DefaultVisionModel   = "glm-5.3-flash"
 	DotEnvFileName       = ".env"
 	EnvMediaDir          = "MEDIA_DIR"
 	EnvMediaKeepDays     = "MEDIA_KEEP_DAYS"

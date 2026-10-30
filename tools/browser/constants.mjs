@@ -24,7 +24,7 @@ export const DETAIL_LIMIT = 300;
 
 export const CHROME_START_MS = 30000;
 export const CHROME_CLOSE_MS = 20000;
-export const TUNNEL_URL = 'https://api.anthropic.com/';
+export const TUNNEL_URL = 'https://api.z.ai/';
 export const TUNNEL_TIMEOUT_MS = 25000;
 export const NETWORK_ERROR_CODES = ['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'EHOSTUNREACH', 'ENETUNREACH', 'ETIMEDOUT'];
 export const TUNNEL_ADAPTER_PREFIX = 'happ-';

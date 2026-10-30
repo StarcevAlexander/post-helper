@@ -13,7 +13,7 @@
 
 ## 1. Секреты сервера
 
-`powershell -File tools/server/env.ps1` (обычное окно PowerShell). Скрипт сам подставит адрес базы. Пароля владельца и токена агента нет: админские функции работают на локальном порту `127.0.0.1:8081`, который виден только этому ПК. Нужно вручную только `ANTHROPIC_API_KEY` (возьмите в панели Render, Environment). Telegram-значения скрипт сохраняет, если они уже есть.
+`powershell -File tools/server/env.ps1` (обычное окно PowerShell). Скрипт сам подставит адрес базы. Пароля владельца и токена агента нет: админские функции работают на локальном порту `127.0.0.1:8081`, который виден только этому ПК. Нужно вручную только `ZAI_API_KEY` — ключ z.ai с оплатой по факту (open platform z.ai, API Keys). Там же в `server\.env` лежит `ZAI_AUTH_TOKEN` — ключ вашего кодового плана GLM для Claude Code (агенты и связка с Chrome); серверу он не нужен, а без него агенты Claude Code останутся на прежнем провайдере. Telegram-значения скрипт сохраняет, если они уже есть.
 
 ## 2. Всё, что требует прав администратора
 
@@ -24,7 +24,7 @@
 - отключает сон и гибернацию;
 - ставит Tailscale (`winget`).
 
-Он остановится с понятной ошибкой, если в `server\.env` нет ключа Claude или адреса базы. Состояние: `powershell -File tools/server/autostart.ps1 status`, копии: `powershell -File tools/server/backup.ps1 status`. После правок сервера повторите `autostart.ps1 install` от администратора.
+Он остановится с понятной ошибкой, если в `server\.env` нет ключа z.ai или адреса базы. Состояние: `powershell -File tools/server/autostart.ps1 status`, копии: `powershell -File tools/server/backup.ps1 status`. После правок сервера повторите `autostart.ps1 install` от администратора.
 
 ## 3. Tailscale Funnel
 

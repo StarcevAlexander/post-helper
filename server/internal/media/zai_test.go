@@ -16,7 +16,7 @@ func TestParsePlanAcceptsAValidAnswerAroundOtherText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParsePlan: %v", err)
 	}
-	if plan.Preset != PresetWarm || plan.Focus != FocusTop || plan.Title != "До и после" || plan.Note != "Добавил тепла" || plan.Source != PlanSourceClaude {
+	if plan.Preset != PresetWarm || plan.Focus != FocusTop || plan.Title != "До и после" || plan.Note != "Добавил тепла" || plan.Source != PlanSourceAI {
 		t.Errorf("plan = %+v", plan)
 	}
 	if len(plan.Subtitles) != 2 || plan.Subtitles[0].Text != "Привет!" {

@@ -8,7 +8,7 @@ services:
     healthCheckPath: /healthz
     plan: free
     envVars:
-      - key: ANTHROPIC_API_KEY
+      - key: ZAI_API_KEY
         sync: false
       - key: DATABASE_URL
         sync: false

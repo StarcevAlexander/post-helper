@@ -25,3 +25,4 @@ server/media/
 tools/bin/
 *.log.pid
 tools/owner/media/
+.claude/settings.local.json

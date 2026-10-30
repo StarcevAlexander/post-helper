@@ -12,6 +12,7 @@ const (
 	MaxBioRunes           = 400
 	MaxNameRunes          = 120
 	MaxReasonRunes        = 300
+	ReasoningEffort       = "high"
 )
 
 var (

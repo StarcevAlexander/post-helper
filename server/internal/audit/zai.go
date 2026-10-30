@@ -2,54 +2,44 @@ package audit
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
+	"post-helper/server/internal/zai"
 )
 
-type Claude struct {
-	client anthropic.Client
+type Zai struct {
+	client *zai.Client
 	model  string
 }
 
-func NewClaude(apiKey, model string, options ...option.RequestOption) *Claude {
-	allOptions := append([]option.RequestOption{option.WithAPIKey(apiKey)}, options...)
-	return &Claude{client: anthropic.NewClient(allOptions...), model: model}
+func NewZai(client *zai.Client, model string) *Zai {
+	return &Zai{client: client, model: model}
 }
 
-func (c *Claude) Generate(ctx context.Context, request Request) (Result, error) {
-	blocks := make([]anthropic.ContentBlockParamUnion, 0, len(request.Images)+1)
+func (z *Zai) Generate(ctx context.Context, request Request) (Result, error) {
+	images := make([]zai.Image, 0, len(request.Images))
 	for _, image := range request.Images {
-		blocks = append(blocks, anthropic.NewImageBlockBase64(image.MediaType, base64.StdEncoding.EncodeToString(image.Data)))
+		images = append(images, zai.Image{MediaType: image.MediaType, Data: image.Data})
 	}
-	blocks = append(blocks, anthropic.NewTextBlock(describeRequest(request)))
-
-	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:        c.model,
-		MaxTokens:    MaxOutputTokens,
-		System:       []anthropic.TextBlockParam{{Text: SystemPrompt}},
-		OutputConfig: anthropic.OutputConfigParam{Effort: anthropic.OutputConfigEffortMedium},
-		Messages:     []anthropic.MessageParam{anthropic.NewUserMessage(blocks...)},
+	text, err := z.client.Complete(ctx, zai.Request{
+		Model:           z.model,
+		System:          SystemPrompt,
+		Text:            describeRequest(request),
+		Images:          images,
+		MaxTokens:       int(MaxOutputTokens),
+		ReasoningEffort: ReasoningEffort,
 	})
-	if err != nil {
-		return Result{}, fmt.Errorf("claude audit request: %w", err)
-	}
-	if response.StopReason == anthropic.StopReasonRefusal {
+	if errors.Is(err, zai.ErrRefused) {
 		return Result{}, ErrRefused
 	}
-
-	var text strings.Builder
-	for _, block := range response.Content {
-		if part, ok := block.AsAny().(anthropic.TextBlock); ok {
-			text.WriteString(part.Text)
-		}
+	if err != nil {
+		return Result{}, fmt.Errorf("zai audit request: %w", err)
 	}
-	return parseResult(text.String())
+	return parseResult(text)
 }
 
 func describeRequest(request Request) string {

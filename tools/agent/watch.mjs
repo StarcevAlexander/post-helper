@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AgentError, buildAgentPrompt, canRunNow, failJob, loadConfig, nextJob, parseArgs, WATCH_DEFAULTS } from './lib.mjs';
+import { AgentError, buildAgentPrompt, canRunNow, claudeEnv, failJob, loadConfig, nextJob, parseArgs, SERVER_ENV_PATH, WATCH_DEFAULTS } from './lib.mjs';
 
 const HELP = `Сторож очереди разбора Instagram. Сам спрашивает сервер и запускает Claude Code с Chrome на каждый заказ.
 
@@ -31,7 +31,12 @@ function runClaude(prompt, timeoutMs) {
     const child = spawn(
       'claude',
       ['-p', prompt, '--chrome', '--permission-mode', 'acceptEdits', '--allowedTools', 'mcp__claude-in-chrome__*', `Bash(node ${repoDir}/tools/agent/ig-agent.mjs:*)`, 'Write', 'Read'],
-      { cwd: repoDir, stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' },
+      {
+        cwd: repoDir,
+        env: { ...process.env, ...claudeEnv(process.env, join(repoDir, ...SERVER_ENV_PATH)) },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: process.platform === 'win32',
+      },
     );
     let output = '';
     child.stdout.on('data', (chunk) => (output += chunk));

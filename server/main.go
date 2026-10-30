@@ -28,6 +28,7 @@ import (
 	"post-helper/server/internal/reminders"
 	"post-helper/server/internal/store"
 	"post-helper/server/internal/yandex"
+	"post-helper/server/internal/zai"
 )
 
 const (
@@ -161,6 +162,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	zaiClient := zai.New(cfg.APIKey, cfg.BaseURL)
 	options := httpapi.Options{
 		Digest:         weeklyDigest,
 		Shutdown:       stop,
@@ -173,13 +175,13 @@ func run() error {
 		Pusher:         pusher,
 		Notices:        noticeStore,
 		Location:       ownerLocation,
-		Auditor:        audit.NewClaude(cfg.APIKey, cfg.Model),
+		Auditor:        audit.NewZai(zaiClient, cfg.VisionModel),
 		Refs:           refsStore,
 		Media:          mediaStore,
 		MediaFiles:     mediaFiles,
-		MediaPlanner:   media.NewClaude(cfg.APIKey, cfg.Model),
-		RefPlanner:     refs.NewClaude(cfg.APIKey, cfg.Model),
-		Places:         places.NewClaude(cfg.APIKey, cfg.Model),
+		MediaPlanner:   media.NewZai(zaiClient, cfg.VisionModel),
+		RefPlanner:     refs.NewZai(zaiClient, cfg.Model),
+		Places:         places.NewZai(zaiClient, cfg.Model),
 		Accounts:       accountStore,
 		RetentionDays:  cfg.RetentionDays,
 		AllowedOrigins: cfg.AllowedOrigins,
@@ -207,7 +209,7 @@ func run() error {
 
 	serverErr := make(chan error, 2)
 	go func() {
-		slog.Info("listening", slog.String("addr", server.Addr), slog.String("model", cfg.Model))
+		slog.Info("listening", slog.String("addr", server.Addr), slog.String("model", cfg.Model), slog.String("visionModel", cfg.VisionModel))
 		serverErr <- server.ListenAndServe()
 	}()
 	go func() {

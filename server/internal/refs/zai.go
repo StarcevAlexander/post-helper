@@ -3,47 +3,42 @@ package refs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
+	"post-helper/server/internal/zai"
 )
 
-type Claude struct {
-	client anthropic.Client
+const ReasoningEffort = "low"
+
+type Zai struct {
+	client *zai.Client
 	model  string
 }
 
-func NewClaude(apiKey, model string, options ...option.RequestOption) *Claude {
-	allOptions := append([]option.RequestOption{option.WithAPIKey(apiKey)}, options...)
-	return &Claude{client: anthropic.NewClient(allOptions...), model: model}
+func NewZai(client *zai.Client, model string) *Zai {
+	return &Zai{client: client, model: model}
 }
 
-func (c *Claude) Generate(ctx context.Context, request Request) (Plan, error) {
+func (z *Zai) Generate(ctx context.Context, request Request) (Plan, error) {
 	want := WantedCount(request)
-	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:        c.model,
-		MaxTokens:    MaxOutputTokens,
-		System:       []anthropic.TextBlockParam{{Text: systemPromptFor(want)}},
-		OutputConfig: anthropic.OutputConfigParam{Effort: anthropic.OutputConfigEffortLow},
-		Messages:     []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(describeRequest(request)))},
+	text, err := z.client.Complete(ctx, zai.Request{
+		Model:           z.model,
+		System:          systemPromptFor(want),
+		Text:            describeRequest(request),
+		MaxTokens:       MaxOutputTokens,
+		ReasoningEffort: ReasoningEffort,
 	})
-	if err != nil {
-		return Plan{}, fmt.Errorf("claude refs request: %w", err)
-	}
-	if response.StopReason == anthropic.StopReasonRefusal {
+	if errors.Is(err, zai.ErrRefused) {
 		return Plan{}, ErrRefused
 	}
-	var text strings.Builder
-	for _, block := range response.Content {
-		if part, ok := block.AsAny().(anthropic.TextBlock); ok {
-			text.WriteString(part.Text)
-		}
+	if err != nil {
+		return Plan{}, fmt.Errorf("zai refs request: %w", err)
 	}
-	return ParsePlanFor(text.String(), want)
+	return ParsePlanFor(text, want)
 }
 
 func WantedCount(request Request) int {

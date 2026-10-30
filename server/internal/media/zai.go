@@ -2,52 +2,43 @@ package media
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
+	"post-helper/server/internal/zai"
 )
 
-type Claude struct {
-	client anthropic.Client
+type Zai struct {
+	client *zai.Client
 	model  string
 }
 
-func NewClaude(apiKey, model string, options ...option.RequestOption) *Claude {
-	allOptions := append([]option.RequestOption{option.WithAPIKey(apiKey)}, options...)
-	return &Claude{client: anthropic.NewClient(allOptions...), model: model}
+func NewZai(client *zai.Client, model string) *Zai {
+	return &Zai{client: client, model: model}
 }
 
-func (c *Claude) Plan(ctx context.Context, request Request) (Plan, error) {
-	blocks := make([]anthropic.ContentBlockParamUnion, 0, 2)
+func (z *Zai) Plan(ctx context.Context, request Request) (Plan, error) {
+	var images []zai.Image
 	if len(request.Preview) > 0 {
-		blocks = append(blocks, anthropic.NewImageBlockBase64(PreviewMediaType, base64.StdEncoding.EncodeToString(request.Preview)))
+		images = append(images, zai.Image{MediaType: PreviewMediaType, Data: request.Preview})
 	}
-	blocks = append(blocks, anthropic.NewTextBlock(describeRequest(request)))
-	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:        c.model,
-		MaxTokens:    MaxOutputTokens,
-		System:       []anthropic.TextBlockParam{{Text: SystemPrompt}},
-		OutputConfig: anthropic.OutputConfigParam{Effort: anthropic.OutputConfigEffortLow},
-		Messages:     []anthropic.MessageParam{anthropic.NewUserMessage(blocks...)},
+	response, err := z.client.Complete(ctx, zai.Request{
+		Model:           z.model,
+		System:          SystemPrompt,
+		Text:            describeRequest(request),
+		Images:          images,
+		MaxTokens:       MaxOutputTokens,
+		ReasoningEffort: ReasoningEffort,
 	})
-	if err != nil {
-		return Plan{}, fmt.Errorf("claude media request: %w", err)
-	}
-	if response.StopReason == anthropic.StopReasonRefusal {
+	if errors.Is(err, zai.ErrRefused) {
 		return Plan{}, ErrRefused
 	}
-	var text strings.Builder
-	for _, block := range response.Content {
-		if part, ok := block.AsAny().(anthropic.TextBlock); ok {
-			text.WriteString(part.Text)
-		}
+	if err != nil {
+		return Plan{}, fmt.Errorf("zai media request: %w", err)
 	}
-	plan, err := parseFor(text.String(), request)
+	plan, err := parseFor(response, request)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -150,7 +141,7 @@ func normalize(plan Plan, source []Segment) (Plan, error) {
 		return Plan{}, ErrBadPlan
 	}
 	plan.Subtitles = cleaned
-	plan.Source = PlanSourceClaude
+	plan.Source = PlanSourceAI
 	return plan, nil
 }
 

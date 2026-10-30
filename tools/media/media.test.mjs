@@ -312,7 +312,7 @@ describe('talking to the server', () => {
         }
         if (request.url === '/api/agent/media/m1/plan') {
           response.writeHead(200, { 'Content-Type': 'application/json' });
-          response.end(JSON.stringify({ preset: 'warm', focus: 'center', title: '', subtitles: [], note: 'ok', source: 'claude' }));
+          response.end(JSON.stringify({ preset: 'warm', focus: 'center', title: '', subtitles: [], note: 'ok', source: 'zai' }));
           return;
         }
         response.writeHead(200, { 'Content-Type': 'application/json' });

@@ -7,7 +7,7 @@ import { networkInterfaces, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { getCACertificates, setDefaultCACertificates } from 'node:tls';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from '../agent/lib.mjs';
+import { claudeEnv, parseArgs } from '../agent/lib.mjs';
 import { claudeBinary } from '../intake-agent/lib.mjs';
 import {
   ACTIONS,
@@ -183,7 +183,7 @@ async function collectFacts() {
 
 function probe(claude) {
   return new Promise((done) => {
-    const env = { ...process.env };
+    const env = { ...process.env, ...claudeEnv(process.env, join(repoDir, ...ENV_PATH)) };
     delete env.CLAUDECODE;
     const child = spawn(claude, buildProbeArgs(), { cwd: tmpdir(), env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     let stdout = '';
