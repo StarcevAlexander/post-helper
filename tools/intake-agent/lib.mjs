@@ -1,10 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { AgentError, canRunNow, parseEnvText } from '../agent/lib.mjs';
 import {
   AGENT_DEFAULTS,
-  CLAUDE_TOOLS,
   DATE_PATTERN,
   DAY_MS,
   GUIDE_PATH,
@@ -17,6 +15,7 @@ import {
   SECURITY_RULES,
   TIME_PATTERN,
   WEEKDAY_NAMES,
+  ZCODE_DISALLOWED_TOOLS,
 } from './constants.mjs';
 
 export { AgentError, canRunNow };
@@ -222,36 +221,27 @@ export function validatePlan(plan, now = new Date()) {
   return problems;
 }
 
-export function buildClaudeArgs(workDir, limits = AGENT_DEFAULTS) {
+export function buildZcodeArgs(prompt, workDir) {
   return [
     '-p',
-    '--restricted',
-    '--tools',
-    CLAUDE_TOOLS.join(','),
-    '--allowedTools',
-    ...CLAUDE_TOOLS,
-    '--strict-mcp-config',
-    '--disable-slash-commands',
-    '--permission-mode',
-    'acceptEdits',
-    '--permission-prompts',
-    'none',
-    '--add-dir',
+    prompt,
+    '--cwd',
     workDir,
-    '--max-budget-usd',
-    String(limits.maxBudgetUsd),
-    '--no-session-persistence',
-    '--output-format',
-    'json',
+    '--mode',
+    'yolo',
+    '--disallowed-tools',
+    ZCODE_DISALLOWED_TOOLS.join(' '),
+    '--json',
+    '--no-color',
   ];
 }
 
-export function claudeBinary(env = process.env, home = homedir()) {
-  if (env.CLAUDE_BIN) {
-    return env.CLAUDE_BIN;
+export function zcodeEntry(env = process.env) {
+  if (env.ZCODE_JS) {
+    return env.ZCODE_JS;
   }
-  const local = join(home, '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude');
-  return existsSync(local) ? local : 'claude';
+  const candidate = env.APPDATA && join(env.APPDATA, 'npm', 'node_modules', 'zcode-app-cli', 'bin', 'zcode.js');
+  return candidate && existsSync(candidate) ? candidate : undefined;
 }
 
 export function readGuide(repoDir) {
@@ -323,18 +313,15 @@ export function buildFixPrompt(problems, { tomorrow }) {
   ].join('\n');
 }
 
-export function formatReport({ intake, result, agentReport, costUsd, now }) {
+export function formatReport({ intake, result, agentReport, now }) {
   const lines = [
     `# Заявка ${intake.id}: ${intake.masterName}`,
     '',
     `Обработана ${now.toLocaleString('ru-RU')}.`,
     `Залито: версия данных ${result.version}, публикаций ${result.items}.`,
     `Откат на прежнюю версию: node tools/owner/owner.mjs restore ${intake.masterId} ${Math.max(0, result.version - 1)}`,
+    '', '## Отчёт агента', '', agentReport?.trim() || 'Агент не оставил report.md.',
   ];
-  if (costUsd !== undefined) {
-    lines.push(`Расход на прогон: около ${costUsd.toFixed(2)} долл.`);
-  }
-  lines.push('', '## Отчёт агента', '', agentReport?.trim() || 'Агент не оставил report.md.');
   return `${lines.join('\n')}\n`;
 }
 

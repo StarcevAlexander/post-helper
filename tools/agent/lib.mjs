@@ -1,8 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
-import { SERVER_ENV_PATH, ZAI_ANTHROPIC_BASE_URL, ZAI_MODEL_ENV } from './constants.mjs';
-
-export { SERVER_ENV_PATH };
 
 export const MAX_IMAGES = 12;
 export const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
@@ -70,19 +67,6 @@ export function loadConfig(env, envFile) {
     throw new AgentError('AGENT_SERVER должен начинаться с http:// или https://', 2);
   }
   return { server };
-}
-
-export function claudeEnv(env, envFile) {
-  const fromFile = envFile && existsSync(envFile) ? parseEnvText(readFileSync(envFile, 'utf8')) : {};
-  const token = String(env.ZAI_AUTH_TOKEN ?? fromFile.ZAI_AUTH_TOKEN ?? '').trim();
-  if (!token) {
-    return {};
-  }
-  return {
-    ANTHROPIC_BASE_URL: fromFile.ANTHROPIC_BASE_URL || ZAI_ANTHROPIC_BASE_URL,
-    ANTHROPIC_AUTH_TOKEN: token,
-    ...ZAI_MODEL_ENV,
-  };
 }
 
 const NUMBER_FIELDS = ['followers', 'following', 'postsCount'];

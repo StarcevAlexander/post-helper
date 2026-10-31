@@ -1,17 +1,16 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import { AGENT_DEFAULTS, CLAUDE_TOOLS, DAY_MS } from './constants.mjs';
+import { AGENT_DEFAULTS, DAY_MS } from './constants.mjs';
 import {
   AgentError,
-  buildClaudeArgs,
   buildFixPrompt,
   buildPrompt,
+  buildZcodeArgs,
   canRunNow,
-  claudeBinary,
   emptyState,
   formatReport,
   intakeKey,
@@ -25,6 +24,7 @@ import {
   tomorrowOf,
   uploadPlan,
   validatePlan,
+  zcodeEntry,
 } from './lib.mjs';
 
 const NOW = new Date(2026, 9, 24, 12, 0, 0);
@@ -234,26 +234,22 @@ describe('pickIntake and state', () => {
   });
 });
 
-describe('buildClaudeArgs', () => {
-  const args = buildClaudeArgs('C:/work', AGENT_DEFAULTS);
+describe('buildZcodeArgs', () => {
+  const args = buildZcodeArgs('собери план', 'C:/work');
 
-  it('locks the agent down', () => {
-    assert.ok(args.includes('--restricted'));
-    assert.ok(args.includes('--strict-mcp-config'));
-    assert.ok(args.includes('--disable-slash-commands'));
-    assert.ok(args.includes('--no-session-persistence'));
-    assert.equal(args[args.indexOf('--permission-prompts') + 1], 'none');
-    assert.equal(args[args.indexOf('--add-dir') + 1], 'C:/work');
-    assert.equal(args[args.indexOf('--max-budget-usd') + 1], String(AGENT_DEFAULTS.maxBudgetUsd));
+  it('runs headless in the work dir with the shell locked out', () => {
+    assert.equal(args[0], '-p');
+    assert.equal(args[1], 'собери план');
+    assert.equal(args[args.indexOf('--cwd') + 1], 'C:/work');
+    assert.equal(args[args.indexOf('--mode') + 1], 'yolo');
+    assert.ok(args.includes('--json'));
   });
 
-  it('allows only reading pages and writing files', () => {
-    assert.equal(args[args.indexOf('--tools') + 1], 'WebFetch,WebSearch,Read,Write');
-    assert.deepEqual(CLAUDE_TOOLS, ['WebFetch', 'WebSearch', 'Read', 'Write']);
-    for (const forbidden of ['Bash', 'PowerShell', 'Edit', 'NotebookEdit', 'bypassPermissions']) {
-      assert.ok(!args.includes(forbidden), `${forbidden} must not be allowed`);
-    }
-    assert.ok(!args.some((argument) => /chrome|dangerously|mcp__/i.test(argument)));
+  it('disallows the shell and the side tools', () => {
+    const tools = args[args.indexOf('--disallowed-tools') + 1];
+    assert.match(tools, /\bBash\b/);
+    assert.match(tools, /\bEdit\b/);
+    assert.doesNotMatch(tools, /WebFetch|WebSearch|Read|Write/);
   });
 });
 
@@ -295,24 +291,34 @@ describe('formatReport', () => {
       intake,
       result: { version: 4, items: 12 },
       agentReport: 'Не открылась страница instagram.com/x',
-      costUsd: 1.234,
       now: NOW,
     });
 
     assert.match(text, /версия данных 4, публикаций 12/);
     assert.match(text, /restore m1 3/);
-    assert.match(text, /1\.23 долл/);
     assert.match(text, /Не открылась страница/);
   });
 });
 
-describe('claudeBinary', () => {
+describe('zcodeEntry', () => {
   it('prefers the explicit path', () => {
-    assert.equal(claudeBinary({ CLAUDE_BIN: 'D:/tools/claude.exe' }, 'C:/nobody'), 'D:/tools/claude.exe');
+    assert.equal(zcodeEntry({ ZCODE_JS: 'D:/tools/zcode.js' }), 'D:/tools/zcode.js');
   });
 
-  it('falls back to the name on PATH when nothing is installed locally', () => {
-    assert.equal(claudeBinary({}, join(tmpdir(), 'no-such-home-folder')), 'claude');
+  it('finds the npm global install when it exists', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ph-zcode-'));
+    try {
+      const entry = join(dir, 'npm', 'node_modules', 'zcode-app-cli', 'bin', 'zcode.js');
+      mkdirSync(dirname(entry), { recursive: true });
+      writeFileSync(entry, '', 'utf8');
+      assert.equal(zcodeEntry({ APPDATA: dir }), entry);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns undefined when zcode is not installed', () => {
+    assert.equal(zcodeEntry({ APPDATA: 'C:/nowhere-real' }), undefined);
   });
 });
 

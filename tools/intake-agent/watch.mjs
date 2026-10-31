@@ -4,15 +4,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SERVER_ENV_PATH, claudeEnv, parseArgs } from '../agent/lib.mjs';
+import { parseArgs } from '../agent/lib.mjs';
 import { AGENT_DEFAULTS, PLAN_FILE, REPORTS_DIR, REPORT_FILE, STATE_FILE } from './constants.mjs';
 import {
   AgentError,
-  buildClaudeArgs,
   buildFixPrompt,
   buildPrompt,
+  buildZcodeArgs,
   canRunNow,
-  claudeBinary,
   formatReport,
   listNewIntakes,
   loadOwnerConfig,
@@ -27,9 +26,10 @@ import {
   tomorrowOf,
   uploadPlan,
   validatePlan,
+  zcodeEntry,
 } from './lib.mjs';
 
-const HELP = `Сторож заявок на контент-план. Сам берёт новую заявку мастера, запускает запертого агента Claude,
+const HELP = `Сторож заявок на контент-план. Сам берёт новую заявку мастера, запускает запертого агента ZCode (zcode -p, модель GLM по подписке z.ai),
 проверяет и заливает план мастеру, пишет отчёт в tools/intake-agent/reports.
 
   node tools/intake-agent/watch.mjs [--once] [--dry] [--interval 60] [--max-per-day 6]
@@ -52,12 +52,16 @@ function sleep(ms) {
   return new Promise((done) => setTimeout(done, ms));
 }
 
-function runClaude(prompt, workDir, limits) {
+function runAgent(prompt, workDir, limits) {
   return new Promise((done) => {
-    const child = spawn(claudeBinary(), buildClaudeArgs(workDir, limits), {
+    const entry = zcodeEntry();
+    if (!entry) {
+      done({ code: 1, output: 'не найден zcode CLI (npm i -g zcode-app-cli или переменная ZCODE_JS)' });
+      return;
+    }
+    const child = spawn(process.execPath, [entry, ...buildZcodeArgs(prompt, workDir)], {
       cwd: workDir,
-      env: { ...process.env, ...claudeEnv(process.env, join(repoDir, ...SERVER_ENV_PATH)) },
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
     let output = '';
@@ -72,17 +76,7 @@ function runClaude(prompt, workDir, limits) {
       clearTimeout(timer);
       done({ code, output });
     });
-    child.stdin.end(prompt);
   });
-}
-
-function costOf(output) {
-  try {
-    const cost = JSON.parse(output).total_cost_usd;
-    return typeof cost === 'number' ? cost : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function readPlan(workDir) {
@@ -99,11 +93,9 @@ function readPlan(workDir) {
 
 async function produce(config, intake, workDir, limits, now) {
   const tomorrow = tomorrowOf(now);
-  let cost = 0;
-  const first = await runClaude(buildPrompt(intake, { guide: readGuide(repoDir), tomorrow }), workDir, limits);
-  cost += costOf(first.output) ?? 0;
+  const first = await runAgent(buildPrompt(intake, { guide: readGuide(repoDir), tomorrow }), workDir, limits);
   if (first.code !== 0) {
-    log(`Claude завершился с кодом ${first.code}: ${first.output.trim().split('\n').slice(-3).join(' | ')}`);
+    log(`агент ZCode завершился с кодом ${first.code}: ${first.output.trim().split('\n').slice(-3).join(' | ')}`);
   }
   let attempt = readPlan(workDir);
   let problems = attempt.problems.length > 0 ? attempt.problems : validatePlan(attempt.plan, now);
@@ -112,7 +104,7 @@ async function produce(config, intake, workDir, limits, now) {
     if (problems.length === 0) {
       try {
         const result = await uploadPlan(config, intake.masterId, attempt.plan);
-        return { result, cost };
+        return { result };
       } catch (error) {
         if (!(error instanceof AgentError) || error.code !== 6) {
           throw error;
@@ -124,8 +116,10 @@ async function produce(config, intake, workDir, limits, now) {
       break;
     }
     log(`план не принят, прошу исправить: ${problems.join('; ')}`);
-    const fix = await runClaude(buildFixPrompt(problems, { tomorrow }), workDir, limits);
-    cost += costOf(fix.output) ?? 0;
+    const fix = await runAgent(buildFixPrompt(problems, { tomorrow }), workDir, limits);
+    if (fix.code !== 0) {
+      log(`агент ZCode завершился с кодом ${fix.code}`);
+    }
     attempt = readPlan(workDir);
     problems = attempt.problems.length > 0 ? attempt.problems : validatePlan(attempt.plan, now);
   }
@@ -141,7 +135,7 @@ async function handle(config, intake, flags, limits, state) {
   const workDir = mkdtempSync(join(tmpdir(), 'intake-job-'));
   log(`заявка ${intake.id} (${intake.masterName}): запускаю агента, рабочая папка ${workDir}`);
   try {
-    const { result, cost } = await produce(config, intake, workDir, limits, now);
+    const { result } = await produce(config, intake, workDir, limits, now);
     recordRun(state, intake, 'uploaded', now.getTime(), { version: result.version, items: result.items });
     saveState(stateFile, state);
     const reportsDir = join(here, REPORTS_DIR);
@@ -153,7 +147,6 @@ async function handle(config, intake, flags, limits, state) {
         intake,
         result,
         agentReport: readAgentFile(workDir, REPORT_FILE),
-        costUsd: cost > 0 ? cost : undefined,
         now,
       }),
     );

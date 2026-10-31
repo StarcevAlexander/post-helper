@@ -8,7 +8,6 @@ import {
   AgentError,
   buildAgentPrompt,
   canRunNow,
-  claudeEnv,
   failJob,
   listImages,
   loadConfig,
@@ -19,7 +18,6 @@ import {
   submitResult,
   validateCollected,
 } from './lib.mjs';
-import { ZAI_ANTHROPIC_BASE_URL, ZAI_MODEL_ENV } from './constants.mjs';
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 
@@ -50,45 +48,6 @@ describe('parseEnvText and loadConfig', () => {
   it('uses the local admin port when no address is given and refuses a bad address', () => {
     assert.deepEqual(loadConfig({}, undefined), { server: 'http://127.0.0.1:8081' });
     assert.throws(() => loadConfig({ AGENT_SERVER: 'x.example' }, undefined), /http/);
-  });
-});
-
-describe('claudeEnv', () => {
-  it('is empty without a z.ai token', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'ph-claude-env-'));
-    try {
-      assert.deepEqual(claudeEnv({}, join(dir, 'missing.env')), {});
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('routes claude to z.ai with glm models when the token is set', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'ph-claude-env-'));
-    try {
-      const file = join(dir, 'server.env');
-      writeFileSync(file, 'ZAI_AUTH_TOKEN=zai-key\n', 'utf8');
-      assert.deepEqual(claudeEnv({}, file), {
-        ANTHROPIC_BASE_URL: ZAI_ANTHROPIC_BASE_URL,
-        ANTHROPIC_AUTH_TOKEN: 'zai-key',
-        ...ZAI_MODEL_ENV,
-      });
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('prefers the token from the process environment and the base url from the file', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'ph-claude-env-'));
-    try {
-      const file = join(dir, 'server.env');
-      writeFileSync(file, 'ZAI_AUTH_TOKEN=from-file\nANTHROPIC_BASE_URL=https://proxy.example\n', 'utf8');
-      const env = claudeEnv({ ZAI_AUTH_TOKEN: 'from-env' }, file);
-      assert.equal(env.ANTHROPIC_AUTH_TOKEN, 'from-env');
-      assert.equal(env.ANTHROPIC_BASE_URL, 'https://proxy.example');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
   });
 });
 

@@ -6,11 +6,10 @@ export const AGENT_DEFAULTS = {
   maxPerDay: 6,
   perMasterPerDay: 2,
   runTimeoutMs: 25 * 60 * 1000,
-  maxBudgetUsd: 6,
   retries: 1,
 };
 
-export const CLAUDE_TOOLS = ['WebFetch', 'WebSearch', 'Read', 'Write'];
+export const ZCODE_DISALLOWED_TOOLS = ['Bash', 'Edit', 'Glob', 'Grep'];
 
 export const PLAN_FILE = 'plan.json';
 export const REPORT_FILE = 'report.md';
