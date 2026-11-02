@@ -34,7 +34,7 @@ const (
 	MaxFieldRunes   = 600
 	MaxPromptRunes  = 700
 	MaxCaptionRunes = 1200
-	MaxOutputTokens = 4000
+	MaxOutputTokens = 8000
 )
 
 var (

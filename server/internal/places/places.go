@@ -12,7 +12,7 @@ const (
 	MaxCityRunes    = 100
 	MaxNoteRunes    = 2000
 	MaxSocialRunes  = 1500
-	MaxOutputTokens = 80
+	MaxOutputTokens = 4000
 	RequestTimeout  = 30 * time.Second
 	Separator       = "|"
 )

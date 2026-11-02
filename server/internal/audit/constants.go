@@ -5,7 +5,7 @@ import "errors"
 const (
 	MaxImages             = 8
 	MaxImageBytes         = 6 << 20
-	MaxOutputTokens int64 = 3000
+	MaxOutputTokens int64 = 8000
 	MaxSummaryRunes       = 700
 	MaxItemRunes          = 350
 	MaxListItems          = 7
