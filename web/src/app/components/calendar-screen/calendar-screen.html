@@ -26,7 +26,12 @@
           <a class="screen__secondary" [routerLink]="['/shoot', week.index]">{{ shootLabel }}</a>
           <ul class="items">
             @for (view of week.items; track view.item.id) {
-              <li class="item" [class.item--done]="view.item.done">
+              <li
+                class="item"
+                [class.item--done]="view.item.done"
+                (touchstart)="onTouchStart($event, view.item.id)"
+                (touchend)="onTouchEnd($event, view.item.id)"
+              >
                 <div class="item__row">
                   <input
                     type="checkbox"
@@ -49,6 +54,9 @@
                     <span class="item__pillar">{{ view.item.pillar }}</span>
                   </a>
                 </div>
+                @if (view.contentPending) {
+                  <span class="item__status" role="status">{{ mediaTexts.contentPending }}</span>
+                }
               </li>
             }
           </ul>

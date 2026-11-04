@@ -1,6 +1,7 @@
 import { Service, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import {
+  INTAKE_DRAFT_STORAGE_KEY,
   INTAKE_MAX_LINKS,
   INTAKE_MAX_NOTE_LENGTH,
   INTAKE_MAX_REFERENCES,
@@ -24,6 +25,7 @@ import {
   IntakeTimeField,
 } from '../models';
 import { browserTimeZone } from '../utils/time-zone';
+import { Access } from './access';
 import { Account } from './account';
 import { ApiClient } from './api-client';
 import { ClientErrors } from './client-errors';
@@ -36,6 +38,56 @@ function referenceSlots(urls: readonly string[]): string[] {
 function readSeenReadyAt(): string | undefined {
   try {
     return localStorage.getItem(INTAKE_SEEN_STORAGE_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function readDraft(): IntakeDraft | undefined {
+  try {
+    const raw = localStorage.getItem(INTAKE_DRAFT_STORAGE_KEY);
+    if (!raw) {
+      return undefined;
+    }
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== 'object' || value === null) {
+      return undefined;
+    }
+    const draft = value as Partial<IntakeDraft>;
+    const stats = draft.stats ?? emptyStats();
+    const schedule = draft.schedule ?? emptySchedule();
+    const strings = (items: unknown, fallback: string[]): string[] =>
+      Array.isArray(items) && items.every((item) => typeof item === 'string')
+        ? (items as string[])
+        : fallback;
+    if (
+      !Array.isArray(draft.links) ||
+      !draft.links.every((link) => typeof link === 'string') ||
+      typeof draft.note !== 'string' ||
+      typeof draft.city !== 'string' ||
+      !Array.isArray(draft.goals)
+    ) {
+      return undefined;
+    }
+    return {
+      links: draft.links.length > 0 ? draft.links : [''],
+      references: referenceSlots(strings(draft.references, [])),
+      goals: draft.goals.filter((goal) => typeof goal === 'string') as IntakeGoalId[],
+      note: draft.note,
+      city: draft.city,
+      stats: {
+        followers: typeof stats.followers === 'string' ? stats.followers : '',
+        reach: typeof stats.reach === 'string' ? stats.reach : '',
+        bestPost: typeof stats.bestPost === 'string' ? stats.bestPost : '',
+      },
+      schedule: {
+        shootDays: Array.isArray(schedule.shootDays)
+          ? schedule.shootDays.filter((day) => typeof day === 'number')
+          : [],
+        shootTime: typeof schedule.shootTime === 'string' ? schedule.shootTime : '',
+        publishTime: typeof schedule.publishTime === 'string' ? schedule.publishTime : '',
+      },
+    };
   } catch {
     return undefined;
   }
@@ -140,6 +192,7 @@ export class Intake {
   private readonly api = inject(ApiClient);
   private readonly clientErrors = inject(ClientErrors);
   private readonly account = inject(Account);
+  private readonly access = inject(Access);
   private readonly sync = inject(Sync);
   private readonly router = inject(Router);
 
@@ -152,7 +205,29 @@ export class Intake {
   readonly error = signal<string | undefined>(undefined);
   readonly editing = signal(false);
   readonly reviewMode = signal(false);
-  readonly draft = signal<IntakeDraft>(emptyDraft());
+  readonly draft = signal<IntakeDraft>(readDraft() ?? emptyDraft());
+
+  constructor() {
+    effect(() => {
+      const draft = this.draft();
+      try {
+        if (JSON.stringify(draft) === JSON.stringify(emptyDraft())) {
+          localStorage.removeItem(INTAKE_DRAFT_STORAGE_KEY);
+        } else {
+          localStorage.setItem(INTAKE_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+        }
+      } catch {
+        return;
+      }
+    });
+    effect(() => {
+      if (this.account.signedIn() || this.access.granted()) {
+        untracked(() => void this.refresh());
+      } else {
+        untracked(() => this.reset());
+      }
+    });
+  }
 
   readonly pending = computed(() => this.request()?.status === 'new');
   readonly ready = computed(() => this.request()?.status === 'ready');
@@ -181,16 +256,6 @@ export class Intake {
       (!this.reviewMode() || this.statsValid())
     );
   });
-
-  constructor() {
-    effect(() => {
-      if (this.account.signedIn()) {
-        untracked(() => void this.refresh());
-      } else {
-        untracked(() => this.reset());
-      }
-    });
-  }
 
   async refresh(): Promise<void> {
     try {

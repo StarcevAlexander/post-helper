@@ -4,8 +4,22 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { samplePlan } from '../../testing/plan-fixture';
 import { CalendarPlan } from '../../services/calendar-plan';
+import { Media } from '../../services/media';
 import { Refs } from '../../services/refs';
 import { CalendarScreen } from './calendar-screen';
+
+function fakeTouch(target: EventTarget, x: number, y: number): Touch {
+  return { identifier: 1, target, clientX: x, clientY: y } as unknown as Touch;
+}
+
+function swipe(card: Element, fromX: number, toX: number): void {
+  card.dispatchEvent(
+    new TouchEvent('touchstart', { touches: [fakeTouch(card, fromX, 40)] }),
+  );
+  card.dispatchEvent(
+    new TouchEvent('touchend', { changedTouches: [fakeTouch(card, toX, 40)] }),
+  );
+}
 
 describe('CalendarScreen', () => {
   beforeEach(() => {
@@ -66,6 +80,59 @@ describe('CalendarScreen', () => {
     expect(links[0].getAttribute('href')).toBe(`/item/${plan.items()[0].id}`);
     expect(element.textContent).not.toContain('Открыть комплект');
     expect(element.querySelector('.item__move')).toBeNull();
+  });
+
+  it('tells while the content is being processed', async () => {
+    const { fixture, element } = setUp();
+    await fixture.whenStable();
+    const [first] = TestBed.inject(CalendarPlan).items();
+
+    TestBed.inject(Media).statuses.set([
+      {
+        id: 'm1',
+        key: first.id,
+        unit: '',
+        kind: 'photo',
+        format: first.format,
+        status: 'running',
+        error: '',
+        createdAt: '2026-10-26T10:00:00Z',
+        source: { name: 'a.jpg', type: 'image/jpeg', size: 1 },
+        redos: 0,
+        canRedo: false,
+      },
+    ]);
+    fixture.detectChanges();
+
+    expect(element.textContent).toContain('Контент обрабатывается');
+  });
+
+  it('marks a publication as done by a swipe to the right', async () => {
+    const { fixture, element } = setUp();
+    await fixture.whenStable();
+    const [first] = TestBed.inject(CalendarPlan).items();
+    const card = element.querySelector<HTMLLIElement>('.item')!;
+
+    swipe(card, 40, 160);
+    await fixture.whenStable();
+
+    expect(TestBed.inject(CalendarPlan).items()[0].done).toBe(true);
+    expect(element.querySelector('.item--done')).toBeTruthy();
+  });
+
+  it('moves a publication away by a swipe to the left', async () => {
+    const { fixture, element } = setUp();
+    await fixture.whenStable();
+    const [first] = TestBed.inject(CalendarPlan).items();
+    const card = element.querySelector<HTMLLIElement>('.item')!;
+
+    swipe(card, 160, 40);
+    await fixture.whenStable();
+
+    const moved = TestBed.inject(CalendarPlan).items()[0];
+    expect(moved.movedFrom).toBe(first.date);
+    expect(moved.date).not.toBe(first.date);
+    expect(element.querySelector('.moved')?.textContent).toContain('перенесено на');
   });
 
   it('warns when references are blocked', async () => {

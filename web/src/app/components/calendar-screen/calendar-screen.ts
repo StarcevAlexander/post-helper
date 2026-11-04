@@ -6,6 +6,7 @@ import {
   DAY_FORMAT,
   DONE_LABEL,
   FORMAT_LABELS,
+  MEDIA_TEXTS,
   RANGE_FORMAT,
   REFS_TEXTS,
   RESCHEDULE_TEXTS,
@@ -16,6 +17,7 @@ import {
 } from '../../constants';
 import { CalendarWeekView } from '../../models';
 import { CalendarPlan } from '../../services/calendar-plan';
+import { Media } from '../../services/media';
 import { Refs } from '../../services/refs';
 import { Reschedule } from '../../services/reschedule';
 import { fromDateKey } from '../../utils/date-utils';
@@ -30,7 +32,9 @@ export class CalendarScreen {
   protected readonly plan = inject(CalendarPlan);
   protected readonly refs = inject(Refs);
   protected readonly reschedule = inject(Reschedule);
+  private readonly media = inject(Media);
   protected readonly refsTexts = REFS_TEXTS;
+  protected readonly mediaTexts = MEDIA_TEXTS;
   protected readonly moveTexts = RESCHEDULE_TEXTS;
   protected readonly shootLabel = SHOOT_TEXTS.weekLink;
   protected readonly hint = CALENDAR_HINT;
@@ -49,11 +53,43 @@ export class CalendarScreen {
         item,
         dayLabel: `${DAY_FORMAT.format(fromDateKey(item.date))}, ${item.time}`,
         formatLabel: FORMAT_LABELS[item.format],
+        contentPending: this.media.contentPending(item.id),
       })),
     })),
   );
 
   protected movedLabel(from: string): string {
     return `${RESCHEDULE_TEXTS.movedFrom} ${DAY_FORMAT.format(fromDateKey(from))}`;
+  }
+
+  private touchStart: { id: string; x: number; y: number } | undefined;
+
+  protected onTouchStart(event: TouchEvent, id: string): void {
+    const touch = event.touches[0];
+    this.touchStart = { id, x: touch.clientX, y: touch.clientY };
+  }
+
+  protected onTouchEnd(event: TouchEvent, id: string): void {
+    const start = this.touchStart;
+    this.touchStart = undefined;
+    if (!start || start.id !== id) {
+      return;
+    }
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < 56 || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) {
+      return;
+    }
+    const item = this.plan.items().find((candidate) => candidate.id === id);
+    if (!item || item.done) {
+      return;
+    }
+    event.preventDefault();
+    if (deltaX > 0) {
+      this.plan.toggleDone(id);
+    } else {
+      this.reschedule.move(id);
+    }
   }
 }

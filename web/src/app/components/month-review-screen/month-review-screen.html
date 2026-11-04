@@ -1,4 +1,7 @@
 <div class="screen__body">
+  @if (daysLeftText(); as left) {
+    <p class="screen__hint" role="status">{{ left }}</p>
+  }
   @if (waiting()) {
     <p class="headline" role="status">{{ texts.waitingText }}</p>
   } @else if (reviews.due()) {

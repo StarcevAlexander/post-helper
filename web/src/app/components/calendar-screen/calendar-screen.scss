@@ -247,6 +247,12 @@
   text-decoration: line-through;
 }
 
+.item__status {
+  display: block;
+  margin: 0;
+  padding: 0 0 0.25rem 1.875rem;
+}
+
 .moved {
   display: flex;
   flex-wrap: wrap;

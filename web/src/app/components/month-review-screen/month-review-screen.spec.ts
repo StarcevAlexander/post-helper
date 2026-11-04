@@ -67,6 +67,22 @@ describe('MonthReviewScreen', () => {
     expect(element.querySelector('.screen__primary')).toBeNull();
   });
 
+  it('counts the days until the plan ends', async () => {
+    planEndingIn(5);
+
+    const { element } = await render();
+
+    expect(element.textContent).toContain('До конца плана: 5 дней');
+  });
+
+  it('says the plan ends today', async () => {
+    planEndingIn(0);
+
+    const { element } = await render();
+
+    expect(element.textContent).toContain('План заканчивается сегодня');
+  });
+
   it('shows a delivered review with its numbers, conclusions and changes', async () => {
     localStorage.setItem(MONTH_REVIEWS_STORAGE_KEY, JSON.stringify([delivered]));
 

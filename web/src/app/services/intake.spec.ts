@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import {
   API_DEV_URL,
+  INTAKE_DRAFT_STORAGE_KEY,
   API_INTAKE_PATH,
   API_ME_PATH,
   INTAKE_MAX_LINKS,
@@ -14,6 +15,7 @@ import {
 } from '../constants';
 import { IntakeRequest } from '../models';
 import { Access } from './access';
+import { Account } from './account';
 import { Intake } from './intake';
 import { Sync } from './sync';
 
@@ -32,6 +34,85 @@ function request(overrides: Partial<IntakeRequest> = {}): IntakeRequest {
     ...overrides,
   };
 }
+
+describe('Intake draft autosave', () => {
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    const account = TestBed.inject(Account);
+    Object.defineProperty(account, 'signedIn', { get: () => () => true, configurable: true });
+    TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  function answerRefresh(): void {
+    TestBed.tick();
+    http
+      .match({ method: 'GET', url: `${API_DEV_URL}${API_ME_PATH}` })
+      .forEach((request) => request.flush({ name: "Тест", retentionDays: 0 }));
+    TestBed.tick();
+    http
+      .expectOne({ method: 'GET', url: intakeUrl })
+      .flush(null, { status: 204, statusText: 'No Content' });
+  }
+
+  it('saves the draft while the master types and restores it on reload', async () => {
+    TestBed.inject(Intake);
+    answerRefresh();
+
+    const first = TestBed.inject(Intake);
+    first.setNote('Без танцев в кадре');
+    first.setCity('Иркутск');
+    TestBed.tick();
+    expect(localStorage.getItem(INTAKE_DRAFT_STORAGE_KEY)).toContain('Без танцев в кадре');
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    const secondAccount = TestBed.inject(Account);
+    Object.defineProperty(secondAccount, 'signedIn', { get: () => () => true, configurable: true });
+    TestBed.inject(Access).save('ABCDE-FGHJK-LMNPQ-RSTUV');
+    const secondHttp = TestBed.inject(HttpTestingController);
+    const second = TestBed.inject(Intake);
+    TestBed.tick();
+    secondHttp
+      .match({ method: 'GET', url: `${API_DEV_URL}${API_ME_PATH}` })
+      .forEach((request) => request.flush({ name: "Тест", retentionDays: 0 }));
+    TestBed.tick();
+    secondHttp
+      .expectOne({ method: 'GET', url: intakeUrl })
+      .flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(second.draft().note).toBe('Без танцев в кадре');
+    expect(second.draft().city).toBe('Иркутск');
+  });
+
+  it('clears the stored draft when it becomes empty', async () => {
+    TestBed.inject(Intake);
+    answerRefresh();
+
+    const intake = TestBed.inject(Intake);
+    intake.setNote('что-то написали');
+    TestBed.tick();
+    expect(localStorage.getItem(INTAKE_DRAFT_STORAGE_KEY)).toContain('что-то написали');
+
+    intake.setNote('');
+    TestBed.tick();
+
+    expect(localStorage.getItem(INTAKE_DRAFT_STORAGE_KEY)).toBeNull();
+  });
+});
 
 describe('Intake', () => {
   let intake: Intake;

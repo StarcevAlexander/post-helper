@@ -14,6 +14,8 @@ export const INTAKE_MAX_NOTE_LENGTH = 2000;
 
 export const INTAKE_SEEN_STORAGE_KEY = 'helper.intake-seen';
 
+export const INTAKE_DRAFT_STORAGE_KEY = 'helper.intake-draft';
+
 export const INTAKE_GOALS: readonly IntakeGoal[] = [
   { id: 'reach', label: 'Увеличить охваты' },
   { id: 'followers', label: 'Больше подписчиков' },
