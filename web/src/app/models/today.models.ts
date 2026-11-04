@@ -4,17 +4,15 @@ export interface TodayEntry {
   item: PlanItem;
   whenLabel: string;
   formatLabel: string;
-  hasKit: boolean;
-  captionText?: string;
-  refLabel?: string;
-  refStale: boolean;
-  contentLabel?: string;
   contentPending: boolean;
-  ideaRequested: boolean;
 }
 
 export interface TodayCopyFeedback {
   id: string;
+  ok: boolean;
+}
+
+export interface ItemCopyFeedback {
   ok: boolean;
 }
 

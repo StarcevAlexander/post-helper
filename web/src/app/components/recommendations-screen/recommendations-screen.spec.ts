@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { RECOMMENDATIONS_STORAGE_KEY } from '../../constants';
 import { RecommendationsScreen } from './recommendations-screen';
 
@@ -10,6 +11,7 @@ const stored = [
 describe('RecommendationsScreen', () => {
   beforeEach(() => {
     localStorage.clear();
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
   });
 
   afterEach(() => {

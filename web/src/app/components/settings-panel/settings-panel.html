@@ -86,6 +86,7 @@
           @if (syncText()) {
             <p class="account__hint" role="status">{{ syncText() }}</p>
           }
+          <p class="account__hint">Версия v{{ version }}</p>
           @if (yandex.linked()) {
             <p class="account__hint">{{ yandexTexts.linked }}</p>
           }

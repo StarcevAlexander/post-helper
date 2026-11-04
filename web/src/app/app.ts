@@ -20,7 +20,6 @@ import { Today } from './services/today';
 import { YandexAuth } from './services/yandex-auth';
 import { forgetLegacyStorage } from './utils/legacy-storage';
 import { hideSplash, showSplash } from './utils/splash';
-import { APP_VERSION } from './version';
 
 @Component({
   imports: [AccessGate, RouterLink, RouterLinkActive, RouterOutlet],
@@ -46,7 +45,6 @@ export class App {
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly updateTexts = UPDATE_TEXTS;
   protected readonly readyBanner = PLAN_READY_BANNER;
-  protected readonly version = APP_VERSION;
 
   private tutorialOpened = false;
 

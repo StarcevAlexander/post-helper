@@ -6,7 +6,11 @@
         <p class="screen__chip">{{ day }}</p>
       }
     </header>
-    <p class="screen__hint">{{ texts.intro }}</p>
+    <p class="screen__hint">{{ texts.introShort }}</p>
+    <details class="shoot__how">
+      <summary>{{ texts.howLabel }}</summary>
+      <p class="screen__hint">{{ texts.intro }}</p>
+    </details>
 
     @for (entry of shoot.entries; track entry.item.id) {
       <article class="entry" [class.entry--done]="progress.isDone(entry.readyMark)">

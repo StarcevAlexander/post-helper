@@ -22,6 +22,7 @@ export const NAV_TEXTS = {
   reviews: 'Итоги',
   profile: 'Профиль',
   intake: 'Заявка',
+  item: 'Публикация',
   back: 'Назад',
   brand: 'Помощник',
 } as const;
@@ -43,6 +44,7 @@ export const ROUTE_TITLES = {
   faq: FAQ_TEXTS.title,
   feedback: FEEDBACK_TEXTS.title,
   replace: IDEA_REQUEST_TEXTS.title,
+  item: 'Публикация',
 } as const;
 
 export const SETTINGS_SECTION_TITLES = {
@@ -68,10 +70,5 @@ export const NAV_TABS = [
     link: '/profile',
     label: NAV_TEXTS.profile,
     icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
-  },
-  {
-    link: '/intake',
-    label: NAV_TEXTS.intake,
-    icon: 'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1zM8 6H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2M8 12h8M8 16h5',
   },
 ] as const;

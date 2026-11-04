@@ -75,7 +75,7 @@ describe('App', () => {
     expect(element.querySelector('app-intake-screen')).toBeTruthy();
   });
 
-  it('opens today once the plan has arrived and offers five tabs', async () => {
+  it('opens today once the plan has arrived and offers four tabs', async () => {
     localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
     localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(calendar));
 
@@ -88,7 +88,6 @@ describe('App', () => {
       'Календарь',
       'Итоги',
       'Профиль',
-      'Заявка',
     ]);
     expect(element.querySelector('.tab--active')?.textContent).toContain('Сегодня');
     expect(element.querySelector('.shell__back')).toBeNull();

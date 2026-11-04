@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { APP_VERSION } from '../../version';
 import { RouterLink } from '@angular/router';
 import { form, FormField, maxLength } from '@angular/forms/signals';
 import {
@@ -58,6 +59,7 @@ export class SettingsPanel {
   protected readonly pushTexts = PUSH_TEXTS;
   protected readonly accountLabels = ACCOUNT_LABELS;
   protected readonly accountTexts = ACCOUNT_TEXTS;
+  protected readonly version = APP_VERSION;
   protected readonly retentionNote = RETENTION_NOTE_FOR_MASTER;
   protected readonly retention = computed(() =>
     formatRetention(this.account.info()?.retentionDays ?? 0),

@@ -54,6 +54,12 @@ const screens: Routes = [
       import('./components/intake-screen/intake-screen').then((m) => m.IntakeScreen),
   },
   {
+    path: 'item/:id',
+    title: ROUTE_TITLES.item,
+    data: { back: true },
+    loadComponent: () => import('./components/item-screen/item-screen').then((m) => m.ItemScreen),
+  },
+  {
     path: 'kit/:id',
     title: ROUTE_TITLES.kit,
     data: { back: true },

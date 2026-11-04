@@ -5,10 +5,9 @@
     rows="3"
     [id]="'media-note-' + itemId()"
     [maxLength]="maxLength"
-    [attr.aria-describedby]="'media-note-hint-' + itemId()"
+    [placeholder]="texts.notePlaceholder"
     [value]="value()"
     (input)="onInput(note)"
     #note
   ></textarea>
-  <p class="note__hint" [id]="'media-note-hint-' + itemId()">{{ texts.noteHint }}</p>
 </div>

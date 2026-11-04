@@ -1,0 +1,97 @@
+<div class="screen__body">
+  @if (view(); as v) {
+    <article class="entry" [class.entry--done]="v.item.done">
+      <label class="entry__label">
+        <input
+          type="checkbox"
+          class="entry__check"
+          [checked]="v.item.done"
+          [attr.aria-label]="todayTexts.done + ': ' + v.item.idea"
+          (change)="plan.toggleDone(v.item.id)"
+        />
+        <span class="entry__text">
+          <span class="entry__when">
+            {{ v.whenLabel }}
+            <span class="entry__format" [attr.data-format]="v.item.format">
+              {{ v.formatLabel }}
+            </span>
+            @if (v.item.movedFrom; as movedFrom) {
+              <span class="entry__moved">{{ movedLabel(movedFrom) }}</span>
+            }
+          </span>
+          <span class="entry__idea">{{ v.item.idea }}</span>
+          <span class="entry__pillar">{{ v.item.pillar }}</span>
+        </span>
+      </label>
+      @if (v.contentPending) {
+        <span class="entry__status" role="status">{{ mediaTexts.contentPending }}</span>
+      }
+      @if (v.captionText; as captionText) {
+        <div class="caption">
+          <div class="caption__header">
+            <h4 class="caption__title">{{ todayTexts.captionTitle }}</h4>
+            <button
+              type="button"
+              class="screen__secondary caption__copy"
+              (click)="onCopyCaption(captionText)"
+            >
+              {{ todayTexts.copyCaption }}
+            </button>
+          </div>
+          <p class="caption__text">{{ captionText }}</p>
+        </div>
+      }
+      <div class="entry__actions">
+        @if (v.hasKit) {
+          <a class="entry__button" [routerLink]="['/kit', v.item.id]">{{ kitOpenLabel }}</a>
+        } @else {
+          <span class="entry__status">{{ kitPendingLabel }}</span>
+        }
+        @if (v.refLabel) {
+          <a
+            class="entry__button"
+            [class.entry__button--warn]="v.refStale"
+            [routerLink]="['/refs', v.item.id]"
+          >
+            {{ v.refLabel }}
+          </a>
+        }
+        @if (v.contentLabel) {
+          <a class="entry__button" [routerLink]="['/content', v.item.id]">
+            {{ v.contentLabel }}
+          </a>
+        }
+        @if (!v.item.done) {
+          <button
+            type="button"
+            class="entry__button entry__move"
+            [attr.aria-label]="moveTexts.move + ' ' + moveTexts.moveHint + ': ' + v.item.idea"
+            (click)="reschedule.move(v.item.id)"
+          >
+            {{ moveTexts.move }}
+          </button>
+          @if (v.item.movedFrom; as movedFrom) {
+            <button
+              type="button"
+              class="entry__button entry__return"
+              [attr.aria-label]="returnLabel(movedFrom) + ': ' + v.item.idea"
+              (click)="plan.undoMove(v.item.id)"
+            >
+              {{ returnLabel(movedFrom) }}
+            </button>
+          }
+          @if (v.ideaRequested) {
+            <span class="entry__status">{{ ideaTexts.requested }}</span>
+          } @else {
+            <a class="entry__replace entry__button" [routerLink]="['/replace', v.item.id]">
+              {{ ideaTexts.open }}
+            </a>
+          }
+        }
+      </div>
+      <p class="entry__feedback" role="status" aria-live="polite">{{ feedbackText() }}</p>
+    </article>
+  } @else {
+    <p class="screen__hint">{{ mediaTexts.missing }}</p>
+  }
+</div>

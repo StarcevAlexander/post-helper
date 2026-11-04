@@ -240,3 +240,24 @@
     outline-offset: 0.125rem;
   }
 }
+
+.shoot__how {
+  summary {
+    min-height: 2.25rem;
+    display: flex;
+    align-items: center;
+    color: var(--accent-strong);
+    font-size: 0.8125rem;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 0.125rem solid var(--focus);
+      outline-offset: 0.125rem;
+      border-radius: 0.5rem;
+    }
+  }
+
+  .screen__hint {
+    margin-top: 0.5rem;
+  }
+}

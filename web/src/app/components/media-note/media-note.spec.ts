@@ -24,7 +24,7 @@ describe('MediaNote', () => {
     return { fixture, element: fixture.nativeElement as HTMLElement };
   }
 
-  it('shows the label, the hint and the saved text', async () => {
+  it('shows the label, the placeholder and the saved text', async () => {
     TestBed.inject(Media).setNote('w1-mon', 'Мой текст');
 
     const { element } = await render();
@@ -33,10 +33,11 @@ describe('MediaNote', () => {
     expect(element.querySelector('label')?.textContent).toContain(
       'Что хотите сказать в этой публикации',
     );
-    expect(element.textContent).toContain('Я перепишу это в продающий текст');
+    expect(area.getAttribute('placeholder')).toContain('Перепишу в продающий текст');
+    expect(element.querySelector('.note__hint')).toBeNull();
     expect(area.value).toBe('Мой текст');
     expect(area.maxLength).toBe(1000);
-    expect(area.getAttribute('aria-describedby')).toBe('media-note-hint-w1-mon');
+    expect(area.getAttribute('aria-describedby')).toBeNull();
   });
 
   it('saves what the master types', async () => {

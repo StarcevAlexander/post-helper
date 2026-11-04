@@ -31,6 +31,40 @@
   text-transform: uppercase;
 }
 
+.section__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+    border-radius: 0.5rem;
+  }
+}
+
+.section__toggle-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .entry {
   display: flex;
   flex-direction: column;
@@ -40,18 +74,11 @@
   border-radius: 0.75rem;
 }
 
-.entry__label {
+.entry__row {
   display: flex;
   align-items: flex-start;
   gap: 0.625rem;
   min-height: 2.75rem;
-  cursor: pointer;
-
-  &:has(input:focus-visible) {
-    outline: 0.125rem solid var(--focus);
-    outline-offset: 0.125rem;
-    border-radius: 0.5rem;
-  }
 }
 
 .entry__check {
@@ -60,6 +87,11 @@
   height: 1.25rem;
   margin: 0.125rem 0 0;
   accent-color: var(--accent-strong);
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
 }
 
 .entry__text {
@@ -67,6 +99,15 @@
   flex-direction: column;
   gap: 0.125rem;
   line-height: 1.4;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.25rem;
+    border-radius: 0.5rem;
+  }
 }
 
 .entry__when {
@@ -84,6 +125,21 @@
   border-radius: 1rem;
   color: var(--accent-strong);
   font-size: 0.75rem;
+
+  &[data-format='reels'] {
+    border-color: #b197fc;
+    color: #b197fc;
+  }
+
+  &[data-format='post'] {
+    border-color: #74c0fc;
+    color: #74c0fc;
+  }
+
+  &[data-format='stories'] {
+    border-color: #fcc2d7;
+    color: #fcc2d7;
+  }
 }
 
 .entry__idea {
@@ -101,83 +157,6 @@
     text-decoration: line-through;
     opacity: 0.6;
   }
-}
-
-.entry__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.caption {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  background: var(--chip);
-}
-
-.caption__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.caption__title {
-  margin: 0;
-  color: var(--accent-strong);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.caption__copy {
-  flex: none;
-  min-height: 2.25rem;
-  padding: 0 1rem;
-}
-
-.caption__text {
-  margin: 0;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.entry__feedback {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 1.25rem;
-  margin: 0;
-  color: var(--accent-strong);
-  font-size: 0.875rem;
-}
-
-.moved {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.75rem;
-  background: var(--chip);
-  color: var(--text);
-  font-size: 0.9375rem;
-  line-height: 1.4;
-}
-
-.entry__moved {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  text-decoration: line-through;
 }
 
 .entry__status {
@@ -207,9 +186,25 @@
   }
 }
 
-.entry__button--warn {
-  border-color: var(--danger, #b3261e);
-  color: var(--danger, #b3261e);
+.moved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--chip);
+  color: var(--text);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.entry__moved {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-decoration: line-through;
 }
 
 .screen__primary,
@@ -232,6 +227,9 @@
 }
 
 .screen__secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 0.0625rem solid var(--accent-strong);
   background: transparent;
   color: var(--accent-strong);

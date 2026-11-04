@@ -50,108 +50,51 @@
     }
     @for (section of sections(); track section.kind) {
       <section class="section">
-        <h3 class="section__heading">{{ section.title }}</h3>
-        @for (entry of section.entries; track entry.item.id) {
-          <article class="entry" [class.entry--done]="entry.item.done">
-            <label class="entry__label">
-              <input
-                type="checkbox"
-                class="entry__check"
-                [checked]="entry.item.done"
-                [attr.aria-label]="texts.done + ': ' + entry.item.idea"
-                (change)="plan.toggleDone(entry.item.id)"
-              />
-              <span class="entry__text">
-                <span class="entry__when">
-                  {{ entry.whenLabel }}
-                  <span class="entry__format" [attr.data-format]="entry.item.format">
-                    {{ entry.formatLabel }}
+        @if (section.kind === 'overdue') {
+          <button
+            type="button"
+            class="section__toggle"
+            [attr.aria-expanded]="missedOpen()"
+            (click)="toggleMissed()"
+          >
+            {{ missedLabel(section.entries.length) }}
+            <span class="section__toggle-label">{{
+              missedOpen() ? texts.missedHide : texts.missedShow
+            }}</span>
+          </button>
+        } @else {
+          <h3 class="section__heading">{{ section.title }}</h3>
+        }
+        @if (!missedHidden(section.kind)) {
+          @for (entry of section.entries; track entry.item.id) {
+            <article class="entry" [class.entry--done]="entry.item.done">
+              <div class="entry__row">
+                <input
+                  type="checkbox"
+                  class="entry__check"
+                  [checked]="entry.item.done"
+                  [attr.aria-label]="texts.done + ': ' + entry.item.idea"
+                  (change)="plan.toggleDone(entry.item.id)"
+                />
+                <a class="entry__text" [routerLink]="['/item', entry.item.id]">
+                  <span class="entry__when">
+                    {{ entry.whenLabel }}
+                    <span class="entry__format" [attr.data-format]="entry.item.format">
+                      {{ entry.formatLabel }}
+                    </span>
+                    @if (entry.item.movedFrom; as movedFrom) {
+                      <span class="entry__moved">{{ movedLabel(movedFrom) }}</span>
+                    }
                   </span>
-                  @if (entry.item.movedFrom; as movedFrom) {
-                    <span class="entry__moved">{{ movedLabel(movedFrom) }}</span>
-                  }
-                </span>
-                <span class="entry__idea">{{ entry.item.idea }}</span>
-                <span class="entry__pillar">{{ entry.item.pillar }}</span>
-              </span>
-            </label>
-            @if (entry.captionText; as captionText) {
-              <div class="caption">
-                <div class="caption__header">
-                  <h4 class="caption__title">{{ texts.captionTitle }}</h4>
-                  <button
-                    type="button"
-                    class="screen__secondary caption__copy"
-                    (click)="onCopyCaption(entry)"
-                  >
-                    {{ texts.copyCaption }}
-                  </button>
-                </div>
-                <p class="caption__text">{{ captionText }}</p>
+                  <span class="entry__idea">{{ entry.item.idea }}</span>
+                  <span class="entry__pillar">{{ entry.item.pillar }}</span>
+                </a>
               </div>
-            }
-            <div class="entry__actions">
-              @if (entry.hasKit) {
-                <a class="entry__button" [routerLink]="['/kit', entry.item.id]">
-                  {{ texts.openKit }}
-                </a>
-              } @else {
-                <span class="entry__status">{{ texts.kitPending }}</span>
-              }
-              @if (entry.refLabel) {
-                <a
-                  class="entry__button"
-                  [class.entry__button--warn]="entry.refStale"
-                  [routerLink]="['/refs', entry.item.id]"
-                >
-                  {{ entry.refLabel }}
-                </a>
-              }
-              @if (entry.contentLabel) {
-                <a class="entry__button" [routerLink]="['/content', entry.item.id]">
-                  {{ entry.contentLabel }}
-                </a>
-              }
               @if (entry.contentPending) {
                 <span class="entry__status" role="status">{{ mediaTexts.contentPending }}</span>
               }
-              @if (!entry.item.done) {
-                <button
-                  type="button"
-                  class="entry__button entry__move"
-                  [attr.aria-label]="
-                    moveTexts.move + ' ' + moveTexts.moveHint + ': ' + entry.item.idea
-                  "
-                  (click)="reschedule.move(entry.item.id)"
-                >
-                  {{ moveTexts.move }}
-                </button>
-                @if (entry.item.movedFrom; as movedFrom) {
-                  <button
-                    type="button"
-                    class="entry__button entry__return"
-                    [attr.aria-label]="returnLabel(movedFrom) + ': ' + entry.item.idea"
-                    (click)="plan.undoMove(entry.item.id)"
-                  >
-                    {{ returnLabel(movedFrom) }}
-                  </button>
-                }
-                @if (entry.ideaRequested) {
-                  <span class="entry__status">{{ ideaTexts.requested }}</span>
-                } @else {
-                  <a
-                    class="entry__replace entry__button"
-                    [routerLink]="['/replace', entry.item.id]"
-                  >
-                    {{ ideaTexts.open }}
-                  </a>
-                }
-              }
-            </div>
-            <p class="entry__feedback" role="status" aria-live="polite">
-              {{ feedbackText(entry.item.id) }}
-            </p>
-          </article>
+            </article>
+          }
         }
       </section>
     }

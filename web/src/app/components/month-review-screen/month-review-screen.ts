@@ -1,10 +1,12 @@
 import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { LONG_DAY_FORMAT, MONTH_REVIEW_TEXTS } from '../../constants';
 import { Intake } from '../../services/intake';
 import { MonthReviews } from '../../services/month-reviews';
 import { fromDateKey } from '../../utils/date-utils';
 
 @Component({
+  imports: [RouterLink],
   selector: 'app-month-review-screen',
   styleUrl: './month-review-screen.scss',
   templateUrl: './month-review-screen.html',
